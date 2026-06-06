@@ -50,6 +50,8 @@ jobs:
                   "database_url": "postgresql+asyncpg://pantera:pantera@localhost:5432/pantera",
                   "redis_url": "redis://localhost:6379/0",
                   "anthropic_api_key": "ci-test-key",
+                  # spec 2: required at boot; signs JWTs in the auth integration tests.
+                  "auth_jwt_secret": "ci-test-jwt-secret",
               },
           )
           print("secrets written")
