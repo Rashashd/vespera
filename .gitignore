@@ -1,3 +1,33 @@
 CLAUDE.md
 .claude/
 .specify/
+memory/
+specs/
+
+# Secrets — never commit real secret values (all real secrets live in Vault)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# uv
+.uv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp

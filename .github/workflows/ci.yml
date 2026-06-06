@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # Secret scanning — blocks any secret from entering the repo (US2 / FR-003).
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so gitleaks scans past commits too
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+  # Lint, type-check, and test against the real stack with coverage gates (T044).
+  test:
+    runs-on: ubuntu-latest
+    env:
+      VAULT_ADDR: http://localhost:8200
+      VAULT_TOKEN: root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Sync dependencies
+        run: uv sync
+      - name: Ruff lint (incl. ASYNC rules for FR-018)
+        run: uv run ruff check app worker tests scripts
+      - name: Black format check
+        run: uv run black --check app worker tests scripts
+      - name: Type-check (advisory)
+        run: uv run mypy app worker || true
+      - name: Start infra (Vault + Postgres + Redis)
+        run: docker compose up -d --wait vault postgres redis
+      - name: Write secrets into Vault
+        env:
+          DATABASE_URL: postgresql+asyncpg://pantera:pantera@localhost:5432/pantera
+          REDIS_URL: redis://localhost:6379/0
+          ANTHROPIC_API_KEY: ci-test-key
+        run: uv run python scripts/write_secrets.py
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+      - name: Tests with coverage (80% overall gate)
+        env:
+          PANTERA_INTEGRATION: "1"
+          DATABASE_URL: postgresql+asyncpg://pantera:pantera@localhost:5432/pantera
+          REDIS_URL: redis://localhost:6379/0
+        run: uv run pytest --cov=app --cov=worker --cov-report=term-missing
