@@ -6,9 +6,15 @@ Operational guide for running Pantera locally and in production.
 
 1. `cp .env.example .env` (only `VAULT_ADDR` / `VAULT_TOKEN`; no real secrets).
 2. `docker compose up -d vault postgres redis`
-3. Write secrets into Vault once:
+3. Write secrets into Vault once. `scripts/write_secrets.py` is a **local-only helper**
+   (gitignored — not in a fresh clone). If present:
    `ANTHROPIC_API_KEY=... uv run python scripts/write_secrets.py`
-4. Apply the baseline schema: `uv run alembic upgrade head`
+   Otherwise write them with the Vault CLI:
+   `docker compose exec -e VAULT_TOKEN=root vault vault kv put secret/pantera/secrets \
+     database_url='postgresql+asyncpg://pantera:pantera@postgres:5432/pantera' \
+     redis_url='redis://redis:6379/0' anthropic_api_key='<key>'`
+4. Apply the baseline schema (in-container so hostnames resolve):
+   `docker compose run --rm api alembic upgrade head`
 5. `docker compose up -d` — then `curl http://localhost:8000/health` → `{"status":"ok"}`.
 
 ## Startup behavior

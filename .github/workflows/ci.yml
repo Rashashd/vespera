@@ -37,12 +37,23 @@ jobs:
         run: uv run mypy app worker || true
       - name: Start infra (Vault + Postgres + Redis)
         run: docker compose up -d --wait vault postgres redis
-      - name: Write secrets into Vault
-        env:
-          DATABASE_URL: postgresql+asyncpg://pantera:pantera@localhost:5432/pantera
-          REDIS_URL: redis://localhost:6379/0
-          ANTHROPIC_API_KEY: ci-test-key
-        run: uv run python scripts/write_secrets.py
+      - name: Write secrets into Vault (inline; the local helper script is untracked)
+        run: |
+          uv run python - <<'PY'
+          import os
+          import hvac
+
+          client = hvac.Client(url=os.environ["VAULT_ADDR"], token=os.environ["VAULT_TOKEN"])
+          client.secrets.kv.v2.create_or_update_secret(
+              path="pantera/secrets",
+              secret={
+                  "database_url": "postgresql+asyncpg://pantera:pantera@localhost:5432/pantera",
+                  "redis_url": "redis://localhost:6379/0",
+                  "anthropic_api_key": "ci-test-key",
+              },
+          )
+          print("secrets written")
+          PY
       - name: Apply migrations
         run: uv run alembic upgrade head
       - name: Tests with coverage (80% overall gate)

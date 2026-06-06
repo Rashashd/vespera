@@ -9,6 +9,9 @@ specs/
 .env.*
 !.env.example
 
+# Local-only Vault provisioning helper (kept out of the repo intentionally)
+scripts/write_secrets.py
+
 # Python
 __pycache__/
 *.py[cod]
