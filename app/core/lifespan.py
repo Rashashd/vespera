@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.audit.handler import register_audit_handlers
+from app.auth.rate_limit import use_redis_storage
 from app.core.config import get_settings
 from app.core.dispatcher import EventDispatcher
 from app.core.startup import load_secrets_from_vault, run_startup_checks
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     dispatcher = EventDispatcher()
     register_audit_handlers(dispatcher)  # audit log listens to every domain event
     limiter = build_limiter(settings.redis_url)
+    use_redis_storage(settings.redis_url)  # spec 2: login limiter enforces against Redis (FR-010)
 
     # 3. Fail-fast validation before serving.
     await run_startup_checks(engine, redis, settings)
