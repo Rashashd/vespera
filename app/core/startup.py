@@ -9,8 +9,8 @@ from app.observability.logging import get_logger
 
 _log = get_logger(__name__)
 
-# Secrets that MUST be present for the foundation to boot (FR-002).
-_REQUIRED_SECRETS = ("database_url", "redis_url")
+# Secrets that MUST be present for the foundation to boot (FR-002); auth_jwt_secret added in spec 2.
+_REQUIRED_SECRETS = ("database_url", "redis_url", "auth_jwt_secret")
 
 
 async def load_secrets_from_vault(settings: Settings) -> None:
@@ -38,6 +38,10 @@ async def load_secrets_from_vault(settings: Settings) -> None:
     settings.openai_api_key = data.get("openai_api_key", "")
     settings.modelserver_token = data.get("modelserver_token", "")
     settings.guardrails_token = data.get("guardrails_token", "")
+    settings.auth_jwt_secret = data.get("auth_jwt_secret", "")
+    # Bootstrap admin credentials are optional at boot (only the seed script needs them).
+    settings.bootstrap_admin_email = data.get("bootstrap_admin_email", "")
+    settings.bootstrap_admin_password = data.get("bootstrap_admin_password", "")
 
     missing = [name for name in _REQUIRED_SECRETS if not getattr(settings, name)]
     if not (settings.anthropic_api_key or settings.openai_api_key):

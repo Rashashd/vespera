@@ -17,11 +17,13 @@ RUN uv sync --no-dev --frozen || uv sync --no-dev
 # Application code.
 COPY app ./app
 COPY worker ./worker
+COPY scripts ./scripts
 COPY alembic.ini ./alembic.ini
 
 RUN useradd --create-home appuser && chown -R appuser /app
 USER appuser
 
-ENV PATH="/app/.venv/bin:${PATH}"
+ENV PATH="/app/.venv/bin:${PATH}" \
+    PYTHONPATH="/app"
 
 EXPOSE 8000

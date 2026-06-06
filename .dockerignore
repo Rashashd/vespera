@@ -20,3 +20,6 @@ tests/
 Dockerfile
 .dockerignore
 docker-compose.yml
+docker-compose.override.yml
+# Local-only Vault secret-writing helper; never bake it into the image.
+scripts/write_secrets.py

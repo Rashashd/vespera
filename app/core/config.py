@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     preferred_provider: str = "anthropic"
     log_level: str = "INFO"
     sentry_dsn: str = ""  # non-secret DSN; empty disables Sentry
+    auth_token_ttl_seconds: int = 1800  # access-token lifetime ~30 min (spec 2 FR-001)
 
     # --- Secret fields: initialized empty, populated from Vault at startup ---
     database_url: str = ""
@@ -27,6 +28,11 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     modelserver_token: str = ""
     guardrails_token: str = ""
+    auth_jwt_secret: str = ""  # JWT signing secret (spec 2 FR-015); from Vault, never .env
+    # Bootstrap admin (spec 2 FR-011): consumed only by scripts/seed_admin.py, from Vault.
+    bootstrap_admin_email: str = ""
+    bootstrap_admin_password: str = ""
+    bootstrap_admin_client_id: int = 1
 
 
 def get_settings() -> Settings:

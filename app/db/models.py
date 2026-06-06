@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Index, String, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,6 +20,10 @@ class AuditLog(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     actor_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     actor_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Human-actor referential link (spec 2, research D5); NULL for system events (sentinel 0).
+    actor_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id"), nullable=True
+    )
     action: Mapped[str] = mapped_column(String, nullable=False)
     target: Mapped[str] = mapped_column(String, nullable=False)
     event_type: Mapped[str] = mapped_column(String, nullable=False)
@@ -32,6 +36,7 @@ class AuditLog(Base):
     __table_args__ = (
         Index("ix_audit_log_actor_id", "actor_id"),
         Index("ix_audit_log_actor_type", "actor_type"),
+        Index("ix_audit_log_actor_user_id", "actor_user_id"),
         Index("ix_audit_log_client_id", "client_id"),
         Index("ix_audit_log_created_at", "created_at"),
         Index("ix_audit_log_event_type", "event_type"),

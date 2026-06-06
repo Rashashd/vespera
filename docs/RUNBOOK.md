@@ -16,6 +16,22 @@ Operational guide for running Pantera locally and in production.
 4. Apply the baseline schema (in-container so hostnames resolve):
    `docker compose run --rm api alembic upgrade head`
 5. `docker compose up -d` — then `curl http://localhost:8000/health` → `{"status":"ok"}`.
+6. **Bootstrap the first admin** (spec 2; idempotent — a no-op if any user exists):
+   `docker compose run --rm api python scripts/seed_admin.py`
+   It reads `bootstrap_admin_email` / `bootstrap_admin_password` from Vault (defaults
+   `admin@pantera.io` / `ChangeMe1!`; override via env before `write_secrets.py`, and change
+   the password after first login). Use a deliverable email domain — `.local` is rejected.
+
+## Authentication (spec 2)
+
+- Log in: `POST /auth/jwt/login` (form `username`=email, `password`) → `{access_token,
+  token_type:"bearer"}`. Send the token as `Authorization: Bearer <token>` on protected routes.
+- Tokens are stateless JWTs (~30 min, no refresh); deactivating a user takes effect within one
+  token lifetime. The signing key is the Vault secret `auth_jwt_secret` (required at boot).
+- Login is rate-limited to **5/min per source IP** (429 when exceeded); there is no per-account
+  lockout by design.
+- Admin-only user management: `POST /users`, `GET /users`, `PATCH /users/{id}` — all scoped to
+  the admin's `client_id`.
 
 ## Startup behavior
 

@@ -15,6 +15,8 @@ def _target_for(event: DomainEvent) -> str:
         ("finding_id", "finding"),
         ("report_id", "report"),
         ("erased_client_id", "client"),
+        ("target_user_id", "user"),
+        ("user_id", "user"),
     ):
         value = getattr(event, attr, None)
         if value:
@@ -24,10 +26,13 @@ def _target_for(event: DomainEvent) -> str:
 
 async def audit_log_handler(event: DomainEvent, session: AsyncSession) -> None:
     """Add one audit_log row for the event using the caller's session (atomic; FR-013a)."""
+    # Human events link to users.id; system events (sentinel 0) stay unlinked (spec 2, D5).
+    actor_user_id = event.actor_id if event.actor_type == "human" else None
     session.add(
         AuditLog(
             actor_id=event.actor_id,
             actor_type=event.actor_type,
+            actor_user_id=actor_user_id,
             action=type(event).__name__,
             target=_target_for(event),
             event_type=type(event).__name__,

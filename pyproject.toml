@@ -19,6 +19,7 @@ dependencies = [
     "secure>=1.0",
     "slowapi>=0.1.9",
     "tenacity>=9.0",
+    "fastapi-users[sqlalchemy]>=14.0",
 ]
 
 [dependency-groups]
@@ -41,6 +42,9 @@ addopts = "-q"
 [tool.coverage.run]
 source = ["app", "worker"]
 branch = true
+# SQLAlchemy async bridges sync/async via greenlet; trace it so route bodies that resume
+# after `await session...` are measured (else they read as uncovered).
+concurrency = ["thread", "greenlet"]
 
 [tool.coverage.report]
 show_missing = true
@@ -55,6 +59,16 @@ target-version = "py312"
 # E/F pyflakes+pycodestyle, I isort, ASYNC flake8-async (enforces FR-018 async correctness),
 # B bugbear, UP pyupgrade.
 select = ["E", "F", "I", "ASYNC", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom uses these call results as argument defaults (not B008).
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Header",
+    "fastapi.Cookie",
+]
 
 [tool.black]
 line-length = 100
