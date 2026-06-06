@@ -1,4 +1,6 @@
-"""ARQ worker skeleton — shares the app's secret/resource bootstrap; no jobs yet."""
+"""ARQ worker skeleton — shares the app's secret/resource bootstrap; no real jobs yet."""
+
+from arq.connections import RedisSettings
 
 from app.core.config import get_settings
 from app.core.startup import load_secrets_from_vault, run_startup_checks
@@ -30,13 +32,20 @@ async def shutdown(ctx: dict) -> None:
     _log.info("worker.shutdown.complete")
 
 
-class WorkerSettings:
-    """ARQ WorkerSettings skeleton — cron jobs and functions are added in a later feature."""
+async def heartbeat(ctx: dict) -> None:
+    """Placeholder job so ARQ can start; real pipeline jobs arrive in the scheduling feature."""
+    _log.info("worker.heartbeat")
 
-    functions: list = []
+
+class WorkerSettings:
+    """ARQ WorkerSettings skeleton — real jobs/cron and the production broker land in spec 11."""
+
+    functions = [heartbeat]  # ARQ requires >=1 registered; replaced by real jobs in spec 11
     cron_jobs: list = []
     on_startup = startup
     on_shutdown = shutdown
+    # Local broker default; spec 11 makes this configurable (rediss:// in production).
+    redis_settings = RedisSettings(host="redis", port=6379)
     max_jobs = 10
     job_timeout = 300
     handle_signals = True
