@@ -1,0 +1,65 @@
+[project]
+name = "pantera"
+version = "0.1.0"
+description = "Pantera — automated pharmacovigilance literature monitor (platform foundation)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "redis>=5.2",
+    "arq>=0.26",
+    "hvac>=2.3",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "structlog>=24.4",
+    "sentry-sdk[fastapi]>=2.19",
+    "secure>=1.0",
+    "slowapi>=0.1.9",
+    "tenacity>=9.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "httpx>=0.28",
+    "ruff>=0.8",
+    "black>=24.10",
+    "isort>=5.13",
+    "mypy>=1.13",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["app", "worker"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+# Overall gate enforced in CI; audit DB-write path requires 95%+ (constitution).
+fail_under = 80
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F pyflakes+pycodestyle, I isort, ASYNC flake8-async (enforces FR-018 async correctness),
+# B bugbear, UP pyupgrade.
+select = ["E", "F", "I", "ASYNC", "B", "UP"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
