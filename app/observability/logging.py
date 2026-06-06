@@ -29,9 +29,7 @@ def _is_sensitive(key: str) -> bool:
     return lowered in _REDACT_KEYS or any(s in lowered for s in _REDACT_SUBSTRINGS)
 
 
-def _redact_processor(
-    _logger: Any, _method: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+def _redact_processor(_logger: Any, _method: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Replace the value of any secret/PII-named key with a redaction marker."""
     for key in list(event_dict.keys()):
         if _is_sensitive(key):

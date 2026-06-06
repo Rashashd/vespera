@@ -24,7 +24,11 @@ def test_benign_keys_are_not_sensitive():
 
 def test_processor_redacts_values():
     """The processor replaces sensitive values and leaves benign ones intact."""
-    event = {"client_id": 7, "anthropic_api_key": "sk-secret", "database_url": "postgres://u:p@h/db"}
+    event = {
+        "client_id": 7,
+        "anthropic_api_key": "sk-secret",
+        "database_url": "postgres://u:p@h/db",
+    }
     out = _redact_processor(None, "info", event)
     assert out["client_id"] == 7
     assert out["anthropic_api_key"] == _REDACTED

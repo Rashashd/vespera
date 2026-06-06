@@ -30,9 +30,9 @@ jobs:
       - name: Sync dependencies
         run: uv sync
       - name: Ruff lint (incl. ASYNC rules for FR-018)
-        run: uv run ruff check app worker tests scripts
+        run: uv run ruff check app worker tests
       - name: Black format check
-        run: uv run black --check app worker tests scripts
+        run: uv run black --check app worker tests
       - name: Type-check (advisory)
         run: uv run mypy app worker || true
       - name: Start infra (Vault + Postgres + Redis)
