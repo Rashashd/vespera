@@ -5,10 +5,10 @@ import asyncio
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
+# Import models so their tables register on Base.metadata.
+from app.auth import models as auth_models  # noqa: F401  (registers the users table)
 from app.core.config import get_settings
 from app.core.startup import load_secrets_from_vault
-
-# Import models so their tables register on Base.metadata.
 from app.db import models  # noqa: F401  (registers ORM tables)
 from app.db.base import Base
 
