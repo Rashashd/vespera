@@ -13,11 +13,13 @@ def test_rejects_unknown_field():
 
 
 def test_secret_fields_default_empty():
-    """Secret fields start empty; they are populated from Vault at startup."""
-    settings = Settings()
-    assert settings.database_url == ""
-    assert settings.redis_url == ""
-    assert settings.anthropic_api_key == ""
+    """Secret fields declare an empty default; they are populated from Vault at startup.
+
+    Asserts the declared default (not an instance) so ambient env vars like a real
+    DATABASE_URL don't make this test flaky.
+    """
+    for field in ("database_url", "redis_url", "anthropic_api_key", "openai_api_key"):
+        assert Settings.model_fields[field].default == ""
 
 
 def test_pinned_models_present():
