@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     bootstrap_admin_password: str = ""
     bootstrap_admin_client_id: int = 1
 
+    # --- Ingestion: optional source credentials (NOT in _REQUIRED_SECRETS — D7) ---
+    pubmed_api_key: str = ""  # NCBI E-utilities API key; empty ⇒ keyless (10 req/s limit)
+    openfda_api_key: str = ""  # openFDA API key; empty ⇒ keyless (240 req/min limit)
+
+    # --- Ingestion: non-secret configuration ---
+    ncbi_tool_email: str = "pantera@example.com"  # sent to NCBI as courtesy identification
+    ingestion_initial_lookback_days: int = 365  # first-run lookback window (D9)
+    ingestion_per_source_cap: int = 200  # max records fetched per source per run (D9)
+
 
 def get_settings() -> Settings:
     """Build a Settings instance from the environment (Vault bootstrap only)."""

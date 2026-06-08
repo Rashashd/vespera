@@ -20,6 +20,7 @@ dependencies = [
     "slowapi>=0.1.9",
     "tenacity>=9.0",
     "fastapi-users[sqlalchemy]>=14.0",
+    "httpx>=0.28",
 ]
 
 [dependency-groups]
@@ -27,7 +28,6 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
-    "httpx>=0.28",
     "ruff>=0.8",
     "black>=24.10",
     "isort>=5.13",

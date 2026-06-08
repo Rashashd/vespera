@@ -1,0 +1,13 @@
+{
+  "results": [
+    {
+      "safetyreportid": "US-FDA-20260001",
+      "receiptdate": "20260301",
+      "serious": "1",
+      "patient": {
+        "reaction": [{"reactionmeddrapt": "Hepatocellular injury"}],
+        "drug": [{"medicinalproduct": "WARFARIN", "drugindication": "ANTICOAGULANT THERAPY"}]
+      }
+    }
+  ]
+}

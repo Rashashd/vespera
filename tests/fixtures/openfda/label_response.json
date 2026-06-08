@@ -1,0 +1,10 @@
+{
+  "results": [
+    {
+      "id": "0069-0413-83",
+      "openfda": {"brand_name": ["WARFARIN"], "product_ndc": ["0069-0413-83"]},
+      "warnings": ["Bleeding risk is the principal adverse reaction."],
+      "effective_time": "20260101"
+    }
+  ]
+}

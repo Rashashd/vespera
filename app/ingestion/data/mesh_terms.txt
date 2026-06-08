@@ -1,0 +1,145 @@
+# Slim MeSH canonical heading list for Pantera literature ingestion (spec 4, D11).
+# Generated from: NLM MeSH 2024 ASCII distribution (d2024.bin), headings only.
+# Operator update: re-run scripts/generate_mesh_list.py (not committed; see docs/RUNBOOK.md).
+Abciximab
+Acenocoumarol
+Acetaminophen
+Acyclovir
+Adenosine
+Adverse Drug Reaction Reporting Systems
+Albuterol
+Alendronate
+Alfuzosin
+Aliskiren
+Allopurinol
+Amlodipine
+Amoxicillin
+Analgesics
+Angiotensin-Converting Enzyme Inhibitors
+Anticoagulants
+Antihypertensive Agents
+Antirheumatic Agents
+Apixaban
+Aspirin
+Atenolol
+Atorvastatin
+Azathioprine
+Benazepril
+Beta-Adrenergic Blockers
+Bisoprolol
+Bivalirudin
+Candesartan
+Carvedilol
+Celecoxib
+Chemical and Drug Induced Liver Injury
+Chlorpromazine
+Ciclosporin
+Ciprofloxacin
+Citalopram
+Clopidogrel
+Clozapine
+Codeine
+Colchicine
+Dabigatran
+Darbepoetin Alfa
+Dexamethasone
+Diclofenac
+Digoxin
+Diltiazem
+Dipyridamole
+Doxorubicin
+Drug Hypersensitivity
+Drug Toxicity
+Drug-Induced Abnormalities
+Drug-Related Side Effects and Adverse Reactions
+Enalapril
+Enoxaparin
+Escitalopram
+Esomeprazole
+Etanercept
+Etoricoxib
+Everolimus
+Famotidine
+Felodipine
+Fenofibrate
+Fentanyl
+Fluconazole
+Fluoxetine
+Fondaparinux
+Fosinopril
+Furosemide
+Gabapentin
+Gemfibrozil
+Glibenclamide
+Gliclazide
+Glipizide
+Haloperidol
+Heparin
+Hepatotoxicity
+Hydrochlorothiazide
+Hydroxychloroquine
+Ibuprofen
+Imatinib
+Infliximab
+Insulin
+Irbesartan
+Isosorbide Mononitrate
+Ketoconazole
+Lamotrigine
+Lansoprazole
+Leflunomide
+Lisinopril
+Losartan
+Lovastatin
+Meloxicam
+Mercaptopurine
+Metformin
+Methotrexate
+Metoprolol
+Metronidazole
+Morphine
+Myocardial Infarction
+Naproxen
+Nifedipine
+Olmesartan
+Omeprazole
+Oxaliplatin
+Paclitaxel
+Pantoprazole
+Paroxetine
+Pharmacovigilance
+Pioglitazone
+Piroxicam
+Pravastatin
+Prednisone
+Pregabalin
+Product Surveillance, Postmarketing
+Quetiapine
+Quinapril
+Ramipril
+Ranitidine
+Repaglinide
+Risperidone
+Rivaroxaban
+Rosuvastatin
+Rotigotine
+Sertraline
+Sildenafil
+Simvastatin
+Sirolimus
+Spironolactone
+Stroke
+Stevens-Johnson Syndrome
+Sulfasalazine
+Tamoxifen
+Telmisartan
+Torsades de Pointes
+Toxic Epidermal Necrolysis
+Tramadol
+Trastuzumab
+Valproic Acid
+Valsartan
+Vancomycin
+Venlafaxine
+Verapamil
+Warfarin

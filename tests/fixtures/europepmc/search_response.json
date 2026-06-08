@@ -1,0 +1,23 @@
+{
+  "resultList": {
+    "result": [
+      {
+        "id": "PMC7654321",
+        "pmid": "40234567",
+        "doi": "10.1016/j.jhepatol.2026.03.001",
+        "title": "DILI associated with new hepatotoxic compound: Europe PMC study",
+        "abstractText": "Drug-induced liver injury investigation in European cohort.",
+        "firstPublicationDate": "2026-03-15",
+        "source": "MED",
+        "isOpenAccess": "Y"
+      },
+      {
+        "id": "PPR123456",
+        "title": "Preprint: warfarin pharmacogenomics in diverse populations",
+        "abstractText": "A preprint study on warfarin dose-response.",
+        "firstPublicationDate": "2026-04-01",
+        "source": "PPR"
+      }
+    ]
+  }
+}

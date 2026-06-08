@@ -54,6 +54,8 @@ class WatchlistItemRead(BaseModel):
     id: int
     item_type: WatchlistItemType
     value: str
+    mesh_validity: str | None = None
+    mesh_canonical: str | None = None
 
 
 class WatchlistItemAdd(BaseModel):

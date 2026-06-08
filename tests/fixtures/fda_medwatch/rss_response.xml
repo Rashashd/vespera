@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>FDA MedWatch Safety Alerts</title>
+    <link>https://www.fda.gov/safety/medwatch</link>
+    <item>
+      <title>Safety Alert: Warfarin - Risk of Major Bleeding Events</title>
+      <link>https://www.fda.gov/safety/medwatch/safetyinformation/safetyalertsforhumanmedicalproducts/ucm999001.htm</link>
+      <description>FDA notifies healthcare professionals about bleeding risk with warfarin.</description>
+      <pubDate>Mon, 01 Apr 2026 12:00:00 GMT</pubDate>
+      <guid>https://www.fda.gov/safety/safetyalerts/ucm999001</guid>
+    </item>
+  </channel>
+</rss>

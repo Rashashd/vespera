@@ -1,0 +1,72 @@
+<?xml version="1.0" ?>
+<!DOCTYPE PubmedArticleSet PUBLIC "-//NLM//DTD PubMedArticle, 1st January 2024//EN"
+  "https://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_240101.dtd">
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">40123456</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <JournalIssue CitedMedium="Print">
+            <PubDate>
+              <Year>2026</Year>
+              <Month>05</Month>
+              <Day>15</Day>
+            </PubDate>
+          </JournalIssue>
+        </Journal>
+        <ArticleTitle>Hepatotoxicity associated with DrugX: a cohort study</ArticleTitle>
+        <Abstract>
+          <AbstractText>Background: DrugX has been associated with liver adverse events.
+          Methods: We conducted a retrospective cohort study.
+          Results: 12 cases identified.
+          Conclusions: DrugX hepatotoxicity is rare but clinically significant.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Smith</LastName>
+            <ForeName>John</ForeName>
+          </Author>
+        </AuthorList>
+        <ArticleIdList>
+          <ArticleId IdType="doi">10.1000/jcard.2026.001</ArticleId>
+          <ArticleId IdType="pubmed">40123456</ArticleId>
+        </ArticleIdList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="doi">10.1000/jcard.2026.001</ArticleId>
+        <ArticleId IdType="pubmed">40123456</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">40123457</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <JournalIssue CitedMedium="Print">
+            <PubDate>
+              <Year>2026</Year>
+              <Month>04</Month>
+              <Day>01</Day>
+            </PubDate>
+          </JournalIssue>
+        </Journal>
+        <ArticleTitle>Warfarin and bleeding risk: systematic review</ArticleTitle>
+        <Abstract>
+          <AbstractText>A systematic review of warfarin-related bleeding events.</AbstractText>
+        </Abstract>
+        <ArticleIdList>
+          <ArticleId IdType="pubmed">40123457</ArticleId>
+        </ArticleIdList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">40123457</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+</PubmedArticleSet>

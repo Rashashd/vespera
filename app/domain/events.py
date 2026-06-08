@@ -146,3 +146,14 @@ class WatchlistItemRemoved(DomainEvent):
 
     watchlist_id: int = 0
     item_id: int = 0
+
+
+# --- Ingestion events (spec 4); auto-audited via DomainEvent.__subclasses__ (D14). ---
+
+
+@dataclass(frozen=True, slots=True)
+class IngestionRunTriggered(DomainEvent):
+    """An admin triggered a literature ingestion run for a watchlist."""
+
+    run_id: int = 0
+    watchlist_id: int = 0

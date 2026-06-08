@@ -12,6 +12,8 @@ from app.auth.routes_users import router as users_router
 from app.clients.routes_clients import router as clients_router
 from app.clients.routes_watchlists import router as watchlists_router
 from app.core.lifespan import lifespan
+from app.ingestion.routes_documents import router as documents_router
+from app.ingestion.routes_ingestion import router as ingestion_router
 from app.observability.headers import add_security_headers
 
 
@@ -23,6 +25,8 @@ def create_app() -> FastAPI:
     app.include_router(users_router)  # spec 2: admin user management (client-scoped)
     app.include_router(clients_router)  # spec 3: GET/PATCH own client
     app.include_router(watchlists_router)  # spec 3: watchlist CRUD + items + per-watchlist config
+    app.include_router(ingestion_router)  # spec 4: trigger + run-status endpoints
+    app.include_router(documents_router)  # spec 4: document browse endpoints
     # Rate-limit machinery (FR-011): a default in-memory limiter so the middleware works
     # before startup; the lifespan upgrades app.state.limiter to the Redis-backed one.
     app.state.limiter = Limiter(key_func=get_remote_address)

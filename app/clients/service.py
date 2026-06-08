@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.enums import ClientStatus
 from app.clients.models import Client, Watchlist, WatchlistBudgetUsage, WatchlistItem
+from app.ingestion.mesh import validate_mesh
 
 # Fixed warning threshold: spend at or above 80% of budget warns before the soft cap (FR-010, D12).
 WARNING_FRACTION = Decimal("0.80")
@@ -161,12 +162,15 @@ async def create_watchlist(
         is_active=True,
     )
     for item_type, value in deduped:
+        validity, canonical = validate_mesh(value) if item_type == "mesh" else (None, None)
         watchlist.items.append(
             WatchlistItem(
                 client_id=client_id,
                 item_type=item_type,
                 value=value.strip(),
                 normalized_value=_normalize(value),
+                mesh_validity=validity.value if validity is not None else None,
+                mesh_canonical=canonical,
             )
         )
     session.add(watchlist)
@@ -208,7 +212,9 @@ async def add_item(
 
     Uses INSERT ... ON CONFLICT DO NOTHING so a duplicate (even under a concurrent race) is a
     clean no-op with no exception to recover from — the unique index is the single source of truth.
+    MeSH items have mesh_validity/mesh_canonical set at write time (FR-009).
     """
+    validity, canonical = validate_mesh(value) if item_type == "mesh" else (None, None)
     stmt = (
         pg_insert(WatchlistItem)
         .values(
@@ -217,6 +223,8 @@ async def add_item(
             item_type=item_type,
             value=value.strip(),
             normalized_value=_normalize(value),
+            mesh_validity=validity.value if validity is not None else None,
+            mesh_canonical=canonical,
         )
         .on_conflict_do_nothing(index_elements=["watchlist_id", "item_type", "normalized_value"])
         .returning(WatchlistItem.id)

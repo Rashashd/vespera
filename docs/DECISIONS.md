@@ -39,5 +39,27 @@ Full rationale in `specs/002-auth-and-roles/research.md` (D1–D13). Project-lev
 - **Login rate limit 5/min/IP (no account lockout)** — per-IP throttling avoids an
   account-lockout denial-of-service vector.
 
+## Literature Ingestion (004-literature-ingestion)
+
+Full rationale in `specs/004-literature-ingestion/research.md` (D1–D16). Highlights:
+
+- **In-process BackgroundTasks (not ARQ)** — spec 11 adds durable scheduling; using
+  BackgroundTasks now avoids a premature dependency and keeps the worker spec-11 only.
+- **Cross-source dedup by normalized external ID** — `doi:<x>` > `pmid:<x>` > `<source>:<id>`;
+  lowercased + stripped so the same paper matches regardless of how adapters report it.
+- **Source reliability tiers** — `regulatory_alert(3) > peer_reviewed(2) > preprint(1) >
+  case_report(0)`; a document's tier is recomputed as `max(rank)` across all contributing sources
+  on each dedup hit, so the highest-confidence source wins.
+- **Watermarks per (watchlist, source)** — only advanced on source success; first run uses a
+  configurable lookback window (default 365 days). Missing watermark → use lookback.
+- **Optional API keys** — `pubmed_api_key`/`openfda_api_key` are NOT in `_REQUIRED_SECRETS`;
+  adapters fall back to the public rate-limited tier. This avoids a CI change per spec.
+- **Bundled slim MeSH list** — ~120 headings from NLM 2024; validated at write time via
+  `importlib.resources`; missing artifact degrades to `unvalidated` (non-fatal). The runner
+  excludes confirmed-invalid terms from PubMed MeSH targeting.
+- **Per-source semaphore** — 3 concurrent requests per source; prevents hammering public APIs.
+- **No raw payload / PII in logs** — FAERS `patient` field is stripped at parse time; structlog
+  only binds `client_id`/`run_id`.
+
 <!-- Classifier / RAG / triage model comparisons and their golden-set numbers are added by
      their owning feature specs. -->

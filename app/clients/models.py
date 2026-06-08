@@ -97,6 +97,9 @@ class WatchlistItem(Base):
     item_type: Mapped[str] = mapped_column(String(16), nullable=False)
     value: Mapped[str] = mapped_column(String(512), nullable=False)
     normalized_value: Mapped[str] = mapped_column(String(512), nullable=False)
+    # Added by migration 0004; only set for item_type='mesh' (FR-009).
+    mesh_validity: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    mesh_canonical: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

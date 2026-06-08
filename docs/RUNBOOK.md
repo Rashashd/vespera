@@ -67,10 +67,53 @@ Each watchlist read exposes a derived `budget_status` (`ok` < 80% → `warning` 
 `soft_capped` ≥ 100% of the current-UTC-month spend) and `current_period_spend`. Raising the
 budget or a new month auto-clears the cap (spend metering itself arrives in a later spec).
 
+## Literature ingestion (spec 4)
+
+### Run model
+
+An ingestion run is triggered via `POST /watchlists/{id}/ingest` (admin only). It fans out
+concurrently across up to six source adapters (PubMed, Europe PMC, openFDA FAERS, openFDA Labels,
+FDA MedWatch, EMA, MHRA). Each adapter is isolated: one failure → `partial_success`; all fail →
+`failed`. Records are deduplicated per client by normalized external ID (DOI > PMID > source:id).
+
+Run status is readable immediately via `GET /ingestion-runs/{id}`. The background task
+updates it to `success`, `partial_success`, or `failed` when complete.
+
+### Optional API keys
+
+Two Vault secrets are **optional** (not required for boot): `pubmed_api_key` and
+`openfda_api_key`. Without them the adapters use the unauthenticated rate-limited tier.
+Add them to Vault if you hit 429 errors on those endpoints:
+```
+vault kv patch secret/pantera/secrets pubmed_api_key='<key>' openfda_api_key='<key>'
+```
+
+### MeSH validation
+
+MeSH terms are validated at watchlist write time against the bundled slim heading list at
+`app/ingestion/data/mesh_terms.txt`. Validity is stored per item (`mesh_validity`: `valid` |
+`invalid` | `unvalidated`). Invalid terms are flagged but never rejected. The runner excludes
+confirmed-invalid terms from PubMed MeSH targeting.
+
+To regenerate the list from the full NLM distribution: `scripts/generate_mesh_list.py` (not
+committed; see that file for operator instructions).
+
+### Source watermarks
+
+Each `(watchlist_id, source)` pair has a watermark (`source_watermarks` table). The first run
+uses a lookback of `ingestion_initial_lookback_days` (default 365). Subsequent runs use the
+watermark from the previous successful run. Watermarks are only advanced on source success.
+
+### Startup reconciliation
+
+At startup the app sweeps any runs stuck in `running` (from a crash) and marks them `failed`.
+This is idempotent and safe for re-runs.
+
 ## Startup behavior
 
 - The app loads secrets from Vault first and **refuses to boot** if Vault, Postgres, or
   Redis is unavailable, or if a required secret is missing.
+- At startup: MeSH artifact check (non-fatal warning if missing) and stale-run reconciliation.
 - The worker uses the same bootstrap; jobs/cron arrive in the scheduling feature.
 
 ## Tests
@@ -82,3 +125,4 @@ budget or a new month auto-clears the cap (spend metering itself arrives in a la
 
 - "Cannot reach Vault" → ensure the `vault` container is healthy and secrets were written.
 - "Required secret(s) missing" → re-run `scripts/write_secrets.py` with the needed env vars.
+- 429 on PubMed/openFDA → add the optional API keys to Vault (see Ingestion section above).
