@@ -15,6 +15,8 @@ jobs:
       - name: gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
+          # Required since gitleaks-action v2 for pull_request events (auto-provided token).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   # Lint, type-check, and test against the real stack with coverage gates (T044).
