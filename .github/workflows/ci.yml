@@ -8,6 +8,10 @@ jobs:
   # Secret scanning — blocks any secret from entering the repo (US2 / FR-003).
   secret-scan:
     runs-on: ubuntu-latest
+    # gitleaks-action reads PR commits via the API on pull_request events.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
