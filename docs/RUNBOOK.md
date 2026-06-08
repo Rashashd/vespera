@@ -33,6 +33,40 @@ Operational guide for running Pantera locally and in production.
 - Admin-only user management: `POST /users`, `GET /users`, `PATCH /users/{id}` — all scoped to
   the admin's `client_id`.
 
+## Clients & watchlists (spec 3)
+
+Tenant onboarding is an **operator script** (not an API), mirroring `seed_admin.py` — this avoids
+an admin suspending their own client and locking themselves out. Migration `0003` also reconciles
+every pre-existing `users.client_id` into a real `clients` row (named `Client <id>`) and adds the
+`users.client_id → clients.id` foreign key.
+
+- Create a client: `docker compose run --rm api python scripts/seed_client.py --name "Acme Pharma"`
+  → prints the new client id. Duplicate names (case-insensitive) are rejected.
+- Suspend / reactivate: `... scripts/seed_client.py --suspend <id>` / `--activate <id>`. No
+  destructive delete — suspension only. Each action writes one audit row (system actor).
+
+Client API (the caller only ever sees its **own** client; `client_id` comes from the token):
+
+- `GET /clients/me` — read your client (any active user).
+- `PATCH /clients/me {"name": "..."}` — rename your client (admin only; `status` is operator-only).
+
+Watchlist API (base `/watchlists`; **writes require admin**, reads allow reviewer; everything is
+client-scoped and a cross-tenant id returns 404):
+
+- `POST /watchlists` — create a named watchlist with ≥1 item (`items: [{item_type, value}]`,
+  `item_type ∈ drug|mesh|keyword`). Empty ⇒ 400 `WATCHLIST_EMPTY`; duplicate name ⇒ 409.
+  Optional `cadence` (`daily|weekly|monthly`, default `weekly`), `severity_threshold`
+  (`non-serious|serious|life-threatening`, default `serious`), `budget_amount` (≥0, null = no cap).
+- `GET /watchlists` (`?include_inactive=true`), `GET /watchlists/{id}`.
+- `PATCH /watchlists/{id}` — rename / set cadence,severity,budget / `is_active`. Deactivation is a
+  **soft delete** (data preserved, excluded from monitoring).
+- `POST /watchlists/{id}/items` (idempotent: 201 created, 200 duplicate no-op),
+  `DELETE /watchlists/{id}/items/{item_id}` (graceful; refuses to empty an active watchlist).
+
+Each watchlist read exposes a derived `budget_status` (`ok` < 80% → `warning` ≥ 80% →
+`soft_capped` ≥ 100% of the current-UTC-month spend) and `current_period_spend`. Raising the
+budget or a new month auto-clears the cap (spend metering itself arrives in a later spec).
+
 ## Startup behavior
 
 - The app loads secrets from Vault first and **refuses to boot** if Vault, Postgres, or

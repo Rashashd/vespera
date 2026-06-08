@@ -2,7 +2,6 @@ CLAUDE.md
 .claude/
 .specify/
 memory/
-specs/
 
 # Secrets — never commit real secret values (all real secrets live in Vault)
 .env

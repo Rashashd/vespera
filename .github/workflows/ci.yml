@@ -8,6 +8,10 @@ jobs:
   # Secret scanning — blocks any secret from entering the repo (US2 / FR-003).
   secret-scan:
     runs-on: ubuntu-latest
+    # gitleaks-action reads PR commits via the API on pull_request events.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -15,6 +19,8 @@ jobs:
       - name: gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
+          # Required since gitleaks-action v2 for pull_request events (auto-provided token).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   # Lint, type-check, and test against the real stack with coverage gates (T044).

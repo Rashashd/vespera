@@ -17,6 +17,9 @@ def _target_for(event: DomainEvent) -> str:
         ("erased_client_id", "client"),
         ("target_user_id", "user"),
         ("user_id", "user"),
+        ("item_id", "watchlist_item"),
+        ("watchlist_id", "watchlist"),
+        ("target_client_id", "client"),
     ):
         value = getattr(event, attr, None)
         if value:

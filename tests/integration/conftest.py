@@ -31,6 +31,15 @@ async def client(auth_app):
         yield c
 
 
+async def _ensure_client(session, client_id: int) -> None:
+    """Ensure a clients row exists for the FK users.client_id → clients.id (spec 3)."""
+    from app.clients.models import Client
+
+    if await session.get(Client, client_id) is None:
+        session.add(Client(id=client_id, name=f"Client {client_id}", status="active"))
+        await session.flush()
+
+
 @pytest_asyncio.fixture
 async def make_user(auth_app):
     """Factory that inserts a user directly in the DB; cleans up users + their audit rows."""
@@ -51,6 +60,7 @@ async def make_user(auth_app):
         email = (email or f"{uuid.uuid4().hex}@x.com").lower()
         async with factory() as s:
             async with s.begin():
+                await _ensure_client(s, client_id)  # satisfy the FK before inserting the user
                 user = User(
                     email=email,
                     hashed_password=password_helper.hash(password),
@@ -72,6 +82,47 @@ async def make_user(auth_app):
             if created_ids:
                 await s.execute(delete(AuditLog).where(AuditLog.actor_user_id.in_(created_ids)))
                 await s.execute(delete(User).where(User.id.in_(created_ids)))
+
+
+@pytest_asyncio.fixture
+async def make_client(auth_app):
+    """Factory that inserts a client row and tears down its watchlists/users/audit on exit."""
+    from app.auth.models import User
+    from app.clients.models import (
+        Client,
+        Watchlist,
+        WatchlistBudgetUsage,
+        WatchlistItem,
+    )
+    from app.db.models import AuditLog
+
+    factory = auth_app.state.session_factory
+    created_ids: list[int] = []
+
+    async def _make(name: str | None = None, status: str = "active") -> Client:
+        name = name or f"C-{uuid.uuid4().hex[:12]}"
+        async with factory() as s:
+            async with s.begin():
+                client = Client(name=name, status=status)
+                s.add(client)
+            await s.refresh(client)
+        created_ids.append(client.id)
+        return client
+
+    yield _make
+
+    if not created_ids:
+        return
+    async with factory() as s:
+        async with s.begin():
+            await s.execute(
+                delete(WatchlistBudgetUsage).where(WatchlistBudgetUsage.client_id.in_(created_ids))
+            )
+            await s.execute(delete(WatchlistItem).where(WatchlistItem.client_id.in_(created_ids)))
+            await s.execute(delete(Watchlist).where(Watchlist.client_id.in_(created_ids)))
+            await s.execute(delete(AuditLog).where(AuditLog.client_id.in_(created_ids)))
+            await s.execute(delete(User).where(User.client_id.in_(created_ids)))
+            await s.execute(delete(Client).where(Client.id.in_(created_ids)))
 
 
 async def login_token(client: AsyncClient, email: str, password: str = "Abcdef1!") -> str:

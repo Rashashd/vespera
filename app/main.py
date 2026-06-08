@@ -9,6 +9,8 @@ from slowapi.util import get_remote_address
 from app.api import health
 from app.auth.routes_auth import router as auth_router
 from app.auth.routes_users import router as users_router
+from app.clients.routes_clients import router as clients_router
+from app.clients.routes_watchlists import router as watchlists_router
 from app.core.lifespan import lifespan
 from app.observability.headers import add_security_headers
 
@@ -19,6 +21,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth_router)  # spec 2: /auth/jwt/login (rate-limited), /logout
     app.include_router(users_router)  # spec 2: admin user management (client-scoped)
+    app.include_router(clients_router)  # spec 3: GET/PATCH own client
+    app.include_router(watchlists_router)  # spec 3: watchlist CRUD + items + per-watchlist config
     # Rate-limit machinery (FR-011): a default in-memory limiter so the middleware works
     # before startup; the lifespan upgrades app.state.limiter to the Redis-backed one.
     app.state.limiter = Limiter(key_func=get_remote_address)

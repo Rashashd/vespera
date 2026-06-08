@@ -79,3 +79,70 @@ class UserDeactivated(DomainEvent):
 
     target_user_id: int = 0
     target_email: str = ""
+
+
+# --- Client & watchlist events (spec 3); auto-audited via DomainEvent.__subclasses__ (D10). ---
+
+
+@dataclass(frozen=True, slots=True)
+class ClientCreated(DomainEvent):
+    """A client (tenant) record was created (operator path)."""
+
+    target_client_id: int = 0
+    name: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ClientUpdated(DomainEvent):
+    """A client was updated (e.g. renamed); payload carries the changed fields."""
+
+    target_client_id: int = 0
+    changes: dict | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ClientSuspended(DomainEvent):
+    """A client was suspended (operator path)."""
+
+    target_client_id: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class WatchlistCreated(DomainEvent):
+    """An admin created a named watchlist."""
+
+    watchlist_id: int = 0
+    name: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class WatchlistUpdated(DomainEvent):
+    """An admin updated a watchlist's name/cadence/severity/budget; payload carries the diff."""
+
+    watchlist_id: int = 0
+    changes: dict | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class WatchlistDeactivated(DomainEvent):
+    """An admin soft-deleted (deactivated) a watchlist (FR-017)."""
+
+    watchlist_id: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class WatchlistItemAdded(DomainEvent):
+    """An admin added an item to a watchlist (only when a row is actually created)."""
+
+    watchlist_id: int = 0
+    item_id: int = 0
+    item_type: str = ""
+    value: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class WatchlistItemRemoved(DomainEvent):
+    """An admin removed an item from a watchlist (only when a row is deleted)."""
+
+    watchlist_id: int = 0
+    item_id: int = 0

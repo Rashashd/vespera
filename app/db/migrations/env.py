@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 # Import models so their tables register on Base.metadata.
 from app.auth import models as auth_models  # noqa: F401  (registers the users table)
+from app.clients import models as clients_models  # noqa: F401  (registers spec-3 tables)
 from app.core.config import get_settings
 from app.core.startup import load_secrets_from_vault
 from app.db import models  # noqa: F401  (registers ORM tables)
