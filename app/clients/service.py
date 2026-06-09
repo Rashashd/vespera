@@ -1,19 +1,22 @@
 """Client/watchlist queries, validation, and pure budget-state derivation (keeps routes thin)."""
 
+import re
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.models import User, UserWatchlistScope
 from app.clients.enums import ClientStatus
 from app.clients.models import Client, Watchlist, WatchlistBudgetUsage, WatchlistItem
-from app.ingestion.mesh import validate_mesh
 
 # Fixed warning threshold: spend at or above 80% of budget warns before the soft cap (FR-010, D12).
 WARNING_FRACTION = Decimal("0.80")
+
+_EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
 class NameConflict(Exception):
@@ -22,6 +25,18 @@ class NameConflict(Exception):
 
 class WatchlistEmpty(Exception):
     """Raised when an operation would leave an active watchlist with zero items → 400 (FR-016)."""
+
+
+class InvalidEmail(Exception):
+    """Raised when an email address fails basic format validation (FR-017)."""
+
+
+class ScopeRequired(Exception):
+    """Raised when a scoped client-user has neither min_severity nor watchlist_ids (FR-014)."""
+
+
+class CrossClientWatchlist(Exception):
+    """Raised when a watchlist_id belongs to a different client (FR-014)."""
 
 
 # --- Pure helpers ------------------------------------------------------------
@@ -49,6 +64,24 @@ def _normalize(value: str) -> str:
     return value.strip().lower()
 
 
+def validate_email_address(value: str | None) -> str | None:
+    """Basic RFC-5321 shape check; raise InvalidEmail on failure (FR-017)."""
+    if value is None:
+        return None
+    v = value.strip()
+    if not _EMAIL_RE.fullmatch(v):
+        raise InvalidEmail
+    return v
+
+
+def _validate_scope(
+    client_scope: str, *, min_severity: str | None, watchlist_ids: list[int]
+) -> None:
+    """Raise ScopeRequired when a scoped user has no visibility constraints (FR-014)."""
+    if client_scope == "scoped" and not min_severity and not watchlist_ids:
+        raise ScopeRequired
+
+
 async def _try_flush(session: AsyncSession) -> bool:
     """Flush inside a savepoint; return False on a unique violation (race-safe).
 
@@ -66,9 +99,16 @@ async def _try_flush(session: AsyncSession) -> bool:
 # --- Client queries ----------------------------------------------------------
 
 
-async def get_client(session: AsyncSession, client_id: int) -> Client | None:
-    """Fetch a client by id (the caller's own; cross-tenant access is structurally impossible)."""
+async def get_client(session: AsyncSession, client_id: int | None) -> Client | None:
+    """Fetch a client by id; returns None for None id (staff have no home client)."""
+    if client_id is None:
+        return None
     return await session.get(Client, client_id)
+
+
+async def list_clients(session: AsyncSession) -> list[Client]:
+    """Return all clients ordered by id (staff roster; FR-013)."""
+    return list((await session.scalars(select(Client).order_by(Client.id))).all())
 
 
 async def rename_client(session: AsyncSession, client: Client, new_name: str) -> Client:
@@ -80,9 +120,22 @@ async def rename_client(session: AsyncSession, client: Client, new_name: str) ->
     return client
 
 
-async def create_client(session: AsyncSession, name: str) -> Client:
-    """Insert a new active client (operator path); the unique index enforces the name (FR-001)."""
-    client = Client(name=name.strip(), status=ClientStatus.ACTIVE.value)
+async def create_client(
+    session: AsyncSession,
+    name: str,
+    *,
+    report_email_regular: str | None = None,
+    report_email_urgent: str | None = None,
+    urgent_severity_threshold: str | None = None,
+) -> Client:
+    """Insert a new active client; the unique index enforces the name (FR-001/FR-011)."""
+    client = Client(
+        name=name.strip(),
+        status=ClientStatus.ACTIVE.value,
+        report_email_regular=report_email_regular,
+        report_email_urgent=report_email_urgent,
+        urgent_severity_threshold=urgent_severity_threshold or "life-threatening",
+    )
     session.add(client)
     if not await _try_flush(session):  # name already taken (incl. concurrent race)
         raise NameConflict
@@ -90,11 +143,163 @@ async def create_client(session: AsyncSession, name: str) -> Client:
 
 
 async def set_client_status(session: AsyncSession, client: Client, status: ClientStatus) -> Client:
-    """Suspend or reactivate a client (operator path; no destructive delete, FR-002)."""
+    """Suspend or reactivate a client (no destructive delete, FR-002/FR-011)."""
     client.status = status.value
     session.add(client)
     await session.flush()
     return client
+
+
+async def suspend_client(session: AsyncSession, client: Client) -> Client:
+    """Set status='suspended'; idempotent (FR-011)."""
+    return await set_client_status(session, client, ClientStatus.SUSPENDED)
+
+
+async def reactivate_client(session: AsyncSession, client: Client) -> Client:
+    """Set status='active'; idempotent (FR-011)."""
+    return await set_client_status(session, client, ClientStatus.ACTIVE)
+
+
+async def set_report_emails(
+    session: AsyncSession,
+    client: Client,
+    *,
+    report_email_regular: str | None,
+    report_email_urgent: str | None,
+    urgent_severity_threshold: str | None,
+) -> Client:
+    """Update delivery addresses; only non-None fields overwrite existing values (FR-017)."""
+    if report_email_regular is not None:
+        client.report_email_regular = report_email_regular
+    if report_email_urgent is not None:
+        client.report_email_urgent = report_email_urgent
+    if urgent_severity_threshold is not None:
+        client.urgent_severity_threshold = urgent_severity_threshold
+    session.add(client)
+    await session.flush()
+    return client
+
+
+# --- Client-user queries (spec 4b, US3) --------------------------------------
+
+
+async def create_client_user(
+    session: AsyncSession,
+    client_id: int,
+    *,
+    email: str,
+    hashed_password: str,
+    client_scope: str,
+    min_severity: str | None,
+    watchlist_ids: list[int],
+) -> User:
+    """Create a client-user; force user_type='client', validate scope + watchlist ownership."""
+    _validate_scope(client_scope, min_severity=min_severity, watchlist_ids=watchlist_ids)
+
+    for wl_id in watchlist_ids:
+        wl = await session.get(Watchlist, wl_id)
+        if wl is None or wl.client_id != client_id:
+            raise CrossClientWatchlist
+
+    user = User(
+        email=email,
+        hashed_password=hashed_password,
+        role="client_user",
+        user_type="client",
+        client_id=client_id,
+        client_scope=client_scope,
+        min_severity=min_severity,
+        is_active=True,
+        is_superuser=False,
+        is_verified=True,
+    )
+    session.add(user)
+    await session.flush()
+
+    for wl_id in watchlist_ids:
+        stmt = (
+            pg_insert(UserWatchlistScope)
+            .values(user_id=user.id, watchlist_id=wl_id, client_id=client_id)
+            .on_conflict_do_nothing(index_elements=["user_id", "watchlist_id"])
+        )
+        await session.execute(stmt)
+
+    await session.flush()
+    return user
+
+
+async def list_client_users(session: AsyncSession, client_id: int) -> list[User]:
+    """List all client-users belonging to a named client (admin-facing; FR-014)."""
+    return list(
+        (
+            await session.scalars(
+                select(User)
+                .where(User.client_id == client_id, User.user_type == "client")
+                .order_by(User.id)
+            )
+        ).all()
+    )
+
+
+async def get_client_user(session: AsyncSession, client_id: int, user_id: int) -> User | None:
+    """Fetch a client-user scoped to the given client; cross-tenant ⇒ None."""
+    user = await session.get(User, user_id)
+    if user is None or user.client_id != client_id or user.user_type != "client":
+        return None
+    return user
+
+
+async def update_client_user_scope(
+    session: AsyncSession,
+    user: User,
+    *,
+    client_scope: str | None,
+    min_severity: str | None,
+    watchlist_ids: list[int] | None,
+    is_active: bool | None,
+) -> User:
+    """Update scope/active state for a client-user; validate new effective scope (FR-014/FR-015)."""
+    new_scope = client_scope if client_scope is not None else user.client_scope
+    new_min_sev = min_severity if min_severity is not None else user.min_severity
+    new_wl_ids = (
+        watchlist_ids
+        if watchlist_ids is not None
+        else [ws.watchlist_id for ws in user.watchlist_scopes]
+    )
+
+    if new_scope is not None:
+        _validate_scope(new_scope, min_severity=new_min_sev, watchlist_ids=new_wl_ids)
+
+    for wl_id in new_wl_ids:
+        wl = await session.get(Watchlist, wl_id)
+        if wl is None or wl.client_id != user.client_id:
+            raise CrossClientWatchlist
+
+    if client_scope is not None:
+        user.client_scope = client_scope
+    if min_severity is not None:
+        user.min_severity = min_severity
+    if is_active is not None:
+        user.is_active = is_active
+
+    session.add(user)
+    await session.flush()
+
+    if watchlist_ids is not None:
+        await session.execute(
+            delete(UserWatchlistScope).where(UserWatchlistScope.user_id == user.id)
+        )
+        for wl_id in watchlist_ids:
+            stmt = (
+                pg_insert(UserWatchlistScope)
+                .values(user_id=user.id, watchlist_id=wl_id, client_id=user.client_id)
+                .on_conflict_do_nothing(index_elements=["user_id", "watchlist_id"])
+            )
+            await session.execute(stmt)
+        await session.flush()
+        await session.refresh(user)
+
+    return user
 
 
 # --- Watchlist queries -------------------------------------------------------
@@ -150,6 +355,8 @@ async def create_watchlist(
     items: list[tuple[str, str]],
 ) -> Watchlist:
     """Create a watchlist with ≥1 de-duplicated item; the unique index enforces the name."""
+    from app.ingestion.mesh import validate_mesh
+
     deduped = _dedup_items(items)
     if not deduped:
         raise WatchlistEmpty
@@ -214,6 +421,8 @@ async def add_item(
     clean no-op with no exception to recover from — the unique index is the single source of truth.
     MeSH items have mesh_validity/mesh_canonical set at write time (FR-009).
     """
+    from app.ingestion.mesh import validate_mesh
+
     validity, canonical = validate_mesh(value) if item_type == "mesh" else (None, None)
     stmt = (
         pg_insert(WatchlistItem)

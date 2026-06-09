@@ -15,9 +15,9 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-async def _admin(client, make_client, make_user):
+async def _admin(client, make_client, make_staff_user):
     tenant = await make_client()
-    admin = await make_user(role="admin", client_id=tenant.id)
+    admin = await make_staff_user(role="admin")
     token = await login_token(client, admin.email)
     return tenant, {"Authorization": f"Bearer {token}"}
 
@@ -54,47 +54,71 @@ async def _set_spend(auth_app, watchlist_id, client_id, amount, period_start=Non
                 )
 
 
-async def _status(client, h, wl_id):
-    return (await client.get(f"/watchlists/{wl_id}", headers=h)).json()["budget_status"]
+async def _status(client, h, tenant_id, wl_id):
+    return (await client.get(f"/clients/{tenant_id}/watchlists/{wl_id}", headers=h)).json()[
+        "budget_status"
+    ]
 
 
-async def test_warning_then_soft_cap(client, make_client, make_user, auth_app):
+async def test_warning_then_soft_cap(client, make_client, make_staff_user, auth_app):
     """80% of budget → warning; 100% → soft_capped (FR-010)."""
-    tenant, h = await _admin(client, make_client, make_user)
-    wl = (await client.post("/watchlists", headers=h, json=_payload(budget_amount=100))).json()
+    tenant, h = await _admin(client, make_client, make_staff_user)
+    wl = (
+        await client.post(
+            f"/clients/{tenant.id}/watchlists", headers=h, json=_payload(budget_amount=100)
+        )
+    ).json()
     assert wl["budget_status"] == "ok"
     await _set_spend(auth_app, wl["id"], tenant.id, 80)
-    assert await _status(client, h, wl["id"]) == "warning"
+    assert await _status(client, h, tenant.id, wl["id"]) == "warning"
 
 
-async def test_soft_capped_and_sibling_unaffected(client, make_client, make_user, auth_app):
+async def test_soft_capped_and_sibling_unaffected(client, make_client, make_staff_user, auth_app):
     """A capped watchlist does not change a sibling's status (FR-011)."""
-    tenant, h = await _admin(client, make_client, make_user)
-    capped = (await client.post("/watchlists", headers=h, json=_payload(budget_amount=100))).json()
-    sibling = (await client.post("/watchlists", headers=h, json=_payload(budget_amount=100))).json()
+    tenant, h = await _admin(client, make_client, make_staff_user)
+    capped = (
+        await client.post(
+            f"/clients/{tenant.id}/watchlists", headers=h, json=_payload(budget_amount=100)
+        )
+    ).json()
+    sibling = (
+        await client.post(
+            f"/clients/{tenant.id}/watchlists", headers=h, json=_payload(budget_amount=100)
+        )
+    ).json()
     await _set_spend(auth_app, capped["id"], tenant.id, 100)
-    assert await _status(client, h, capped["id"]) == "soft_capped"
-    assert await _status(client, h, sibling["id"]) == "ok"
+    assert await _status(client, h, tenant.id, capped["id"]) == "soft_capped"
+    assert await _status(client, h, tenant.id, sibling["id"]) == "ok"
 
 
-async def test_raising_budget_clears_cap(client, make_client, make_user, auth_app):
+async def test_raising_budget_clears_cap(client, make_client, make_staff_user, auth_app):
     """Raising the budget above current spend flips soft_capped→ok with no extra write (FR-012)."""
-    tenant, h = await _admin(client, make_client, make_user)
-    wl = (await client.post("/watchlists", headers=h, json=_payload(budget_amount=100))).json()
+    tenant, h = await _admin(client, make_client, make_staff_user)
+    wl = (
+        await client.post(
+            f"/clients/{tenant.id}/watchlists", headers=h, json=_payload(budget_amount=100)
+        )
+    ).json()
     await _set_spend(auth_app, wl["id"], tenant.id, 100)
-    assert await _status(client, h, wl["id"]) == "soft_capped"
-    patched = await client.patch(f"/watchlists/{wl['id']}", headers=h, json={"budget_amount": 200})
+    assert await _status(client, h, tenant.id, wl["id"]) == "soft_capped"
+    patched = await client.patch(
+        f"/clients/{tenant.id}/watchlists/{wl['id']}", headers=h, json={"budget_amount": 200}
+    )
     assert patched.status_code == 200
     assert patched.json()["budget_status"] == "ok"
 
 
-async def test_new_month_auto_resets(client, make_client, make_user, auth_app):
+async def test_new_month_auto_resets(client, make_client, make_staff_user, auth_app):
     """Spend recorded for a prior UTC month does not count this month (auto-resume, FR-012)."""
-    tenant, h = await _admin(client, make_client, make_user)
-    wl = (await client.post("/watchlists", headers=h, json=_payload(budget_amount=100))).json()
+    tenant, h = await _admin(client, make_client, make_staff_user)
+    wl = (
+        await client.post(
+            f"/clients/{tenant.id}/watchlists", headers=h, json=_payload(budget_amount=100)
+        )
+    ).json()
     # A prior-month usage row of 200 must not affect the current period.
     await _set_spend(auth_app, wl["id"], tenant.id, 200, period_start=date(2000, 1, 1))
-    assert await _status(client, h, wl["id"]) == "ok"
-    assert (await client.get(f"/watchlists/{wl['id']}", headers=h)).json()[
+    assert await _status(client, h, tenant.id, wl["id"]) == "ok"
+    assert (await client.get(f"/clients/{tenant.id}/watchlists/{wl['id']}", headers=h)).json()[
         "current_period_spend"
     ] in ("0.0000", "0")

@@ -1,4 +1,4 @@
-"""Shared fixtures for auth integration tests (live stack; skipped without PANTERA_INTEGRATION)."""
+"""Shared fixtures for integration tests (live stack; skipped without PANTERA_INTEGRATION)."""
 
 import os
 import uuid
@@ -32,7 +32,7 @@ async def client(auth_app):
 
 
 async def _ensure_client(session, client_id: int) -> None:
-    """Ensure a clients row exists for the FK users.client_id → clients.id (spec 3)."""
+    """Ensure a clients row exists for the FK users.client_id → clients.id."""
     from app.clients.models import Client
 
     if await session.get(Client, client_id) is None:
@@ -42,7 +42,12 @@ async def _ensure_client(session, client_id: int) -> None:
 
 @pytest_asyncio.fixture
 async def make_user(auth_app):
-    """Factory that inserts a user directly in the DB; cleans up users + their audit rows."""
+    """Factory that inserts a user directly in the DB; cleans up users + their audit rows.
+
+    user_type inference: if client_id is not None → 'client' (for legacy spec-3/4 tests that
+    scope routes by user.client_id); if client_id is None → 'staff' (new agency model).
+    Pass user_type explicitly to override.
+    """
     from app.auth.backend import password_helper
     from app.auth.models import User
     from app.db.models import AuditLog
@@ -54,18 +59,67 @@ async def make_user(auth_app):
         email: str | None = None,
         password: str = "Abcdef1!",
         role: str = "reviewer",
-        client_id: int = 1,
+        client_id: int | None = 1,
+        is_active: bool = True,
+        user_type: str | None = None,
+    ) -> User:
+        email = (email or f"{uuid.uuid4().hex}@x.com").lower()
+        # Infer user_type from client_id when not explicit (backwards compat for old tests).
+        if user_type is None:
+            user_type = "client" if client_id is not None else "staff"
+        async with factory() as s:
+            async with s.begin():
+                if client_id is not None:
+                    await _ensure_client(s, client_id)
+                user = User(
+                    email=email,
+                    hashed_password=password_helper.hash(password),
+                    role=role,
+                    user_type=user_type,
+                    client_id=client_id,
+                    is_active=is_active,
+                    is_superuser=False,
+                    is_verified=True,
+                )
+                s.add(user)
+            await s.refresh(user)
+        created_ids.append(user.id)
+        return user
+
+    yield _make
+
+    async with factory() as s:
+        async with s.begin():
+            if created_ids:
+                await s.execute(delete(AuditLog).where(AuditLog.actor_user_id.in_(created_ids)))
+                await s.execute(delete(User).where(User.id.in_(created_ids)))
+
+
+@pytest_asyncio.fixture
+async def make_staff_user(auth_app):
+    """Factory for staff users (user_type='staff', client_id=None); convenience wrapper."""
+    from app.auth.backend import password_helper
+    from app.auth.models import User
+    from app.db.models import AuditLog
+
+    factory = auth_app.state.session_factory
+    created_ids: list[int] = []
+
+    async def _make(
+        email: str | None = None,
+        password: str = "Abcdef1!",
+        role: str = "reviewer",
         is_active: bool = True,
     ) -> User:
         email = (email or f"{uuid.uuid4().hex}@x.com").lower()
         async with factory() as s:
             async with s.begin():
-                await _ensure_client(s, client_id)  # satisfy the FK before inserting the user
                 user = User(
                     email=email,
                     hashed_password=password_helper.hash(password),
                     role=role,
-                    client_id=client_id,
+                    user_type="staff",
+                    client_id=None,
                     is_active=is_active,
                     is_superuser=False,
                     is_verified=True,

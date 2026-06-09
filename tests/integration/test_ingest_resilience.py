@@ -18,16 +18,16 @@ from tests.integration.conftest import login_token  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
-async def _admin_headers(client, make_client, make_user):
+async def _admin_headers(client, make_client, make_staff_user):
     tenant = await make_client()
-    admin = await make_user(role="admin", client_id=tenant.id)
+    admin = await make_staff_user(role="admin")
     token = await login_token(client, admin.email)
-    return {"Authorization": f"Bearer {token}"}
+    return tenant, {"Authorization": f"Bearer {token}"}
 
 
-async def _create_watchlist(client, headers, name="resilience-wl", drug="ibuprofen"):
+async def _create_watchlist(client, headers, tenant_id, name="resilience-wl", drug="ibuprofen"):
     resp = await client.post(
-        "/watchlists",
+        f"/clients/{tenant_id}/watchlists",
         json={"name": name, "items": [{"item_type": "drug", "value": drug}]},
         headers=headers,
     )
@@ -35,17 +35,19 @@ async def _create_watchlist(client, headers, name="resilience-wl", drug="ibuprof
     return resp.json()
 
 
-async def _trigger_run(client, headers, watchlist_id):
-    resp = await client.post(f"/watchlists/{watchlist_id}/ingest", headers=headers)
+async def _trigger_run(client, headers, tenant_id, watchlist_id):
+    resp = await client.post(
+        f"/clients/{tenant_id}/watchlists/{watchlist_id}/ingest", headers=headers
+    )
     assert resp.status_code == 202, resp.text
     return resp.json()
 
 
-async def _poll_run(client, headers, run_id, max_polls=15):
+async def _poll_run(client, headers, tenant_id, run_id, max_polls=15):
     import asyncio
 
     for _ in range(max_polls):
-        resp = await client.get(f"/ingestion-runs/{run_id}", headers=headers)
+        resp = await client.get(f"/clients/{tenant_id}/ingestion-runs/{run_id}", headers=headers)
         if resp.status_code == 200:
             body = resp.json()
             if body["status"] in ("success", "failed", "partial_success"):
@@ -87,6 +89,7 @@ async def test_partial_success_with_failing_adapter(auth_app, make_client):
                 email=f"partial-admin-{c.id}@test.com",
                 hashed_password=password_helper.hash("Abcdef1!"),
                 role="admin",
+                user_type="client",
                 client_id=c.id,
                 is_active=True,
                 is_superuser=False,
@@ -195,6 +198,7 @@ async def test_startup_sweep_reconciles_running_runs(auth_app, make_client):
                 email=f"sweep-admin-{c.id}@test.com",
                 hashed_password=password_helper.hash("Abcdef1!"),
                 role="admin",
+                user_type="client",
                 client_id=c.id,
                 is_active=True,
                 is_superuser=False,
@@ -233,18 +237,20 @@ async def test_startup_sweep_reconciles_running_runs(auth_app, make_client):
 # ---------------------------------------------------------------------------
 
 
-async def test_inactive_watchlist_refuses_trigger(client, make_client, make_user):
+async def test_inactive_watchlist_refuses_trigger(client, make_client, make_staff_user):
     """Deactivating a watchlist means ingest returns 400; data is preserved (FR-022)."""
-    headers = await _admin_headers(client, make_client, make_user)
-    wl = await _create_watchlist(client, headers, name="lifecycle-wl", drug="atenolol")
+    tenant, headers = await _admin_headers(client, make_client, make_staff_user)
+    wl = await _create_watchlist(client, headers, tenant.id, name="lifecycle-wl", drug="atenolol")
     wl_id = wl["id"]
 
     patch_resp = await client.patch(
-        f"/watchlists/{wl_id}", json={"is_active": False}, headers=headers
+        f"/clients/{tenant.id}/watchlists/{wl_id}", json={"is_active": False}, headers=headers
     )
     assert patch_resp.status_code == 200
 
-    trigger_resp = await client.post(f"/watchlists/{wl_id}/ingest", headers=headers)
+    trigger_resp = await client.post(
+        f"/clients/{tenant.id}/watchlists/{wl_id}/ingest", headers=headers
+    )
     assert trigger_resp.status_code == 400
 
 
@@ -285,6 +291,7 @@ async def test_zero_result_run_is_success(auth_app, make_client):
                 email=f"zero-admin-{c.id}@test.com",
                 hashed_password=password_helper.hash("Abcdef1!"),
                 role="admin",
+                user_type="client",
                 client_id=c.id,
                 is_active=True,
                 is_superuser=False,
@@ -361,6 +368,7 @@ async def test_pii_free_logging(auth_app, make_client, caplog):
                 email=f"pii-admin-{c.id}@test.com",
                 hashed_password=password_helper.hash("Abcdef1!"),
                 role="admin",
+                user_type="client",
                 client_id=c.id,
                 is_active=True,
                 is_superuser=False,

@@ -75,7 +75,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.dispatcher = dispatcher
     app.state.limiter = limiter
 
-    # 4. Ingestion startup: MeSH check + stale-run reconciliation (non-fatal).
+    # 4. Bootstrap manager: idempotent seed — creates one manager if none exists (FR-024, D8).
+    try:
+        from app.auth.bootstrap import ensure_manager
+
+        async with session_factory() as session:
+            async with session.begin():
+                await ensure_manager(session, settings)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("bootstrap.manager_failed", error=str(exc))
+
+    # 5. Ingestion startup: MeSH check + stale-run reconciliation (non-fatal).
     await _run_ingestion_startup(session_factory)
 
     _log.info("startup.complete", provider=llm.provider, model=llm.model)

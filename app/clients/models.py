@@ -28,6 +28,12 @@ class Client(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="active")
+    # Report delivery addresses (FR-017); single address each; sending deferred later.
+    report_email_regular: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    report_email_urgent: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    urgent_severity_threshold: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="life-threatening"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -37,6 +43,10 @@ class Client(Base):
 
     __table_args__ = (
         CheckConstraint("status IN ('active', 'suspended')", name="ck_clients_status"),
+        CheckConstraint(
+            "urgent_severity_threshold IN ('non-serious','serious','life-threatening')",
+            name="ck_clients_urgent_threshold",
+        ),
         # Case-insensitive platform-wide uniqueness without a citext dependency (research D6).
         Index("ux_clients_lower_name", func.lower(name), unique=True),
     )

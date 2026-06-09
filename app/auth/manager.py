@@ -1,10 +1,13 @@
-"""Password policy (FR-016) and the fastapi-users UserManager used for token validation."""
+"""Password policy (FR-016), guard helpers, and the fastapi-users UserManager."""
 
 import re
 
 from fastapi_users import BaseUserManager, IntegerIDMixin, exceptions
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
+from app.auth.schemas import Role
 
 _SYMBOL = re.compile(r"[^A-Za-z0-9]")
 
@@ -26,6 +29,36 @@ def validate_password_policy(password: str) -> None:
         raise exceptions.InvalidPasswordException(
             reason="Password must contain " + ", ".join(missing) + "."
         )
+
+
+async def _active_manager_count(session: AsyncSession, exclude_id: int | None = None) -> int:
+    """Count active managers globally, optionally excluding one user (last-manager guard)."""
+    stmt = (
+        select(func.count())
+        .select_from(User)
+        .where(User.role == Role.MANAGER.value, User.is_active.is_(True))
+    )
+    if exclude_id is not None:
+        stmt = stmt.where(User.id != exclude_id)
+    return await session.scalar(stmt) or 0
+
+
+async def _active_admin_count(
+    session: AsyncSession, client_id: int, exclude_id: int | None = None
+) -> int:
+    """Count active admins in a client, optionally excluding one user (last-admin guard)."""
+    stmt = (
+        select(func.count())
+        .select_from(User)
+        .where(
+            User.client_id == client_id,
+            User.role == Role.ADMIN.value,
+            User.is_active.is_(True),
+        )
+    )
+    if exclude_id is not None:
+        stmt = stmt.where(User.id != exclude_id)
+    return await session.scalar(stmt) or 0
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):

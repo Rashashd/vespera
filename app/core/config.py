@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     preferred_provider: str = "anthropic"
     log_level: str = "INFO"
     sentry_dsn: str = ""  # non-secret DSN; empty disables Sentry
-    auth_token_ttl_seconds: int = 1800  # access-token lifetime ~30 min (spec 2 FR-001)
+    auth_token_ttl_seconds: int = 28800  # access-token lifetime ~8h (spec 4b FR-019)
 
     # --- Secret fields: initialized empty, populated from Vault at startup ---
     database_url: str = ""
@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     bootstrap_admin_email: str = ""
     bootstrap_admin_password: str = ""
     bootstrap_admin_client_id: int = 1
+
+    # Bootstrap manager (spec 4b FR-024): OPTIONAL, NOT in _REQUIRED_SECRETS (no ci.yml change).
+    bootstrap_manager_email: str = ""
+    bootstrap_manager_password: str = ""
 
     # --- Ingestion: optional source credentials (NOT in _REQUIRED_SECRETS — D7) ---
     pubmed_api_key: str = ""  # NCBI E-utilities API key; empty ⇒ keyless (10 req/s limit)

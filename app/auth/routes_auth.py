@@ -1,8 +1,12 @@
-"""Authentication routes: custom rate-limited, audited login and stateless logout (spec 2)."""
+"""Authentication routes: custom rate-limited, audited login and stateless logout (spec 2).
 
-from fastapi import APIRouter, Depends, Request, Response, status
+Also includes self-service PATCH /auth/users/me for password change (FR-024).
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +18,7 @@ from app.db.models import SYSTEM_ACTOR_ID
 from app.domain.events import LoginFailed, UserLoggedIn
 
 router = APIRouter(prefix="/auth/jwt", tags=["auth"])
+_users_me_router = APIRouter(prefix="/auth/users", tags=["auth"])
 
 # Generic, non-enumerating failure detail (FR-002): identical whether the email exists or not.
 _BAD_CREDENTIALS = "LOGIN_BAD_CREDENTIALS"
@@ -82,3 +87,32 @@ async def login(
 async def logout(_user: User = Depends(current_active_user)) -> Response:
     """Stateless logout: nothing to revoke server-side; the client discards the token."""
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Self-service password change (FR-024): PATCH /auth/users/me
+# ---------------------------------------------------------------------------
+
+
+class _PasswordUpdate(BaseModel):
+    password: str
+
+
+@_users_me_router.patch("/me", status_code=status.HTTP_200_OK)
+async def update_me(
+    body: _PasswordUpdate,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Allow any authenticated user to change their own password (FR-024)."""
+    from app.auth.manager import validate_password_policy
+
+    try:
+        validate_password_policy(body.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    user.hashed_password = password_helper.hash(body.password)
+    session.add(user)
+    await session.commit()
+    return {"id": user.id, "email": user.email}

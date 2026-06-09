@@ -50,13 +50,18 @@ async def test_users_client_id_has_fk_to_clients():
 
 
 async def test_no_orphaned_users():
-    """Every users.client_id resolves to a real clients row (SC-001, no orphans)."""
+    """Every non-NULL users.client_id resolves to a real clients row (SC-001, no orphans).
+
+    staff users have client_id IS NULL (valid in the 4b agency model); only non-NULL
+    client_id values need a matching clients row.
+    """
     engine = await _engine()
     async with engine.connect() as conn:
         orphans = await conn.scalar(
             text(
                 "SELECT count(*) FROM users u "
-                "LEFT JOIN clients c ON c.id = u.client_id WHERE c.id IS NULL"
+                "LEFT JOIN clients c ON c.id = u.client_id "
+                "WHERE u.client_id IS NOT NULL AND c.id IS NULL"
             )
         )
     await engine.dispose()

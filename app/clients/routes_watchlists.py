@@ -1,22 +1,27 @@
-"""Watchlist CRUD + item routes, all scoped to the caller's client (writes admin-only, FR-013)."""
+"""Watchlist CRUD + item routes, scoped to a named {client_id} (agency model, spec 4b).
+
+Write routes (create/update/items) are staff admin-only (FR-013, FR-027).
+Read routes allow any authenticated user who can name the client (staff + client-users).
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import current_active_user, require_admin
+from app.auth.dependencies import get_acting_client, get_acting_client_read, require_admin
 from app.auth.models import User
 from app.clients import service
+from app.clients.models import Client
 from app.clients.schemas import WatchlistCreate, WatchlistItemAdd, WatchlistRead, WatchlistUpdate
 from app.core.dependencies import get_session
 from app.domain.events import (
+    WatchlistActivationChanged,
     WatchlistCreated,
-    WatchlistDeactivated,
     WatchlistItemAdded,
     WatchlistItemRemoved,
     WatchlistUpdated,
 )
 
-router = APIRouter(prefix="/watchlists", tags=["watchlists"])
+router = APIRouter(prefix="/clients/{client_id}/watchlists", tags=["watchlists"])
 
 
 async def _to_read(session: AsyncSession, watchlist) -> WatchlistRead:
@@ -26,7 +31,7 @@ async def _to_read(session: AsyncSession, watchlist) -> WatchlistRead:
 
 
 async def _require_watchlist(session: AsyncSession, client_id: int, watchlist_id: int):
-    """Fetch a watchlist in the caller's client or raise 404 (no reveal, SC-003)."""
+    """Fetch a watchlist in the target client or raise 404 (no reveal, SC-003)."""
     watchlist = await service.get_watchlist(session, client_id, watchlist_id)
     if watchlist is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="WATCHLIST_NOT_FOUND")
@@ -37,14 +42,15 @@ async def _require_watchlist(session: AsyncSession, client_id: int, watchlist_id
 async def create_watchlist(
     payload: WatchlistCreate,
     request: Request,
+    target: Client = Depends(get_acting_client),
     admin: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ) -> WatchlistRead:
-    """Create a named watchlist with ≥1 item in the admin's client (FR-003/FR-016)."""
+    """Create a named watchlist with ≥1 item in the target client (FR-003/FR-016)."""
     try:
         watchlist = await service.create_watchlist(
             session,
-            admin.client_id,
+            target.id,
             name=payload.name,
             cadence=payload.cadence.value,
             severity_threshold=payload.severity_threshold.value,
@@ -64,7 +70,7 @@ async def create_watchlist(
         WatchlistCreated(
             actor_id=admin.id,
             actor_type="human",
-            client_id=admin.client_id,
+            client_id=target.id,
             watchlist_id=watchlist.id,
             name=watchlist.name,
         ),
@@ -75,15 +81,15 @@ async def create_watchlist(
 
 @router.get("", response_model=list[WatchlistRead])
 async def list_watchlists(
-    user: User = Depends(current_active_user),
+    target: Client = Depends(get_acting_client_read),
     session: AsyncSession = Depends(get_session),
     include_inactive: bool = False,
     limit: int = 50,
     offset: int = 0,
 ) -> list[WatchlistRead]:
-    """List the caller's client's watchlists (reviewer may view; SC-003)."""
+    """List the target client's watchlists (any authenticated user with access; SC-003)."""
     rows = await service.list_watchlists(
-        session, user.client_id, include_inactive=include_inactive, limit=limit, offset=offset
+        session, target.id, include_inactive=include_inactive, limit=limit, offset=offset
     )
     return [await _to_read(session, w) for w in rows]
 
@@ -91,11 +97,11 @@ async def list_watchlists(
 @router.get("/{watchlist_id}", response_model=WatchlistRead)
 async def get_watchlist(
     watchlist_id: int,
-    user: User = Depends(current_active_user),
+    target: Client = Depends(get_acting_client_read),
     session: AsyncSession = Depends(get_session),
 ) -> WatchlistRead:
-    """Retrieve one watchlist of the caller's client; cross-tenant ⇒ 404 (SC-003)."""
-    watchlist = await _require_watchlist(session, user.client_id, watchlist_id)
+    """Retrieve one watchlist of the target client; cross-tenant ⇒ 404 (SC-003)."""
+    watchlist = await _require_watchlist(session, target.id, watchlist_id)
     return await _to_read(session, watchlist)
 
 
@@ -104,14 +110,14 @@ async def update_watchlist(
     watchlist_id: int,
     payload: WatchlistUpdate,
     request: Request,
+    target: Client = Depends(get_acting_client),
     admin: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ) -> WatchlistRead:
-    """Rename / set cadence,severity,budget / (de)activate a watchlist; one audit event (FR-017)."""
-    watchlist = await _require_watchlist(session, admin.client_id, watchlist_id)
+    """Rename / set cadence,severity,budget / (de)activate a watchlist (FR-017, FR-027)."""
+    watchlist = await _require_watchlist(session, target.id, watchlist_id)
     fields = payload.model_fields_set
     changes: dict = {}
-    deactivated = False
 
     if "name" in fields and payload.name != watchlist.name:
         try:
@@ -146,31 +152,36 @@ async def update_watchlist(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="WATCHLIST_EMPTY"
             ) from exc
-        deactivated = payload.is_active is False
         changes["is_active"] = watchlist.is_active
 
     if changes:
         session.add(watchlist)
         await session.flush()
         dispatcher = request.app.state.dispatcher
-        if deactivated:
+
+        is_active_changed = "is_active" in changes
+        other_changes = {k: v for k, v in changes.items() if k != "is_active"}
+
+        if is_active_changed:
             await dispatcher.dispatch(
-                WatchlistDeactivated(
+                WatchlistActivationChanged(
                     actor_id=admin.id,
                     actor_type="human",
-                    client_id=admin.client_id,
+                    client_id=target.id,
+                    target_client_id=target.id,
                     watchlist_id=watchlist.id,
+                    is_active=watchlist.is_active,
                 ),
                 session,
             )
-        else:
+        if other_changes:
             await dispatcher.dispatch(
                 WatchlistUpdated(
                     actor_id=admin.id,
                     actor_type="human",
-                    client_id=admin.client_id,
+                    client_id=target.id,
                     watchlist_id=watchlist.id,
-                    changes=changes,
+                    changes=other_changes,
                 ),
                 session,
             )
@@ -185,11 +196,12 @@ async def add_item(
     payload: WatchlistItemAdd,
     request: Request,
     response: Response,
+    target: Client = Depends(get_acting_client),
     admin: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ) -> WatchlistRead:
     """Add an item idempotently; 201 when created, 200 on a duplicate no-op (FR-005)."""
-    watchlist = await _require_watchlist(session, admin.client_id, watchlist_id)
+    watchlist = await _require_watchlist(session, target.id, watchlist_id)
     item = await service.add_item(
         session, watchlist, item_type=payload.item_type.value, value=payload.value
     )
@@ -201,7 +213,7 @@ async def add_item(
             WatchlistItemAdded(
                 actor_id=admin.id,
                 actor_type="human",
-                client_id=admin.client_id,
+                client_id=target.id,
                 watchlist_id=watchlist.id,
                 item_id=item.id,
                 item_type=item.item_type,
@@ -218,11 +230,12 @@ async def remove_item(
     watchlist_id: int,
     item_id: int,
     request: Request,
+    target: Client = Depends(get_acting_client),
     admin: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     """Remove an item gracefully; refuse to empty an active watchlist (FR-016)."""
-    watchlist = await _require_watchlist(session, admin.client_id, watchlist_id)
+    watchlist = await _require_watchlist(session, target.id, watchlist_id)
     try:
         removed = await service.remove_item(session, watchlist, item_id)
     except service.WatchlistEmpty as exc:
@@ -234,7 +247,7 @@ async def remove_item(
             WatchlistItemRemoved(
                 actor_id=admin.id,
                 actor_type="human",
-                client_id=admin.client_id,
+                client_id=target.id,
                 watchlist_id=watchlist.id,
                 item_id=item_id,
             ),

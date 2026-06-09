@@ -7,8 +7,10 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from app.api import health
+from app.auth.routes_auth import _users_me_router as auth_me_router
 from app.auth.routes_auth import router as auth_router
-from app.auth.routes_users import router as users_router
+from app.auth.routes_staff import router as staff_router
+from app.clients.routes_client_users import router as client_users_router
 from app.clients.routes_clients import router as clients_router
 from app.clients.routes_watchlists import router as watchlists_router
 from app.core.lifespan import lifespan
@@ -22,11 +24,13 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Pantera", version="0.1.0", lifespan=lifespan)
     app.include_router(health.router)
     app.include_router(auth_router)  # spec 2: /auth/jwt/login (rate-limited), /logout
-    app.include_router(users_router)  # spec 2: admin user management (client-scoped)
-    app.include_router(clients_router)  # spec 3: GET/PATCH own client
-    app.include_router(watchlists_router)  # spec 3: watchlist CRUD + items + per-watchlist config
-    app.include_router(ingestion_router)  # spec 4: trigger + run-status endpoints
-    app.include_router(documents_router)  # spec 4: document browse endpoints
+    app.include_router(auth_me_router)  # spec 4b: PATCH /auth/users/me (self-service pw change)
+    app.include_router(staff_router)  # spec 4b: manager-owned staff account CRUD
+    app.include_router(clients_router)  # spec 3/4b: client lifecycle + own-client routes
+    app.include_router(client_users_router)  # spec 4b: client-user management per named client
+    app.include_router(watchlists_router)  # spec 3/4b: /clients/{id}/watchlists CRUD + items
+    app.include_router(ingestion_router)  # spec 4/4b: /clients/{id}/watchlists/{id}/ingest + runs
+    app.include_router(documents_router)  # spec 4/4b: /clients/{id}/documents browse
     # Rate-limit machinery (FR-011): a default in-memory limiter so the middleware works
     # before startup; the lifespan upgrades app.state.limiter to the Redis-backed one.
     app.state.limiter = Limiter(key_func=get_remote_address)

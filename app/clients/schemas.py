@@ -6,9 +6,11 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
+from app.auth.schemas import ClientScope
 from app.clients.enums import Cadence, SeverityLevel, WatchlistItemType
 
 if TYPE_CHECKING:  # pragma: no cover
+    from app.auth.models import User
     from app.clients.models import Watchlist
 
 
@@ -41,6 +43,91 @@ class ClientUpdate(BaseModel):
     name: str | None = None
 
     _check_name = field_validator("name")(lambda cls, v: _clean_name(v) if v is not None else v)
+
+
+class ClientCreate(BaseModel):
+    """Body for POST /clients; manager-only (contracts/client-lifecycle.md)."""
+
+    name: str
+    report_email_regular: str | None = None
+    report_email_urgent: str | None = None
+    urgent_severity_threshold: SeverityLevel | None = None
+
+    _check_name = field_validator("name")(lambda cls, v: _clean_name(v))
+
+
+class ClientOut(BaseModel):
+    """Full client view returned by lifecycle and roster endpoints (spec 4b, FR-017)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    status: str
+    report_email_regular: str | None
+    report_email_urgent: str | None
+    urgent_severity_threshold: str
+    created_at: datetime
+
+
+# --- Report email schema (spec 4b, US4) --------------------------------------
+
+
+class ReportEmailUpdate(BaseModel):
+    """PATCH body for /clients/{id}/report-emails; each field optional (FR-017)."""
+
+    report_email_regular: str | None = None
+    report_email_urgent: str | None = None
+    urgent_severity_threshold: SeverityLevel | None = None
+
+
+# --- Client-user schemas (spec 4b, US3) --------------------------------------
+
+
+class ClientUserCreate(BaseModel):
+    """Body for POST /clients/{client_id}/users; user_type/client_id forced in route (FR-014)."""
+
+    email: str
+    password: str
+    client_scope: ClientScope
+    min_severity: SeverityLevel | None = None
+    watchlist_ids: list[int] = Field(default_factory=list)
+
+
+class ClientUserUpdate(BaseModel):
+    """PATCH body for /clients/{client_id}/users/{user_id}; immutable fields rejected."""
+
+    client_scope: ClientScope | None = None
+    min_severity: SeverityLevel | None = None
+    watchlist_ids: list[int] | None = None
+    is_active: bool | None = None
+
+
+class ClientUserOut(BaseModel):
+    """Client-user read response with derived watchlist_ids from the scope junction (FR-014)."""
+
+    id: int
+    email: str
+    client_id: int
+    role: str
+    client_scope: str | None
+    min_severity: str | None
+    watchlist_ids: list[int]
+    is_active: bool
+
+    @classmethod
+    def from_user(cls, user: "User") -> "ClientUserOut":
+        """Assemble the response from an ORM User and its watchlist_scopes relationship."""
+        return cls(
+            id=user.id,
+            email=user.email,
+            client_id=user.client_id,
+            role=user.role,
+            client_scope=user.client_scope,
+            min_severity=user.min_severity,
+            watchlist_ids=[ws.watchlist_id for ws in user.watchlist_scopes],
+            is_active=user.is_active,
+        )
 
 
 # --- Watchlists --------------------------------------------------------------

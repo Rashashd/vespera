@@ -13,11 +13,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-async def _admin(client, make_client, make_user):
+async def _admin(client, make_client, make_staff_user):
     tenant = await make_client()
-    admin = await make_user(role="admin", client_id=tenant.id)
+    admin = await make_staff_user(role="admin")
     token = await login_token(client, admin.email)
-    return {"Authorization": f"Bearer {token}"}
+    return tenant, {"Authorization": f"Bearer {token}"}
 
 
 def _payload(**over):
@@ -29,30 +29,38 @@ def _payload(**over):
     return body
 
 
-async def test_default_severity_is_serious(client, make_client, make_user):
+async def test_default_severity_is_serious(client, make_client, make_staff_user):
     """Severity threshold defaults to serious when unset (FR-007)."""
-    h = await _admin(client, make_client, make_user)
-    wl = (await client.post("/watchlists", headers=h, json=_payload())).json()
+    tenant, h = await _admin(client, make_client, make_staff_user)
+    wl = (await client.post(f"/clients/{tenant.id}/watchlists", headers=h, json=_payload())).json()
     assert wl["severity_threshold"] == "serious"
 
 
-async def test_set_severity(client, make_client, make_user):
+async def test_set_severity(client, make_client, make_staff_user):
     """A valid severity threshold is stored and read back (FR-007)."""
-    h = await _admin(client, make_client, make_user)
+    tenant, h = await _admin(client, make_client, make_staff_user)
     wl = (
         await client.post(
-            "/watchlists", headers=h, json=_payload(severity_threshold="life-threatening")
+            f"/clients/{tenant.id}/watchlists",
+            headers=h,
+            json=_payload(severity_threshold="life-threatening"),
         )
     ).json()
     assert wl["severity_threshold"] == "life-threatening"
     patched = await client.patch(
-        f"/watchlists/{wl['id']}", headers=h, json={"severity_threshold": "non-serious"}
+        f"/clients/{tenant.id}/watchlists/{wl['id']}",
+        headers=h,
+        json={"severity_threshold": "non-serious"},
     )
     assert patched.status_code == 200 and patched.json()["severity_threshold"] == "non-serious"
 
 
-async def test_invalid_severity_is_422(client, make_client, make_user):
+async def test_invalid_severity_is_422(client, make_client, make_staff_user):
     """An out-of-set severity threshold is rejected with 422 (FR-007)."""
-    h = await _admin(client, make_client, make_user)
-    resp = await client.post("/watchlists", headers=h, json=_payload(severity_threshold="fatal"))
+    tenant, h = await _admin(client, make_client, make_staff_user)
+    resp = await client.post(
+        f"/clients/{tenant.id}/watchlists",
+        headers=h,
+        json=_payload(severity_threshold="fatal"),
+    )
     assert resp.status_code == 422

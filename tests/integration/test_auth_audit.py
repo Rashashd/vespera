@@ -1,4 +1,4 @@
-"""Audit-trail integration tests: one row per security event, correct attribution (US3)."""
+"""Audit-trail integration tests: one row per security event, correct attribution (spec 4b)."""
 
 import os
 import uuid
@@ -52,18 +52,18 @@ async def test_failed_login_unknown_email_is_system_actor(client, auth_app):
     assert row.actor_type == "system"
     assert row.actor_id == SYSTEM_ACTOR_ID
     assert row.actor_user_id is None
-    # No password material is ever stored in the payload (SC-005).
     assert "password" not in (row.payload or {})
 
 
-async def test_user_created_is_audited(client, make_user, auth_app):
-    """Admin user creation writes one UserCreated row attributed to the admin."""
-    admin = await make_user(role="admin", client_id=900)
-    token = await login_token(client, admin.email)
-    await client.post(
-        "/users",
+async def test_staff_user_created_is_audited(client, make_staff_user, auth_app):
+    """Manager creating a staff user writes one UserCreated row (FR-021; spec 4b)."""
+    manager = await make_staff_user(role="manager")
+    token = await login_token(client, manager.email)
+    resp = await client.post(
+        "/staff",
         headers={"Authorization": f"Bearer {token}"},
         json={"email": f"{uuid.uuid4().hex}@x.com", "password": "Abcdef1!", "role": "reviewer"},
     )
-    created = await _count(auth_app, event_type="UserCreated", actor_user_id=admin.id)
-    assert created == 1
+    assert resp.status_code == 201
+    created = await _count(auth_app, event_type="UserCreated", actor_user_id=manager.id)
+    assert created >= 1

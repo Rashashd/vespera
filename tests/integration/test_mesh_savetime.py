@@ -18,11 +18,11 @@ from tests.integration.conftest import login_token  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
-async def _admin_headers(client, make_client, make_user):
+async def _admin_headers(client, make_client, make_staff_user):
     tenant = await make_client()
-    admin = await make_user(role="admin", client_id=tenant.id)
+    admin = await make_staff_user(role="admin")
     token = await login_token(client, admin.email)
-    return {"Authorization": f"Bearer {token}"}
+    return tenant, {"Authorization": f"Bearer {token}"}
 
 
 # ---------------------------------------------------------------------------
@@ -30,12 +30,12 @@ async def _admin_headers(client, make_client, make_user):
 # ---------------------------------------------------------------------------
 
 
-async def test_create_watchlist_mesh_validation(client, make_client, make_user):
+async def test_create_watchlist_mesh_validation(client, make_client, make_staff_user):
     """Valid MeSH → valid; bogus → invalid; neither is rejected (FR-009, US4)."""
-    headers = await _admin_headers(client, make_client, make_user)
+    tenant, headers = await _admin_headers(client, make_client, make_staff_user)
 
     resp = await client.post(
-        "/watchlists",
+        f"/clients/{tenant.id}/watchlists",
         json={
             "name": "MeSH-validation-test",
             "items": [
@@ -68,17 +68,17 @@ async def test_create_watchlist_mesh_validation(client, make_client, make_user):
 
 
 # ---------------------------------------------------------------------------
-# T040b: Add item via POST /watchlists/{id}/items — same validation
+# T040b: Add item via POST /clients/{id}/watchlists/{id}/items — same validation
 # ---------------------------------------------------------------------------
 
 
-async def test_add_item_mesh_validation(client, make_client, make_user):
+async def test_add_item_mesh_validation(client, make_client, make_staff_user):
     """Adding a valid MeSH item → validity set; adding invalid → flagged but accepted (US4)."""
-    headers = await _admin_headers(client, make_client, make_user)
+    tenant, headers = await _admin_headers(client, make_client, make_staff_user)
 
     # Create a watchlist with at least one drug item.
     create_resp = await client.post(
-        "/watchlists",
+        f"/clients/{tenant.id}/watchlists",
         json={"name": "mesh-add-test", "items": [{"item_type": "drug", "value": "aspirin"}]},
         headers=headers,
     )
@@ -87,7 +87,7 @@ async def test_add_item_mesh_validation(client, make_client, make_user):
 
     # Add a valid MeSH term (response is the full watchlist).
     resp_valid = await client.post(
-        f"/watchlists/{wl_id}/items",
+        f"/clients/{tenant.id}/watchlists/{wl_id}/items",
         json={"item_type": "mesh", "value": "Anticoagulants"},
         headers=headers,
     )
@@ -100,7 +100,7 @@ async def test_add_item_mesh_validation(client, make_client, make_user):
 
     # Add an invalid MeSH term — still accepted (not rejected), just flagged.
     resp_invalid = await client.post(
-        f"/watchlists/{wl_id}/items",
+        f"/clients/{tenant.id}/watchlists/{wl_id}/items",
         json={"item_type": "mesh", "value": "BogusTermZZZ999"},
         headers=headers,
     )
@@ -117,12 +117,12 @@ async def test_add_item_mesh_validation(client, make_client, make_user):
 # ---------------------------------------------------------------------------
 
 
-async def test_invalid_mesh_does_not_block_watchlist_creation(client, make_client, make_user):
+async def test_invalid_mesh_does_not_block_watchlist_creation(client, make_client, make_staff_user):
     """A watchlist with only invalid MeSH terms is still created without error (FR-009)."""
-    headers = await _admin_headers(client, make_client, make_user)
+    tenant, headers = await _admin_headers(client, make_client, make_staff_user)
 
     resp = await client.post(
-        "/watchlists",
+        f"/clients/{tenant.id}/watchlists",
         json={
             "name": "all-invalid-mesh",
             "items": [{"item_type": "mesh", "value": "AbsolutelyNotRealXYZ123"}],

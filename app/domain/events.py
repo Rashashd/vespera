@@ -148,6 +148,51 @@ class WatchlistItemRemoved(DomainEvent):
     item_id: int = 0
 
 
+# --- Staff & client lifecycle events (spec 4b); all carry target_client_id (D11/FR-021). ---
+
+
+@dataclass(frozen=True, slots=True)
+class ClientReactivated(DomainEvent):
+    """A suspended client was reactivated by a manager."""
+
+    target_client_id: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class ClientReportEmailChanged(DomainEvent):
+    """An admin updated a client's report delivery addresses."""
+
+    target_client_id: int = 0
+    changes: dict | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ClientUserCreated(DomainEvent):
+    """An admin created a client-side user for a named client."""
+
+    target_client_id: int = 0
+    target_user_id: int = 0
+    client_scope: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ClientUserScopeChanged(DomainEvent):
+    """An admin changed a client-user's visibility scope."""
+
+    target_client_id: int = 0
+    target_user_id: int = 0
+    changes: dict | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class WatchlistActivationChanged(DomainEvent):
+    """A staff admin changed a watchlist's is_active flag (FR-027)."""
+
+    target_client_id: int = 0
+    watchlist_id: int = 0
+    is_active: bool = False
+
+
 # --- Ingestion events (spec 4); auto-audited via DomainEvent.__subclasses__ (D14). ---
 
 
