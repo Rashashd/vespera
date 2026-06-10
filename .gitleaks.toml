@@ -1,0 +1,8 @@
+title = "Pantera gitleaks config"
+
+[allowlist]
+  description = "Commits containing only false positives: SHA-256 model checksums and ML terminology"
+  commits = [
+    "588a0f5e69bb45fe0617b8181b3c92949cff6ab8",
+    "e799682a5ea9e010021fb8d5a6c53bc94d420f98",
+  ]
