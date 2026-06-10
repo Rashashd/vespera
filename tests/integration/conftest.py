@@ -179,6 +179,159 @@ async def make_client(auth_app):
             await s.execute(delete(Client).where(Client.id.in_(created_ids)))
 
 
+@pytest_asyncio.fixture
+async def make_watchlist(auth_app):
+    """Factory that inserts a watchlist row for a client."""
+    from app.clients.models import Watchlist
+
+    factory = auth_app.state.session_factory
+    created_ids: list[int] = []
+
+    async def _make(
+        client_id: int,
+        name: str | None = None,
+        is_active: bool = True,
+    ) -> Watchlist:
+        name = name or f"WL-{uuid.uuid4().hex[:8]}"
+        async with factory() as s:
+            async with s.begin():
+                watchlist = Watchlist(
+                    client_id=client_id,
+                    name=name,
+                    is_active=is_active,
+                    cadence_days=7,
+                    severity_threshold="serious",
+                    budget_documents=1000,
+                )
+                s.add(watchlist)
+            await s.refresh(watchlist)
+        created_ids.append(watchlist.id)
+        return watchlist
+
+    yield _make
+
+    if created_ids:
+        from app.clients.models import Watchlist, WatchlistItem, WatchlistBudgetUsage
+        async with factory() as s:
+            async with s.begin():
+                await s.execute(
+                    delete(WatchlistBudgetUsage).where(WatchlistBudgetUsage.watchlist_id.in_(created_ids))
+                )
+                await s.execute(delete(WatchlistItem).where(WatchlistItem.watchlist_id.in_(created_ids)))
+                await s.execute(delete(Watchlist).where(Watchlist.id.in_(created_ids)))
+
+
+@pytest_asyncio.fixture
+async def make_document(auth_app):
+    """Factory that inserts a document with a source payload."""
+    from app.ingestion.models import Document, DocumentSource, DocumentWatchlist
+    from datetime import datetime, timezone
+
+    factory = auth_app.state.session_factory
+    created_ids: list[int] = []
+
+    async def _make(
+        client_id: int,
+        source_name: str = "pubmed",
+        source_payload: str | dict | None = None,
+        title: str | None = None,
+        published_at: datetime | None = None,
+    ) -> Document:
+        if source_payload is None:
+            source_payload = '{"test": "data"}'
+        if isinstance(source_payload, dict):
+            import json
+            source_payload = json.dumps(source_payload)
+
+        title = title or f"Test Document {uuid.uuid4().hex[:8]}"
+        published_at = published_at or datetime.now(timezone.utc)
+
+        async with factory() as s:
+            async with s.begin():
+                doc = Document(
+                    client_id=client_id,
+                    title=title,
+                    summary="Test summary",
+                    source=source_name,
+                    source_reliability="peer_reviewed",
+                    published_at=published_at,
+                    deduplication_id=f"test-{uuid.uuid4().hex}",
+                )
+                s.add(doc)
+                await s.flush()
+
+                # Add source payload
+                ds = DocumentSource(
+                    document_id=doc.id,
+                    source=source_name,
+                    raw_payload=source_payload,
+                    fetched_at=datetime.now(timezone.utc),
+                    is_primary=True,
+                )
+                s.add(ds)
+                await s.flush()
+                await s.refresh(doc)
+
+        created_ids.append(doc.id)
+        return doc
+
+    yield _make
+
+    if created_ids:
+        from app.ingestion.models import Document, DocumentSource, DocumentWatchlist
+        async with factory() as s:
+            async with s.begin():
+                await s.execute(delete(DocumentWatchlist).where(DocumentWatchlist.document_id.in_(created_ids)))
+                await s.execute(delete(DocumentSource).where(DocumentSource.document_id.in_(created_ids)))
+                await s.execute(delete(Document).where(Document.id.in_(created_ids)))
+
+
+@pytest_asyncio.fixture
+async def async_session(auth_app):
+    """Provide a direct async database session for tests."""
+    factory = auth_app.state.session_factory
+    async with factory() as session:
+        yield session
+
+
+@pytest_asyncio.fixture
+async def mock_modelserver_client():
+    """Mock ModelserverClient that returns dummy embeddings."""
+    from app.infra.modelserver_client import ModelserverClient
+
+    class MockModelserverClient(ModelserverClient):
+        async def embed_chunked(self, texts: list[str]) -> list[dict]:
+            """Return dummy 768-dim embeddings for testing."""
+            import numpy as np
+            results = []
+            for text in texts:
+                # Deterministic embedding based on text hash
+                seed = hash(text) % 2**31
+                np.random.seed(seed)
+                embedding = np.random.randn(768).astype(np.float32)
+                # L2 normalize
+                embedding = embedding / (np.linalg.norm(embedding) + 1e-8)
+                results.append({
+                    "embedding": embedding.tolist(),
+                    "model_version": {
+                        "sha256": "test-model-sha256"
+                    }
+                })
+            return results
+
+        async def get_ready(self) -> dict:
+            """Return mock ready response."""
+            return {
+                "models": {
+                    "embedder": {
+                        "sha256": "test-model-sha256"
+                    }
+                }
+            }
+
+    return MockModelserverClient(base_url="http://test")
+
+
 async def login_token(client: AsyncClient, email: str, password: str = "Abcdef1!") -> str:
     """Helper: log in and return the bearer access token."""
     resp = await client.post("/auth/jwt/login", data={"username": email, "password": password})

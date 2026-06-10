@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -137,12 +137,17 @@ class IndexBuildService:
     async def get_documents_to_index(
         session: AsyncSession, client_id: int
     ) -> list[Document]:
-        """Get documents ready for indexing for a client.
+        """Get documents ready for indexing for a client (FR-020, FR-009).
 
         Returns documents that are:
-        - not_indexed OR errored_transient (eligible for processing)
         - Linked to at least one active watchlist (FR-020)
+        - In state: not_indexed OR errored_transient (eligible for processing)
+        - NOT already indexed or in permanent error state
+
+        Idempotency guarantee: excludes indexed/indexed_empty/errored_permanent.
         """
+        from sqlalchemy.orm import joinedload
+
         # Subquery: get document IDs linked to at least one active watchlist
         active_watchlist_docs = (
             select(DocumentWatchlist.document_id)
@@ -151,7 +156,7 @@ class IndexBuildService:
             .where(Watchlist.is_active == True)
         )
 
-        # Main query: get documents matching status + active watchlist
+        # Main query: get documents with eligible status
         stmt = (
             select(Document)
             .where(
@@ -160,18 +165,21 @@ class IndexBuildService:
                     Document.id.in_(active_watchlist_docs),
                 )
             )
-            .join(
+            .outerjoin(
                 DocumentIndexState,
                 Document.id == DocumentIndexState.document_id,
-                isouter=True,
             )
             .where(
-                (DocumentIndexState.status.in_([
-                    DocumentIndexStatus.NOT_INDEXED,
-                    DocumentIndexStatus.ERRORED_TRANSIENT,
-                ]))
-                | (DocumentIndexState.id == None)  # Not yet indexed
+                or_(
+                    # Not yet indexed at all
+                    DocumentIndexState.id == None,
+                    # Transient failure (eligible for retry)
+                    DocumentIndexState.status == DocumentIndexStatus.ERRORED_TRANSIENT,
+                    # Not yet indexed status
+                    DocumentIndexState.status == DocumentIndexStatus.NOT_INDEXED,
+                )
             )
+            .distinct()
         )
 
         return (await session.execute(stmt)).scalars().all()

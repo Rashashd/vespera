@@ -140,7 +140,7 @@ async def _process_document(
     modelserver_client: ModelserverClient,
     client_id: int,
 ) -> None:
-    """Process a single document: parse → chunk → embed → persist (atomic).
+    """Process a single document: parse → chunk → embed → persist (atomic, FR-028).
 
     Args:
         session: Database session.
@@ -151,19 +151,21 @@ async def _process_document(
         modelserver_client: Client for embedding requests.
         client_id: Tenant client ID.
     """
-    logger.info(
-        "Processing document",
-        extra={"client_id": client_id, "document_id": document.id, "run_id": run.id},
-    )
+    extra_log = {"client_id": client_id, "document_id": document.id, "run_id": run.id}
 
     # Get or create the index state
     index_state = await IndexBuildService.get_or_create_index_state(
         session, document.id, client_id
     )
 
-    # Skip already-indexed documents
-    if index_state.status == DocumentIndexStatus.INDEXED:
+    # Skip already-indexed documents (idempotency)
+    if index_state.status in (
+        DocumentIndexStatus.INDEXED,
+        DocumentIndexStatus.INDEXED_EMPTY,
+        DocumentIndexStatus.ERRORED_PERMANENT,
+    ):
         run.documents_skipped += 1
+        logger.info("Skipping document (already processed)", extra=extra_log)
         return
 
     # Select the best source payload (FR-024)
@@ -172,10 +174,14 @@ async def _process_document(
     try:
         selected_source = select_source(document.document_sources)
     except ValueError as e:
-        logger.error(f"Failed to select source for document {document.id}: {e}")
+        # Permanent failure: no valid source available
+        logger.warning(
+            f"No valid source for document {document.id}: {e}",
+            extra={**extra_log, "transient": False},
+        )
         index_state.status = DocumentIndexStatus.ERRORED_PERMANENT
         index_state.attempts += 1
-        index_state.last_error = "No valid source payload"
+        index_state.last_error = str(e)[:255]
         index_state.updated_at = datetime.utcnow()
         index_state.last_run_id = run.id
         run.documents_errored += 1
