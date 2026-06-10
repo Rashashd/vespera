@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Install dependencies first for layer caching.
 COPY pyproject.toml uv.lock* ./
-RUN uv sync --no-dev --frozen || uv sync --no-dev
+RUN uv sync --no-dev --no-group modelserver --no-group training --frozen || uv sync --no-dev --no-group modelserver --no-group training
 
 # Application code.
 COPY app ./app

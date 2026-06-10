@@ -30,11 +30,11 @@ and the spec defines acceptance scenarios + the macro-F1 eval gate.
 
 **Purpose**: Project scaffolding and the lean-container build plumbing.
 
-- [ ] T001 Create the `modelserver/` package skeleton (`modelserver/__init__.py`, `inference/__init__.py`, `models/`, `eval/` dirs) each file opening with a one-sentence module docstring, per plan.md structure
-- [ ] T002 Add two `uv` dependency groups to `pyproject.toml`: a SELF-CONTAINED `modelserver` group enumerating the full serving set (fastapi, uvicorn, onnxruntime, numpy, tokenizers, pydantic, pydantic-settings, structlog, hvac, secure; + scikit-learn only if a classical classifier ships) and a `training` group (offline: torch, transformers, optimum[onnxruntime], datasets, scikit-learn, skl2onnx, evaluate, jupyter); keep both OUT of `[project].dependencies` (D1)
-- [ ] T003 [P] Create `modelserver/Dockerfile` — lean image installing ONLY the `modelserver` group AND excluding the app's own deps via `uv sync --only-group modelserver --no-install-project`, copying `modelserver/` + artifacts, running uvicorn; verify no torch and image < 500 MB (D1/FR-009)
-- [ ] T004 [P] Add a `modelserver` service to `docker-compose.yml` (build `modelserver/Dockerfile`, `VAULT_ADDR`/`VAULT_TOKEN` env only, exposed port, `depends_on: vault`)
-- [ ] T005 [P] Extend coverage/lint config in `pyproject.toml` to include `modelserver` in `[tool.coverage.run].source` and ensure ruff/black target `modelserver`
+- [X] T001 Create the `modelserver/` package skeleton (`modelserver/__init__.py`, `inference/__init__.py`, `models/`, `eval/` dirs) each file opening with a one-sentence module docstring, per plan.md structure
+- [X] T002 Add two `uv` dependency groups to `pyproject.toml`: a SELF-CONTAINED `modelserver` group enumerating the full serving set (fastapi, uvicorn, onnxruntime, numpy, tokenizers, pydantic, pydantic-settings, structlog, hvac, secure; + scikit-learn only if a classical classifier ships) and a `training` group (offline: torch, transformers, optimum[onnxruntime], datasets, scikit-learn, skl2onnx, evaluate, jupyter); keep both OUT of `[project].dependencies` (D1)
+- [X] T003 [P] Create `modelserver/Dockerfile` — lean image installing ONLY the `modelserver` group AND excluding the app's own deps via `uv sync --only-group modelserver --no-install-project`, copying `modelserver/` + artifacts, running uvicorn; verify no torch and image < 500 MB (D1/FR-009)
+- [X] T004 [P] Add a `modelserver` service to `docker-compose.yml` (build `modelserver/Dockerfile`, `VAULT_ADDR`/`VAULT_TOKEN` env only, exposed port, `depends_on: vault`)
+- [X] T005 [P] Extend coverage/lint config in `pyproject.toml` to include `modelserver` in `[tool.coverage.run].source` and ensure ruff/black target `modelserver`
 
 ---
 
@@ -45,15 +45,15 @@ test fixtures that EVERY user story needs.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T006 [P] Implement `modelserver/config.py` — pydantic-settings (`extra="forbid"`): `vault_addr`, `vault_token`, `model_dir`, `max_batch=128`, `max_tokens=512`; no `os.getenv` outside this file
-- [ ] T007 [P] Implement `modelserver/startup.py` — `load_secret()` fetching `modelserver_token` from Vault via `hvac` (refuse boot if empty), mirroring `app/core/startup.py` pattern (D5)
-- [ ] T008 [P] Implement structlog JSON logging setup for the modelserver binding `operation`/`batch_size`/`latency_ms`/`model_version`; never log payloads/PII/secrets (D16/FR-020)
-- [ ] T009 [P] Implement `modelserver/manifest.py` — load/parse `models/manifest.json`, expose per-artifact model-version identifiers (name/version/sha256/dim/max_tokens) per `contracts/model-manifest.md` (D4/D9)
-- [ ] T010 [P] Implement `modelserver/inference/tokenize.py` — load `tokenizer.json` via `tokenizers` (no torch), tokenize with `truncation=True, max_length=512`, emit `input_truncated` warning (counts only) when pre-truncation length > 512 (D8/D12/FR-005a)
-- [ ] T011 [P] Implement `modelserver/auth.py` — `X-Service-Token` FastAPI dependency, `hmac.compare_digest` constant-time check → missing `401`, invalid `403` (D5/FR-015)
-- [ ] T012 [P] Implement `modelserver/schemas.py` — base request (`texts: list[str]`, `min_length=0, max_length=128`) and version-stamped result models per `contracts/classify.md`/`embed.md` (FR-003/FR-005b)
-- [ ] T013 Implement `modelserver/main.py` — FastAPI app factory + lifespan (load token, then call the artifact-load+validate hook, register artifacts via manifest, wire logging), `secure` security headers, router registration (depends on T006–T012). The lifespan MUST invoke the integrity-validation entry point whose strict refuse-boot logic is implemented/strengthened in T031 (US4) — leave the call site in place here so US4 only fills in enforcement, with no missed wiring (F5)
-- [ ] T014 [P] Add tiny committed test fixture artifacts under `tests/fixtures/modelserver/` (a minimal ONNX/joblib classifier, a minimal embedder + `tokenizer.json`, and a `manifest.json` with their real SHA-256s) so service tests need no large download/network
+- [X] T006 [P] Implement `modelserver/config.py` — pydantic-settings (`extra="forbid"`): `vault_addr`, `vault_token`, `model_dir`, `max_batch=128`, `max_tokens=512`; no `os.getenv` outside this file
+- [X] T007 [P] Implement `modelserver/startup.py` — `load_secret()` fetching `modelserver_token` from Vault via `hvac` (refuse boot if empty), mirroring `app/core/startup.py` pattern (D5)
+- [X] T008 [P] Implement structlog JSON logging setup for the modelserver binding `operation`/`batch_size`/`latency_ms`/`model_version`; never log payloads/PII/secrets (D16/FR-020)
+- [X] T009 [P] Implement `modelserver/manifest.py` — load/parse `models/manifest.json`, expose per-artifact model-version identifiers (name/version/sha256/dim/max_tokens) per `contracts/model-manifest.md` (D4/D9)
+- [X] T010 [P] Implement `modelserver/inference/tokenize.py` — load `tokenizer.json` via `tokenizers` (no torch), tokenize with `truncation=True, max_length=512`, emit `input_truncated` warning (counts only) when pre-truncation length > 512 (D8/D12/FR-005a)
+- [X] T011 [P] Implement `modelserver/auth.py` — `X-Service-Token` FastAPI dependency, `hmac.compare_digest` constant-time check → missing `401`, invalid `403` (D5/FR-015)
+- [X] T012 [P] Implement `modelserver/schemas.py` — base request (`texts: list[str]`, `min_length=0, max_length=128`) and version-stamped result models per `contracts/classify.md`/`embed.md` (FR-003/FR-005b)
+- [X] T013 Implement `modelserver/main.py` — FastAPI app factory + lifespan (load token, then call the artifact-load+validate hook, register artifacts via manifest, wire logging), `secure` security headers, router registration (depends on T006–T012). The lifespan MUST invoke the integrity-validation entry point whose strict refuse-boot logic is implemented/strengthened in T031 (US4) — leave the call site in place here so US4 only fills in enforcement, with no missed wiring (F5)
+- [X] T014 [P] Add tiny committed test fixture artifacts under `tests/fixtures/modelserver/` (a minimal ONNX/joblib classifier, a minimal embedder + `tokenizer.json`, and a `manifest.json` with their real SHA-256s) so service tests need no large download/network
 
 **Checkpoint**: The modelserver app boots against fixtures; secrets, auth, manifest, tokenization in place.
 
@@ -69,13 +69,13 @@ with confidence; same input twice → identical output; batch preserves order.
 
 ### Tests for User Story 1
 
-- [ ] T015 [P] [US1] Contract/integration test `tests/integration/test_classify_contract.py` — batch order, confidence∈[0,1], `is_adverse` at cutoff 0.5, determinism, per-result `model_version` (uses fixture model)
+- [X] T015 [P] [US1] Contract/integration test `tests/integration/test_classify_contract.py` — batch order, confidence∈[0,1], `is_adverse` at cutoff 0.5, determinism, per-result `model_version` (uses fixture model)
 
 ### Implementation for User Story 1
 
-- [ ] T016 [P] [US1] Implement `modelserver/inference/classifier.py` — load classifier session (onnxruntime/joblib, CPU provider, deterministic), `predict(texts) -> [(confidence, is_adverse≥0.5)]` (D2/D6/FR-001/FR-004)
-- [ ] T017 [US1] Implement `POST /classify` in `modelserver/routes.py` — validate (≤128), tokenize+truncate, run classifier, stamp classifier `model_version`, return ordered results; `503` until ready (depends on T016)
-- [ ] T018 [US1] Add classify request/response Pydantic schemas to `modelserver/schemas.py` and structured logging for the operation (no payloads)
+- [X] T016 [P] [US1] Implement `modelserver/inference/classifier.py` — load classifier session (onnxruntime/joblib, CPU provider, deterministic), `predict(texts) -> [(confidence, is_adverse≥0.5)]` (D2/D6/FR-001/FR-004)
+- [X] T017 [US1] Implement `POST /classify` in `modelserver/routes.py` — validate (≤128), tokenize+truncate, run classifier, stamp classifier `model_version`, return ordered results; `503` until ready (depends on T016)
+- [X] T018 [US1] Add classify request/response Pydantic schemas to `modelserver/schemas.py` and structured logging for the operation (no payloads)
 
 **Checkpoint**: US1 fully functional and testable on its own (MVP).
 
