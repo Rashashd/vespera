@@ -1,13 +1,14 @@
 """Section-aware chunking with overlap and token bounds."""
 
-import logging
 import re
+
+import structlog
 
 from app.embedding.enums import ChunkType
 from app.embedding.parsers.base import ParsedChunk
 from app.embedding.tokenizer import EmbedderTokenizer
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class Chunker:

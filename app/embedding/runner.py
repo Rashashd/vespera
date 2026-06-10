@@ -56,7 +56,7 @@ async def index_build_runner(
     # Create the run (or get in-flight run if one exists — FR-026)
     async with session_factory() as session:
         async with session.begin():
-            run = await IndexBuildService.create_run(session, client_id, triggered_by_user_id)
+            run, _ = await IndexBuildService.create_run(session, client_id, triggered_by_user_id)
             run_id = run.id
 
     _log.info("index build run started", client_id=client_id, run_id=run_id)
@@ -113,17 +113,18 @@ async def index_build_runner(
             else:
                 documents_errored += 1
 
-        # Update run with final counters and status
+        # Update run with final counters and status (counters live only in-process across
+        # the per-document transactions, so they must be written back here — FR-010).
         async with session_factory() as session:
             async with session.begin():
-                await IndexBuildService.finish_run(session, run_id)
-                # Refresh run object with final status
-                from sqlalchemy import select
-
-                fresh_run = await session.execute(
-                    select(IndexBuildRun).where(IndexBuildRun.id == run_id)
+                run = await IndexBuildService.finish_run(
+                    session,
+                    run_id,
+                    documents_processed=documents_processed,
+                    documents_errored=documents_errored,
+                    documents_skipped=documents_skipped,
+                    chunks_created=chunks_created,
                 )
-                run = fresh_run.scalar_one()
 
         _log.info(
             "index build run finished",
@@ -192,7 +193,7 @@ async def _process_document(
     from app.embedding.selection import select_source
 
     try:
-        selected_source = select_source(document.document_sources)
+        selected_source = select_source(document.sources)
     except ValueError as e:
         # Permanent failure: no valid source available
         _log.warning(

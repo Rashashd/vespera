@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
@@ -45,16 +43,11 @@ async def trigger_index_build(
     async with session_factory() as session:
         async with session.begin():
             # Create or get in-flight run (FR-026: one per client at a time)
-            run = await embedding_service.IndexBuildService.create_run(
+            run, is_new_run = await embedding_service.IndexBuildService.create_run(
                 session,
                 client_id=target.id,
                 triggered_by_user_id=admin.id,
             )
-
-            # Check if this is a newly created run or existing in-flight run
-            is_new_run = (
-                run.started_at and (datetime.now(UTC) - run.started_at).total_seconds() < 2
-            )  # Heuristic: created within last 2 seconds
 
             # Dispatch event for audit (Constitution V: human actor tracked)
             await dispatcher.dispatch(

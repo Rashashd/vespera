@@ -25,9 +25,9 @@ def select_source(document_sources: list[Any]) -> Any:
 
     # Sort by: reliability rank (desc), payload length (desc), fetched_at (desc)
     def sort_key(ds):  # type: ignore
-        # Use document's reliability tier, not source name
+        # Use the per-source reliability tier (each source has its own tier).
         try:
-            reliability_rank = SourceReliability(ds.document.source_reliability).rank
+            reliability_rank = SourceReliability(ds.source_reliability).rank
         except (ValueError, AttributeError):
             reliability_rank = -1
 

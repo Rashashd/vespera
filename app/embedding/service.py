@@ -1,6 +1,6 @@
 """Base database operations for chunks, indexing state, and runs."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,11 +17,12 @@ class IndexBuildService:
     @staticmethod
     async def create_run(
         session: AsyncSession, client_id: int, triggered_by_user_id: int | None = None
-    ) -> IndexBuildRun:
-        """Create a new index build run; returns existing if one is in-flight (FR-026).
+    ) -> tuple[IndexBuildRun, bool]:
+        """Create a new index build run, or return the in-flight one (FR-026).
 
         The partial-unique index on (client_id) WHERE status='running' ensures at most one
-        per client is in-flight.
+        per client is in-flight. Returns ``(run, created)`` where ``created`` is True only when
+        a brand-new run was inserted — callers use it to avoid launching a second runner.
         """
         # Check if a run is already in-flight for this client
         stmt = select(IndexBuildRun).where(
@@ -32,7 +33,7 @@ class IndexBuildService:
         )
         existing = (await session.execute(stmt)).scalars().first()
         if existing:
-            return existing
+            return existing, False
 
         # Create a new run
         run = IndexBuildRun(
@@ -42,15 +43,25 @@ class IndexBuildService:
         )
         session.add(run)
         await session.flush()
-        return run
+        return run, True
 
     @staticmethod
     async def finish_run(
-        session: AsyncSession, run_id: int, status: str | None = None
+        session: AsyncSession,
+        run_id: int,
+        status: str | None = None,
+        *,
+        documents_processed: int | None = None,
+        documents_errored: int | None = None,
+        documents_skipped: int | None = None,
+        chunks_created: int | None = None,
     ) -> IndexBuildRun | None:
-        """Mark a run as finished; derive status if not provided (FR-010).
+        """Persist final counters and mark a run finished; derive status if not given (FR-010).
 
-        Status derivation:
+        The runner tracks counters in-process across per-document transactions, so they must
+        be written back onto the run row here for observability and status derivation.
+
+        Status derivation (when not explicitly provided):
         - If documents_errored > 0 AND documents_processed > 0 → partial_success
         - If documents_errored > 0 → failed
         - Otherwise → success
@@ -62,7 +73,17 @@ class IndexBuildService:
         if not run:
             return None
 
-        # Derive status if not explicitly provided
+        # Persist final counters from the runner (only when supplied)
+        if documents_processed is not None:
+            run.documents_processed = documents_processed
+        if documents_errored is not None:
+            run.documents_errored = documents_errored
+        if documents_skipped is not None:
+            run.documents_skipped = documents_skipped
+        if chunks_created is not None:
+            run.chunks_created = chunks_created
+
+        # Derive status if not explicitly provided (uses the now-updated counters)
         if status is None:
             if run.documents_errored > 0:
                 if run.documents_processed > 0:
@@ -73,7 +94,7 @@ class IndexBuildService:
                 status = IndexBuildRunStatus.SUCCESS
 
         run.status = status
-        run.finished_at = datetime.utcnow()
+        run.finished_at = datetime.now(UTC)
         await session.flush()
         return run
 
@@ -141,7 +162,7 @@ class IndexBuildService:
                 state.last_error = last_error
             if last_run_id is not None:
                 state.last_run_id = last_run_id
-            state.updated_at = datetime.utcnow()
+            state.updated_at = datetime.now(UTC)
             await session.flush()
 
     @staticmethod
