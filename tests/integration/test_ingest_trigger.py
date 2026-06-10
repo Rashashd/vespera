@@ -66,6 +66,10 @@ async def _make_admin(client, make_client, make_staff_user) -> tuple:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    not os.getenv("PANTERA_LIVE_API"),
+    reason="triggers a real fan-out to external APIs; set PANTERA_LIVE_API=1 to run",
+)
 async def test_trigger_admin_accepted(client, make_client, make_staff_user, auth_app):
     """Admin trigger on an active, non-empty watchlist → 202 + run_id in body (SC-001, US1-1)."""
     tenant, admin, headers = await _make_admin(client, make_client, make_staff_user)
@@ -136,6 +140,10 @@ async def test_trigger_missing_watchlist_not_found(client, make_client, make_sta
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    not os.getenv("PANTERA_LIVE_API"),
+    reason="triggers a real fan-out to external APIs; set PANTERA_LIVE_API=1 to run",
+)
 async def test_trigger_produces_one_audit_row(client, make_client, make_staff_user, auth_app):
     """Each trigger writes exactly one IngestionRunTriggered audit log row (SC-008)."""
     tenant, admin, headers = await _make_admin(client, make_client, make_staff_user)

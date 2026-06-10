@@ -66,6 +66,10 @@ async def _trigger_and_wait(client, headers, tenant_id, watchlist_id):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    not os.getenv("PANTERA_LIVE_API"),
+    reason="triggers a real fan-out to external APIs; set PANTERA_LIVE_API=1 to run",
+)
 async def test_rerun_zero_duplicates(client, make_client, make_staff_user, auth_app):
     """Second run skips already-seen documents; dedup is verified by skipped > 0 (SC-003, US3-1)."""
     tenant, _, headers = await _make_admin(client, make_client, make_staff_user)

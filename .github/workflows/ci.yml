@@ -26,6 +26,9 @@ jobs:
   # Lint, type-check, and test against the real stack with coverage gates (T044).
   test:
     runs-on: ubuntu-latest
+    # Hard cap so a hung test can never sit until the 6h default; combined with the per-test
+    # pytest timeout this fails fast and loud instead of stalling the queue.
+    timeout-minutes: 30
     env:
       VAULT_ADDR: http://localhost:8200
       VAULT_TOKEN: root
