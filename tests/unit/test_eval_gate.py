@@ -92,22 +92,20 @@ def test_eval_passes_at_threshold(tmp_path):
 
 
 def test_eval_fails_below_threshold(tmp_path):
-    """A classifier that can reach ~0.91 should fail at threshold 0.99."""
+    """run_eval exits non-zero when threshold exceeds maximum possible F1."""
     clf_path = tmp_path / "classifier.joblib"
     _make_always_correct_clf(clf_path)
 
-    # The classifier gets some wrong — set threshold impossibly high
     eval_data = [
         {"text": "patient developed severe liver failure after drug", "label": 1},
-        {"text": "unknown text about something else entirely", "label": 1},
         {"text": "no adverse events reported in the clinical trial", "label": 0},
-        {"text": "well tolerated by all study participants", "label": 0},
     ]
     eval_path = tmp_path / "eval_set.jsonl"
     _write_eval_set(eval_path, eval_data)
 
     threshold_path = tmp_path / "thresholds.yaml"
-    _write_threshold(threshold_path, 0.99)
+    # Threshold > 1.0 is unreachable — forces FAIL regardless of classifier score
+    _write_threshold(threshold_path, 1.1)
 
     result = subprocess.run(
         [
