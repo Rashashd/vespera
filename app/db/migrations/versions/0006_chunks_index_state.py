@@ -87,45 +87,8 @@ def upgrade() -> None:
         postgresql_ops={"embedding": "vector_cosine_ops"},
     )
 
-    # --- TABLE: document_index_state (FR-009/FR-010) —————————————————
-    op.create_table(
-        "document_index_state",
-        sa.Column("id", sa.BigInteger(), nullable=False),
-        sa.Column("document_id", sa.BigInteger(), nullable=False),
-        sa.Column("client_id", sa.BigInteger(), nullable=False),
-        sa.Column("status", sa.String(20), nullable=False, server_default="not_indexed"),
-        sa.Column("embedder_version", sa.String(64), nullable=True),
-        sa.Column("chunk_count", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("last_error", sa.Text(), nullable=True),
-        sa.Column("last_run_id", sa.BigInteger(), nullable=True),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-        sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["last_run_id"], ["index_build_runs.id"], ondelete="SET NULL"),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("document_id", name="uq_document_index_state_document"),
-        sa.CheckConstraint(_DOC_INDEX_STATUS_CHECK, name="ck_document_index_state_status"),
-    )
-
-    op.create_index(
-        "ix_document_index_state_client_id",
-        "document_index_state",
-        ["client_id"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_document_index_state_client_status",
-        "document_index_state",
-        ["client_id", "status"],
-        unique=False,
-    )
-
     # --- TABLE: index_build_runs (FR-010/FR-026) ————————————————————
+    # Create before document_index_state since it's referenced as a FK
     op.create_table(
         "index_build_runs",
         sa.Column("id", sa.BigInteger(), nullable=False),
@@ -169,11 +132,49 @@ def upgrade() -> None:
         postgresql_where="status = 'running'",
     )
 
+    # --- TABLE: document_index_state (FR-009/FR-010) —————————————————
+    op.create_table(
+        "document_index_state",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("document_id", sa.BigInteger(), nullable=False),
+        sa.Column("client_id", sa.BigInteger(), nullable=False),
+        sa.Column("status", sa.String(20), nullable=False, server_default="not_indexed"),
+        sa.Column("embedder_version", sa.String(64), nullable=True),
+        sa.Column("chunk_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("last_run_id", sa.BigInteger(), nullable=True),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["last_run_id"], ["index_build_runs.id"], ondelete="SET NULL"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("document_id", name="uq_document_index_state_document"),
+        sa.CheckConstraint(_DOC_INDEX_STATUS_CHECK, name="ck_document_index_state_status"),
+    )
+
+    op.create_index(
+        "ix_document_index_state_client_id",
+        "document_index_state",
+        ["client_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_document_index_state_client_status",
+        "document_index_state",
+        ["client_id", "status"],
+        unique=False,
+    )
+
 
 def downgrade() -> None:
     # Drop tables in reverse FK dependency order; leave the vector extension in place.
     op.drop_table("document_index_state")
-    op.drop_table("chunks")
     op.drop_table("index_build_runs")
+    op.drop_table("chunks")
 
     # NOTE: The vector extension is left in place (shared across potential objects).
