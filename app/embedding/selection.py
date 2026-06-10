@@ -47,4 +47,3 @@ def select_source(document_sources: list[Any]) -> Any:
 
     sorted_sources = sorted(document_sources, key=sort_key, reverse=True)
     return sorted_sources[0]
-

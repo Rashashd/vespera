@@ -4,7 +4,6 @@ import json
 import os
 
 import pytest
-import structlog
 
 from app.embedding.runner import index_build_runner
 from tests.integration.conftest import make_client, make_document, make_watchlist
@@ -44,6 +43,7 @@ class TestIndexNoLogs:
         )
 
         from app.ingestion.models import DocumentWatchlist
+
         link = DocumentWatchlist(document_id=doc.id, watchlist_id=watchlist.id)
         async_session.add(link)
         await async_session.flush()
@@ -58,9 +58,9 @@ class TestIndexNoLogs:
 
         # Verify sensitive text NOT in logs
         log_output = caplog.text
-        assert sensitive_text not in log_output, (
-            f"Chunk text '{sensitive_text}' should NOT appear in logs (FR-019)"
-        )
+        assert (
+            sensitive_text not in log_output
+        ), f"Chunk text '{sensitive_text}' should NOT appear in logs (FR-019)"
 
     async def test_faers_deidentified_not_logged(
         self, async_session, mock_modelserver_client, caplog
@@ -88,6 +88,7 @@ class TestIndexNoLogs:
         )
 
         from app.ingestion.models import DocumentWatchlist
+
         link = DocumentWatchlist(document_id=doc.id, watchlist_id=watchlist.id)
         async_session.add(link)
         await async_session.flush()
@@ -102,15 +103,15 @@ class TestIndexNoLogs:
 
         # Verify PII NOT in logs
         log_output = caplog.text
-        assert "age" not in log_output or "65" not in log_output, (
-            "Patient age should not appear in logs (SC-007)"
-        )
-        assert '"F"' not in log_output and "sex" not in log_output, (
-            "Patient sex should not appear in logs (SC-007)"
-        )
-        assert "US" not in log_output or "country" not in log_output, (
-            "Patient country should not appear in logs (SC-007)"
-        )
+        assert (
+            "age" not in log_output or "65" not in log_output
+        ), "Patient age should not appear in logs (SC-007)"
+        assert (
+            '"F"' not in log_output and "sex" not in log_output
+        ), "Patient sex should not appear in logs (SC-007)"
+        assert (
+            "US" not in log_output or "country" not in log_output
+        ), "Patient country should not appear in logs (SC-007)"
 
     async def test_logging_contains_safe_context(
         self, async_session, mock_modelserver_client, caplog
@@ -121,6 +122,7 @@ class TestIndexNoLogs:
         doc = await make_document(async_session, client_id=client.id)
 
         from app.ingestion.models import DocumentWatchlist
+
         link = DocumentWatchlist(document_id=doc.id, watchlist_id=watchlist.id)
         async_session.add(link)
         await async_session.flush()
@@ -135,9 +137,5 @@ class TestIndexNoLogs:
 
         # Verify SAFE context appears
         log_output = caplog.text
-        assert str(client.id) in log_output, (
-            "client_id should appear in logs for troubleshooting"
-        )
-        assert str(doc.id) in log_output, (
-            "document_id should appear in logs for troubleshooting"
-        )
+        assert str(client.id) in log_output, "client_id should appear in logs for troubleshooting"
+        assert str(doc.id) in log_output, "document_id should appear in logs for troubleshooting"

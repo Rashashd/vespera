@@ -65,4 +65,3 @@ def route(source: str, raw_payload: str | dict) -> list[ParsedChunk]:
             from app.embedding.parsers.regulatory_feed import RegulatoryFeedParser
 
             return RegulatoryFeedParser().parse(raw_payload)
-

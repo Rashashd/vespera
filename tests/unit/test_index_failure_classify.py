@@ -1,7 +1,5 @@
 """Unit tests for failure classification in index build (T037, FR-011)."""
 
-import pytest
-
 from app.embedding.runner import ParseError
 
 
@@ -31,9 +29,9 @@ class TestFailureClassification:
 
         for description, is_transient in scenarios:
             err = ParseError(description, is_transient=is_transient)
-            assert err.is_transient == is_transient, (
-                f"{description} should be transient={is_transient}"
-            )
+            assert (
+                err.is_transient == is_transient
+            ), f"{description} should be transient={is_transient}"
 
     def test_document_index_state_transitions(self) -> None:
         """Verify state transitions for different error types."""

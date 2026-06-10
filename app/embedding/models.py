@@ -6,8 +6,8 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     DateTime,
-    ForeignKey,
     FetchedValue,
+    ForeignKey,
     Index,
     Integer,
     String,
@@ -44,9 +44,7 @@ class Chunk(Base):
     source_reliability: Mapped[str] = mapped_column(String(20), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(Vector(768), nullable=False)
-    text_tsv: Mapped[str] = mapped_column(
-        TSVECTOR, nullable=False, server_default=FetchedValue()
-    )
+    text_tsv: Mapped[str] = mapped_column(TSVECTOR, nullable=False, server_default=FetchedValue())
     embedder_version: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA-256
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -116,9 +114,7 @@ class IndexBuildRun(Base):
     __tablename__ = "index_build_runs"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    client_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("clients.id"), nullable=False
-    )
+    client_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("clients.id"), nullable=False)
     triggered_by_user_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -130,9 +126,7 @@ class IndexBuildRun(Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     documents_processed: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     chunks_created: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     documents_skipped: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
@@ -149,4 +143,3 @@ class IndexBuildRun(Base):
         Index("ix_index_build_runs_client_id", "client_id"),
         Index("ix_index_build_runs_status", "status"),
     )
-

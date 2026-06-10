@@ -34,9 +34,7 @@ class EmbedderTokenizer:
         return len(tokens.ids) + reserve
 
     @staticmethod
-    async def verify_embedder_version(
-        client: ModelserverClient, expected_version: str
-    ) -> None:
+    async def verify_embedder_version(client: ModelserverClient, expected_version: str) -> None:
         """Verify the embedder's version matches expected SHA-256 (FR-025)."""
         ready_json = await client.get_ready()
         actual_version = ready_json.get("models", {}).get("embedder", {}).get("sha256")
@@ -46,4 +44,3 @@ class EmbedderTokenizer:
             raise TokenizerError(
                 f"Embedder version mismatch: expected {expected_version}, got {actual_version}"
             )
-

@@ -72,9 +72,7 @@ class PubMedParser:
         if body is not None:
             for section in body.findall(".//Section"):
                 section_title_elem = section.find("Title")
-                section_name = (
-                    section_title_elem.text if section_title_elem is not None else "Body"
-                )
+                section_name = section_title_elem.text if section_title_elem is not None else "Body"
 
                 # Extract paragraph text from this section
                 for para in section.findall(".//Paragraph"):
@@ -150,4 +148,3 @@ class PubMedParser:
             lines.append(" | ".join(col_texts))
 
         return "\n".join(lines)
-

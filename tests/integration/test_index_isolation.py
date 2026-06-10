@@ -19,9 +19,7 @@ pytestmark = pytest.mark.skipif(
 class TestIndexIsolation:
     """Test that chunks from one client are never visible to another (SC-002, FR-014)."""
 
-    async def test_chunks_client_scoped(
-        self, async_session, mock_modelserver_client
-    ) -> None:
+    async def test_chunks_client_scoped(self, async_session, mock_modelserver_client) -> None:
         """Chunks belong to the client they were indexed for; cross-client read returns 0."""
         # Setup: two clients with documents
         client_a = await make_client(async_session)
@@ -35,6 +33,7 @@ class TestIndexIsolation:
 
         # Link to watchlists
         from app.ingestion.models import DocumentWatchlist
+
         la = DocumentWatchlist(document_id=doc_a.id, watchlist_id=wl_a.id)
         lb = DocumentWatchlist(document_id=doc_b.id, watchlist_id=wl_b.id)
         async_session.add(la)
@@ -80,6 +79,6 @@ class TestIndexIsolation:
         )
         cross_chunks = (await async_session.execute(stmt_cross)).scalars().all()
 
-        assert len(cross_chunks) == 0, (
-            f"Cross-client read should return 0 (got {len(cross_chunks)})"
-        )
+        assert (
+            len(cross_chunks) == 0
+        ), f"Cross-client read should return 0 (got {len(cross_chunks)})"

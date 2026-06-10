@@ -101,9 +101,7 @@ class IndexBuildService:
         session: AsyncSession, document_id: int, client_id: int
     ) -> DocumentIndexState:
         """Get or lazily create a document index state (FR-010)."""
-        stmt = select(DocumentIndexState).where(
-            DocumentIndexState.document_id == document_id
-        )
+        stmt = select(DocumentIndexState).where(DocumentIndexState.document_id == document_id)
         state = (await session.execute(stmt)).scalars().first()
         if state:
             return state
@@ -129,9 +127,7 @@ class IndexBuildService:
         last_run_id: int | None = None,
     ) -> None:
         """Update document index state."""
-        stmt = select(DocumentIndexState).where(
-            DocumentIndexState.document_id == document_id
-        )
+        stmt = select(DocumentIndexState).where(DocumentIndexState.document_id == document_id)
         state = (await session.execute(stmt)).scalars().first()
         if state:
             state.status = status
@@ -156,9 +152,7 @@ class IndexBuildService:
         await session.flush()
 
     @staticmethod
-    async def get_documents_to_index(
-        session: AsyncSession, client_id: int
-    ) -> list[Document]:
+    async def get_documents_to_index(session: AsyncSession, client_id: int) -> list[Document]:
         """Get documents ready for indexing for a client (FR-020, FR-009).
 
         Returns documents that are:
@@ -203,4 +197,3 @@ class IndexBuildService:
         )
 
         return (await session.execute(stmt)).scalars().all()
-

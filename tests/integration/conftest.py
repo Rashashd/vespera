@@ -2,6 +2,7 @@
 
 import os
 import uuid
+from datetime import UTC
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -211,21 +212,27 @@ async def make_watchlist(auth_app):
     yield _make
 
     if created_ids:
-        from app.clients.models import Watchlist, WatchlistItem, WatchlistBudgetUsage
+        from app.clients.models import Watchlist, WatchlistBudgetUsage, WatchlistItem
+
         async with factory() as s:
             async with s.begin():
                 await s.execute(
-                    delete(WatchlistBudgetUsage).where(WatchlistBudgetUsage.watchlist_id.in_(created_ids))
+                    delete(WatchlistBudgetUsage).where(
+                        WatchlistBudgetUsage.watchlist_id.in_(created_ids)
+                    )
                 )
-                await s.execute(delete(WatchlistItem).where(WatchlistItem.watchlist_id.in_(created_ids)))
+                await s.execute(
+                    delete(WatchlistItem).where(WatchlistItem.watchlist_id.in_(created_ids))
+                )
                 await s.execute(delete(Watchlist).where(Watchlist.id.in_(created_ids)))
 
 
 @pytest_asyncio.fixture
 async def make_document(auth_app):
     """Factory that inserts a document with a source payload."""
+    from datetime import datetime
+
     from app.ingestion.models import Document, DocumentSource, DocumentWatchlist
-    from datetime import datetime, timezone
 
     factory = auth_app.state.session_factory
     created_ids: list[int] = []
@@ -241,10 +248,11 @@ async def make_document(auth_app):
             source_payload = '{"test": "data"}'
         if isinstance(source_payload, dict):
             import json
+
             source_payload = json.dumps(source_payload)
 
         title = title or f"Test Document {uuid.uuid4().hex[:8]}"
-        published_at = published_at or datetime.now(timezone.utc)
+        published_at = published_at or datetime.now(UTC)
 
         async with factory() as s:
             async with s.begin():
@@ -265,7 +273,7 @@ async def make_document(auth_app):
                     document_id=doc.id,
                     source=source_name,
                     raw_payload=source_payload,
-                    fetched_at=datetime.now(timezone.utc),
+                    fetched_at=datetime.now(UTC),
                     is_primary=True,
                 )
                 s.add(ds)
@@ -279,10 +287,15 @@ async def make_document(auth_app):
 
     if created_ids:
         from app.ingestion.models import Document, DocumentSource, DocumentWatchlist
+
         async with factory() as s:
             async with s.begin():
-                await s.execute(delete(DocumentWatchlist).where(DocumentWatchlist.document_id.in_(created_ids)))
-                await s.execute(delete(DocumentSource).where(DocumentSource.document_id.in_(created_ids)))
+                await s.execute(
+                    delete(DocumentWatchlist).where(DocumentWatchlist.document_id.in_(created_ids))
+                )
+                await s.execute(
+                    delete(DocumentSource).where(DocumentSource.document_id.in_(created_ids))
+                )
                 await s.execute(delete(Document).where(Document.id.in_(created_ids)))
 
 
@@ -303,6 +316,7 @@ async def mock_modelserver_client():
         async def embed_chunked(self, texts: list[str]) -> list[dict]:
             """Return dummy 768-dim embeddings for testing."""
             import numpy as np
+
             results = []
             for text in texts:
                 # Deterministic embedding based on text hash
@@ -311,23 +325,17 @@ async def mock_modelserver_client():
                 embedding = np.random.randn(768).astype(np.float32)
                 # L2 normalize
                 embedding = embedding / (np.linalg.norm(embedding) + 1e-8)
-                results.append({
-                    "embedding": embedding.tolist(),
-                    "model_version": {
-                        "sha256": "test-model-sha256"
+                results.append(
+                    {
+                        "embedding": embedding.tolist(),
+                        "model_version": {"sha256": "test-model-sha256"},
                     }
-                })
+                )
             return results
 
         async def get_ready(self) -> dict:
             """Return mock ready response."""
-            return {
-                "models": {
-                    "embedder": {
-                        "sha256": "test-model-sha256"
-                    }
-                }
-            }
+            return {"models": {"embedder": {"sha256": "test-model-sha256"}}}
 
     return MockModelserverClient(base_url="http://test")
 

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import structlog
-from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 
@@ -51,9 +52,9 @@ async def trigger_index_build(
             )
 
             # Check if this is a newly created run or existing in-flight run
-            is_new_run = run.started_at and (
-                datetime.now(timezone.utc) - run.started_at
-            ).total_seconds() < 2  # Heuristic: created within last 2 seconds
+            is_new_run = (
+                run.started_at and (datetime.now(UTC) - run.started_at).total_seconds() < 2
+            )  # Heuristic: created within last 2 seconds
 
             # Dispatch event for audit (Constitution V: human actor tracked)
             await dispatcher.dispatch(
@@ -139,9 +140,7 @@ async def get_index_run(
     async with session_factory() as session:
         run = await embedding_service.IndexBuildService.get_run(session, run_id)
         if run is None or run.client_id != target.id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="RUN_NOT_FOUND"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="RUN_NOT_FOUND")
         return IndexBuildRunOut.model_validate(run)
 
 
@@ -169,4 +168,3 @@ async def list_document_index_state(
 
         states = (await session.execute(query)).scalars().all()
         return [DocumentIndexStateOut.model_validate(state) for state in states]
-

@@ -65,9 +65,9 @@ class TestIndexBuildAuth:
             headers={"Authorization": f"Bearer {token}"},
         )
 
-        assert resp.status_code == 403, (
-            f"Reviewer should get 403, got {resp.status_code}: {resp.text}"
-        )
+        assert (
+            resp.status_code == 403
+        ), f"Reviewer should get 403, got {resp.status_code}: {resp.text}"
 
     async def test_client_user_cannot_trigger_index_build(
         self, client: AsyncClient, make_client, make_user
@@ -82,9 +82,9 @@ class TestIndexBuildAuth:
             headers={"Authorization": f"Bearer {token}"},
         )
 
-        assert resp.status_code == 403, (
-            f"Client-user should get 403, got {resp.status_code}: {resp.text}"
-        )
+        assert (
+            resp.status_code == 403
+        ), f"Client-user should get 403, got {resp.status_code}: {resp.text}"
 
     async def test_unauthenticated_cannot_trigger_index_build(
         self, client: AsyncClient, make_client
@@ -95,9 +95,7 @@ class TestIndexBuildAuth:
 
         assert resp.status_code == 401
 
-    async def test_list_index_runs_requires_auth(
-        self, client: AsyncClient, make_client
-    ) -> None:
+    async def test_list_index_runs_requires_auth(self, client: AsyncClient, make_client) -> None:
         """GET /index-runs requires authentication."""
         test_client = await make_client()
         resp = await client.get(f"/clients/{test_client.id}/index-runs")

@@ -66,9 +66,7 @@ class Chunker:
                     result.append(chunk)
             else:
                 # Text and structured_data chunks use overlap-based splitting
-                split_chunks = self._split_text_chunk(
-                    chunk.text, chunk.chunk_type, chunk.section
-                )
+                split_chunks = self._split_text_chunk(chunk.text, chunk.chunk_type, chunk.section)
                 for sub_chunk in split_chunks:
                     sub_chunk.ordinal = current_ordinal
                     current_ordinal += 1
@@ -202,4 +200,3 @@ class Chunker:
         # Take the last overlap_tokens
         overlap_ids = tokens.ids[-overlap_tokens:]
         return self.tokenizer.tokenizer.decode(overlap_ids, skip_special_tokens=True)
-

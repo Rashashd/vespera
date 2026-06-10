@@ -5,7 +5,7 @@ import os
 import pytest
 from sqlalchemy import func, select
 
-from app.embedding.models import Chunk, IndexBuildRun
+from app.embedding.models import Chunk
 from app.embedding.runner import index_build_runner
 from tests.integration.conftest import make_client, make_document, make_watchlist
 
@@ -43,6 +43,7 @@ class TestIndexIdempotency:
 
         # Link document to watchlist
         from app.ingestion.models import DocumentWatchlist
+
         link = DocumentWatchlist(document_id=doc.id, watchlist_id=watchlist.id)
         async_session.add(link)
         await async_session.flush()
@@ -78,12 +79,12 @@ class TestIndexIdempotency:
         )
 
         # Second run should skip all documents
-        assert run2.documents_processed == 0, (
-            f"Idempotent run should process 0 docs (processed {run2.documents_processed})"
-        )
-        assert run2.documents_skipped > 0, (
-            f"Idempotent run should skip indexed docs (skipped {run2.documents_skipped})"
-        )
+        assert (
+            run2.documents_processed == 0
+        ), f"Idempotent run should process 0 docs (processed {run2.documents_processed})"
+        assert (
+            run2.documents_skipped > 0
+        ), f"Idempotent run should skip indexed docs (skipped {run2.documents_skipped})"
 
     async def test_incremental_add_new_document(
         self, async_session, mock_modelserver_client
@@ -95,15 +96,13 @@ class TestIndexIdempotency:
         client = await make_client(async_session)
         watchlist = await make_watchlist(async_session, client_id=client.id)
 
-        doc1 = await make_document(
-            async_session, client_id=client.id, title="Doc 1"
-        )
+        doc1 = await make_document(async_session, client_id=client.id, title="Doc 1")
         link1 = DocumentWatchlist(document_id=doc1.id, watchlist_id=watchlist.id)
         async_session.add(link1)
         await async_session.flush()
 
         # First build
-        run1 = await index_build_runner(
+        await index_build_runner(
             session_factory=lambda: async_session,
             client_id=client.id,
             modelserver_client=mock_modelserver_client,
@@ -115,9 +114,7 @@ class TestIndexIdempotency:
         ).scalar() or 0
 
         # Add a new document
-        doc2 = await make_document(
-            async_session, client_id=client.id, title="Doc 2"
-        )
+        doc2 = await make_document(async_session, client_id=client.id, title="Doc 2")
         link2 = DocumentWatchlist(document_id=doc2.id, watchlist_id=watchlist.id)
         async_session.add(link2)
         await async_session.flush()
@@ -136,12 +133,12 @@ class TestIndexIdempotency:
         ).scalar() or 0
 
         # Incremental: only the new document is processed
-        assert run2.documents_processed >= 1, (
-            f"Incremental run should process new doc (processed {run2.documents_processed})"
-        )
-        assert run2.documents_skipped >= 1, (
-            f"Incremental run should skip indexed doc (skipped {run2.documents_skipped})"
-        )
-        assert chunks_after_second > chunks_after_first, (
-            "Adding a document should increase chunk count"
-        )
+        assert (
+            run2.documents_processed >= 1
+        ), f"Incremental run should process new doc (processed {run2.documents_processed})"
+        assert (
+            run2.documents_skipped >= 1
+        ), f"Incremental run should skip indexed doc (skipped {run2.documents_skipped})"
+        assert (
+            chunks_after_second > chunks_after_first
+        ), "Adding a document should increase chunk count"

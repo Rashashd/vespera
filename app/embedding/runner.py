@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -119,6 +119,7 @@ async def index_build_runner(
                 await IndexBuildService.finish_run(session, run_id)
                 # Refresh run object with final status
                 from sqlalchemy import select
+
                 fresh_run = await session.execute(
                     select(IndexBuildRun).where(IndexBuildRun.id == run_id)
                 )
@@ -210,7 +211,7 @@ async def _process_document(
                 index_state.status = DocumentIndexStatus.ERRORED_PERMANENT
                 index_state.attempts += 1
                 index_state.last_error = str(e)[:255]
-                index_state.updated_at = datetime.now(timezone.utc)
+                index_state.updated_at = datetime.now(UTC)
                 index_state.last_run_id = run_id
         return (False, 0)
 
@@ -218,9 +219,7 @@ async def _process_document(
 
     # Parse document (CPU-bound, run in thread)
     try:
-        parsed_chunks = await asyncio.to_thread(
-            route, selected_source.source, raw_payload
-        )
+        parsed_chunks = await asyncio.to_thread(route, selected_source.source, raw_payload)
     except ParseError as e:
         status = (
             DocumentIndexStatus.ERRORED_TRANSIENT
@@ -244,7 +243,7 @@ async def _process_document(
                 index_state.attempts += 1
                 index_state.last_error = str(e)[:255]
                 index_state.last_run_id = run_id
-                index_state.updated_at = datetime.now(timezone.utc)
+                index_state.updated_at = datetime.now(UTC)
         return (False, 0)
 
     if not parsed_chunks:
@@ -264,7 +263,7 @@ async def _process_document(
                 )
                 index_state.attempts += 1
                 index_state.last_run_id = run_id
-                index_state.updated_at = datetime.now(timezone.utc)
+                index_state.updated_at = datetime.now(UTC)
         return (True, 0)
 
     # Chunk the parsed content
@@ -294,7 +293,7 @@ async def _process_document(
                 index_state.attempts += 1
                 index_state.last_error = f"Embedding failed: {str(e)[:200]}"
                 index_state.last_run_id = run_id
-                index_state.updated_at = datetime.now(timezone.utc)
+                index_state.updated_at = datetime.now(UTC)
         return (False, 0)
 
     # Build Chunk ORM objects and persist with per-document atomicity
@@ -302,7 +301,7 @@ async def _process_document(
         chunk_rows = []
         embedder_version = None
 
-        for chunked_obj, embedding_result in zip(chunked, embeddings):
+        for chunked_obj, embedding_result in zip(chunked, embeddings, strict=True):
             # Extract embedding and version from result dict
             embedding_vector = embedding_result.get("embedding")
             model_version = embedding_result.get("model_version", {})
@@ -317,14 +316,8 @@ async def _process_document(
 
             # Validate embedding dimension (FR-016)
             if not isinstance(embedding_vector, list) or len(embedding_vector) != 768:
-                dim = (
-                    len(embedding_vector)
-                    if isinstance(embedding_vector, list)
-                    else "not a list"
-                )
-                raise ValueError(
-                    f"Invalid embedding dimension: expected 768, got {dim}"
-                )
+                dim = len(embedding_vector) if isinstance(embedding_vector, list) else "not a list"
+                raise ValueError(f"Invalid embedding dimension: expected 768, got {dim}")
 
             chunk = Chunk(
                 client_id=client_id,
@@ -354,7 +347,7 @@ async def _process_document(
                 index_state.attempts += 1
                 index_state.last_error = None
                 index_state.last_run_id = run_id
-                index_state.updated_at = datetime.now(timezone.utc)
+                index_state.updated_at = datetime.now(UTC)
 
         _log.info(
             "document indexed",
@@ -383,6 +376,5 @@ async def _process_document(
                 index_state.attempts += 1
                 index_state.last_error = f"Persistence failed: {str(e)[:200]}"
                 index_state.last_run_id = run_id
-                index_state.updated_at = datetime.now(timezone.utc)
+                index_state.updated_at = datetime.now(UTC)
         return (False, 0)
-

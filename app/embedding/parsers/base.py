@@ -32,4 +32,3 @@ class Parser(Protocol):
             ParseError: If the payload cannot be parsed (transient vs permanent logged separately).
         """
         ...
-

@@ -17,7 +17,10 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.mark.asyncio
 class TestIndexHybridReady:
-    """Test that every chunk has dense embedding + lexical vector + metadata for hybrid retrieval."""
+    """Test that every chunk has dense embedding + lexical vector + metadata.
+
+    For hybrid retrieval.
+    """
 
     async def test_chunks_have_dense_embedding_and_tsvector(
         self, async_session, mock_modelserver_client
@@ -42,6 +45,7 @@ class TestIndexHybridReady:
         )
 
         from app.ingestion.models import DocumentWatchlist
+
         link = DocumentWatchlist(document_id=doc.id, watchlist_id=watchlist.id)
         async_session.add(link)
         await async_session.flush()
@@ -63,10 +67,13 @@ class TestIndexHybridReady:
         for chunk in chunks:
             assert chunk.embedding is not None, "Chunk must have dense embedding"
             assert isinstance(chunk.embedding, list), "Embedding should be a list"
-            assert len(chunk.embedding) == 768, f"Embedding must be 768-dim (got {len(chunk.embedding)})"
+            assert (
+                len(chunk.embedding) == 768
+            ), f"Embedding must be 768-dim (got {len(chunk.embedding)})"
 
             # Verify it's approximately normalized (L2 norm close to 1)
             import math
+
             norm = math.sqrt(sum(x**2 for x in chunk.embedding))
             assert 0.9 < norm < 1.1, f"Embedding should be normalized (norm={norm})"
 
@@ -100,6 +107,7 @@ class TestIndexHybridReady:
         )
 
         from app.ingestion.models import DocumentWatchlist
+
         link = DocumentWatchlist(document_id=doc.id, watchlist_id=watchlist.id)
         async_session.add(link)
         await async_session.flush()

@@ -15,4 +15,3 @@ class EuropePMCParser:
         from app.embedding.parsers.pubmed_jats import PubMedParser
 
         return PubMedParser().parse(raw_payload)
-

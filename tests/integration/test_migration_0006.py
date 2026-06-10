@@ -3,7 +3,7 @@
 import os
 
 import pytest
-from sqlalchemy import inspect, select, text
+from sqlalchemy import inspect, text
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("PANTERA_INTEGRATION"),
@@ -66,19 +66,16 @@ class TestMigration0006:
     async def test_partial_unique_index_exists(self, async_session) -> None:
         """Verify partial unique index for one-in-flight guard (FR-026)."""
         # Query pg_indexes for partial unique index
-        result = await async_session.execute(
-            text(
-                """
+        result = await async_session.execute(text("""
             SELECT indexname FROM pg_indexes
             WHERE tablename = 'index_build_runs'
             AND indexdef LIKE '%UNIQUE%'
             AND indexdef LIKE '%WHERE status%'
-            """
-            )
-        )
+            """))
         partial_unique_indexes = result.fetchall()
         assert len(partial_unique_indexes) > 0, (
-            "index_build_runs should have partial unique index on (client_id) WHERE status='running'"
+            "index_build_runs should have partial unique index on (client_id) "
+            "WHERE status='running'"
         )
 
     async def test_vector_extension_created(self, async_session) -> None:
@@ -98,25 +95,27 @@ class TestMigration0006:
         constraint_names = {c["name"] for c in constraints}
 
         # Should have chunk_type, source_reliability checks
-        assert any("chunk_type" in name.lower() or "type" in name.lower() for name in constraint_names), (
-            "chunks should have CHECK constraint on chunk_type"
-        )
+        assert any(
+            "chunk_type" in name.lower() or "type" in name.lower() for name in constraint_names
+        ), "chunks should have CHECK constraint on chunk_type"
         assert any(
             "source_reliability" in name.lower() or "reliability" in name.lower()
             for name in constraint_names
-        ), ("chunks should have CHECK constraint on source_reliability")
+        ), "chunks should have CHECK constraint on source_reliability"
 
         # document_index_state should have status check
-        doc_state_constraints = {c["name"] for c in inspector.get_check_constraints("document_index_state")}
-        assert any("status" in name.lower() for name in doc_state_constraints), (
-            "document_index_state should have CHECK constraint on status"
-        )
+        doc_state_constraints = {
+            c["name"] for c in inspector.get_check_constraints("document_index_state")
+        }
+        assert any(
+            "status" in name.lower() for name in doc_state_constraints
+        ), "document_index_state should have CHECK constraint on status"
 
         # index_build_runs should have status check
         run_constraints = {c["name"] for c in inspector.get_check_constraints("index_build_runs")}
-        assert any("status" in name.lower() for name in run_constraints), (
-            "index_build_runs should have CHECK constraint on status"
-        )
+        assert any(
+            "status" in name.lower() for name in run_constraints
+        ), "index_build_runs should have CHECK constraint on status"
 
     async def test_foreign_keys_created(self, async_session) -> None:
         """Verify FK relationships are correct with CASCADE."""
@@ -145,11 +144,12 @@ class TestMigration0006:
         # chunks should have unique (document_id, ordinal)
         chunks_uks = inspector.get_unique_constraints("chunks")
         chunk_uk_names = {uk["name"] for uk in chunks_uks}
-        assert any("ordinal" in name.lower() or "document" in name.lower() for name in chunk_uk_names), (
-            "chunks should have UNIQUE constraint on (document_id, ordinal)"
-        )
+        assert any(
+            "ordinal" in name.lower() or "document" in name.lower() for name in chunk_uk_names
+        ), "chunks should have UNIQUE constraint on (document_id, ordinal)"
 
         # document_index_state should have unique document_id (1:1)
         dis_uks = inspector.get_unique_constraints("document_index_state")
-        dis_uk_names = {uk["name"] for uk in dis_uks}
-        assert len(dis_uks) > 0, "document_index_state should have UNIQUE constraint (1:1 with documents)"
+        assert (
+            len(dis_uks) > 0
+        ), "document_index_state should have UNIQUE constraint (1:1 with documents)"

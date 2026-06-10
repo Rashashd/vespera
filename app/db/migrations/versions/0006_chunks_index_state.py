@@ -28,7 +28,7 @@ _SOURCE_RELIABILITY_CHECK = (
 
 def upgrade() -> None:
     # Create pgvector extension (safe to do multiple times)
-    op.execute('CREATE EXTENSION IF NOT EXISTS vector')
+    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     # --- TABLE: chunks (FR-002/FR-005/FR-016) ———————————————————————————
     op.create_table(
@@ -106,9 +106,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["last_run_id"], ["index_build_runs.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["last_run_id"], ["index_build_runs.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("document_id", name="uq_document_index_state_document"),
         sa.CheckConstraint(_DOC_INDEX_STATUS_CHECK, name="ck_document_index_state_status"),
@@ -146,9 +144,7 @@ def upgrade() -> None:
         sa.Column("documents_skipped", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("documents_errored", sa.Integer(), nullable=False, server_default="0"),
         sa.ForeignKeyConstraint(["client_id"], ["clients.id"]),
-        sa.ForeignKeyConstraint(
-            ["triggered_by_user_id"], ["users.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["triggered_by_user_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
         sa.CheckConstraint(_RUN_STATUS_CHECK, name="ck_index_build_runs_status"),
     )

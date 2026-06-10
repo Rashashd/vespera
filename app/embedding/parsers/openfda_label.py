@@ -16,6 +16,7 @@ class OpenFDALabelParser:
                 data = json.loads(raw_payload)
             except json.JSONDecodeError as e:
                 from app.embedding.router import ParseError
+
                 raise ParseError(f"Failed to parse label JSON: {e}", is_transient=False) from e
         else:
             data = raw_payload
@@ -46,4 +47,3 @@ class OpenFDALabelParser:
                     )
 
         return chunks
-

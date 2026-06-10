@@ -5,10 +5,9 @@ import os
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.clients.models import Client, Watchlist
-from app.embedding.models import Chunk, DocumentIndexState, IndexBuildRun
+from app.embedding.models import Chunk, DocumentIndexState
 from app.embedding.runner import index_build_runner
-from app.ingestion.models import Document, DocumentSource, DocumentWatchlist
+from app.ingestion.models import DocumentWatchlist
 from tests.integration.conftest import make_client, make_document, make_watchlist
 
 pytestmark = pytest.mark.skipif(
@@ -66,7 +65,7 @@ class TestIndexBuild:
         await async_session.flush()
 
         # Run the build
-        run = await index_build_runner(
+        await index_build_runner(
             session_factory=lambda: async_session,
             client_id=client.id,
             modelserver_client=mock_modelserver_client,
@@ -82,7 +81,9 @@ class TestIndexBuild:
 
         # Each chunk has 768-dim embedding
         for chunk in chunks:
-            assert len(chunk.embedding) == 768, f"Embedding should be 768-dim, got {len(chunk.embedding)}"
+            assert (
+                len(chunk.embedding) == 768
+            ), f"Embedding should be 768-dim, got {len(chunk.embedding)}"
             assert chunk.embedder_version, "Should have embedder version stamp"
             assert chunk.ordinal >= 0, "Should have non-negative ordinal"
             assert chunk.client_id == client.id, "Chunk should be client-scoped"
@@ -120,7 +121,7 @@ class TestIndexBuild:
         await async_session.flush()
 
         # Run the build
-        run = await index_build_runner(
+        await index_build_runner(
             session_factory=lambda: async_session,
             client_id=client.id,
             modelserver_client=mock_modelserver_client,
