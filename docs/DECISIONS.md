@@ -61,5 +61,27 @@ Full rationale in `specs/004-literature-ingestion/research.md` (D1–D16). Highl
 - **No raw payload / PII in logs** — FAERS `patient` field is stripped at parse time; structlog
   only binds `client_id`/`run_id`.
 
-<!-- Classifier / RAG / triage model comparisons and their golden-set numbers are added by
-     their owning feature specs. -->
+## Modelserver — Adverse-Event Classifier & Medical Embedder (005-modelserver)
+
+Full rationale in `specs/005-modelserver/research.md` (D1–D16).
+
+- **Classical TF-IDF + LR selected over PubMedBERT/LLM zero-shot** — three candidates evaluated
+  on a held-out ADE Corpus-style set (12 examples, disjoint from training):
+  TF-IDF+LR = 0.91 macro-F1, PubMedBERT ONNX ~0.78 (below gate), LLM zero-shot ~0.83
+  (external API dependency rejected per D7). Classical pipeline wins on F1, simplicity, and
+  image-size neutrality. Artifacts in `modelserver/models/MODEL_CARD.md`.
+- **0.5 default cutoff, caller-owned policy** — the server returns raw `confidence ∈ [0,1]`;
+  `is_adverse` at 0.5 is a convenience default. Real policy (triage threshold, FP/FN trade-off)
+  is owned by the calling spec (Spec 6 / guardrails). Locked in D2.
+- **Stateless, no DB** — modelserver holds no mutable state; all inference is ephemeral.
+  Restartable with zero migration burden. Locked in D7.
+- **Startup SHA-256 validation refuses boot** — prevents serving from a partial or tampered
+  artifact set; refuse-boot is non-negotiable (FR-010/D4). Secrets from Vault via hvac (D5).
+- **Lean image via uv group isolation** — `uv sync --only-group modelserver --no-install-project`
+  installs only the 9-package serving set; torch/transformers live in `training` group (offline
+  only). Target < 500 MB (D1).
+- **Eval gate at macro-F1 ≥ 0.80** — `eval_thresholds.yaml` + `modelserver/eval/run_eval.py`
+  block merges that regress classifier quality; runs in its own lean CI job (D10/FR-013).
+- **768-dim L2-normalised embeddings** — output shape fixed for downstream cosine search;
+  mean-pool with attention-mask weighting; normalised to unit sphere so dot-product = cosine
+  (D3/FR-002). Quantize the embedder for production to stay lean (D15).

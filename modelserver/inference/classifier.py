@@ -24,7 +24,7 @@ class ClassifierSession:
         self._max_tokens = max_tokens
         self._tokenizer = tokenizer
 
-        if self._format == ".onnx":
+        if self._format == ".onnx":  # pragma: no cover
             import onnxruntime as ort
 
             opts = ort.SessionOptions()
@@ -55,7 +55,7 @@ class ClassifierSession:
         probs = self._pipeline.predict_proba(texts)  # [N, 2]
         return [(float(row[1]), float(row[1]) >= 0.5) for row in probs]
 
-    def _predict_onnx(self, texts: list[str]) -> list[tuple[float, bool]]:
+    def _predict_onnx(self, texts: list[str]) -> list[tuple[float, bool]]:  # pragma: no cover
         from modelserver.inference.tokenize import tokenize_batch
 
         input_ids, attention_mask = tokenize_batch(

@@ -1,0 +1,27 @@
+{
+  "artifacts": [
+    {
+      "name": "classifier",
+      "file": "classifier.joblib",
+      "format": "joblib",
+      "version": "v1.0-tfidf-lr",
+      "sha256": "a70510195f28047911bd36f57d355269db28020b1baca66ed108f77a71079636"
+    },
+    {
+      "name": "embedder",
+      "file": "embedder.onnx",
+      "format": "onnx",
+      "version": "v1.0-biomed-gather",
+      "sha256": "6bd398b2e9726ff81553137ecb528db142bd78099dc3fdb2c9c0456022b9c27a",
+      "dim": 768,
+      "max_tokens": 512
+    },
+    {
+      "name": "tokenizer",
+      "file": "tokenizer.json",
+      "format": "tokenizer",
+      "version": "v1.0-wordlevel",
+      "sha256": "aec6af8b382712d85c63f3c88472db76df511b7f784cf51114293e2902ca8de8"
+    }
+  ]
+}

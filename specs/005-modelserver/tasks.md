@@ -90,13 +90,13 @@ closer (cosine) than to an unrelated one; empty list → `[]`.
 
 ### Tests for User Story 2
 
-- [ ] T019 [P] [US2] Contract/integration test `tests/integration/test_embed_contract.py` — 768-dim, determinism, batch order, empty-batch `[]`, semantic-sanity cosine check, per-result `model_version`
+- [X] T019 [P] [US2] Contract/integration test `tests/integration/test_embed_contract.py` — 768-dim, determinism, batch order, empty-batch `[]`, semantic-sanity cosine check, per-result `model_version`
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Implement `modelserver/inference/embedder.py` — onnxruntime session + mean-pool + L2-normalize → 768-dim numpy vector; deterministic (D3/D6/FR-002)
-- [ ] T021 [US2] Implement `POST /embed` in `modelserver/routes.py` — validate (≤128), tokenize+truncate, run embedder, stamp embedder `model_version`, ordered results (depends on T020)
-- [ ] T022 [US2] Add embed request/response schemas to `modelserver/schemas.py` and operation logging
+- [X] T020 [P] [US2] Implement `modelserver/inference/embedder.py` — onnxruntime session + mean-pool + L2-normalize → 768-dim numpy vector; deterministic (D3/D6/FR-002)
+- [X] T021 [US2] Implement `POST /embed` in `modelserver/routes.py` — validate (≤128), tokenize+truncate, run embedder, stamp embedder `model_version`, ordered results (depends on T020)
+- [X] T022 [US2] Add embed request/response schemas to `modelserver/schemas.py` and operation logging
 
 **Checkpoint**: US1 and US2 both work independently.
 
@@ -112,12 +112,12 @@ served artifact hashes match the manifest; comparison reproducible from the note
 
 ### Implementation for User Story 3
 
-- [ ] T023 [US3] Create `notebooks/01_train_export_modelserver.ipynb` — train 3 candidates (classical / PubMedBERT→ONNX / LLM zero-shot) on a pinned ADE Corpus v2 split, score macro-F1 on the SAME held-out set, record all numbers (D2/FR-012)
-- [ ] T024 [US3] Export the shipped classifier and the BiomedBERT embedder to `modelserver/models/` (`classifier.*`, `embedder.onnx` 768-dim, `tokenizer.json`; quantize embedder to keep image lean) (D3/D15)
-- [ ] T025 [P] [US3] Write `modelserver/models/manifest.json` with real SHA-256/version/dim(768)/max_tokens(512) for each artifact (D4)
-- [ ] T026 [P] [US3] Write `modelserver/models/MODEL_CARD.md` — task, pinned dataset version/hash, 3-way macro-F1 comparison, shipped choice + rationale, per-artifact SHA-256, output shape (FR-011)
-- [ ] T027 [P] [US3] Add the classifier-selection rationale + comparison numbers to `DECISIONS.md` (Principle IV)
-- [ ] T028 [P] [US3] Commit the held-out `modelserver/eval/eval_set.jsonl` (text + label; disjoint from training) for the eval gate
+- [X] T023 [US3] Create `notebooks/01_train_export_modelserver.ipynb` — train 3 candidates (classical / PubMedBERT→ONNX / LLM zero-shot) on a pinned ADE Corpus v2 split, score macro-F1 on the SAME held-out set, record all numbers (D2/FR-012)
+- [X] T024 [US3] Export the shipped classifier and the BiomedBERT embedder to `modelserver/models/` (`classifier.*`, `embedder.onnx` 768-dim, `tokenizer.json`; quantize embedder to keep image lean) (D3/D15)
+- [X] T025 [P] [US3] Write `modelserver/models/manifest.json` with real SHA-256/version/dim(768)/max_tokens(512) for each artifact (D4)
+- [X] T026 [P] [US3] Write `modelserver/models/MODEL_CARD.md` — task, pinned dataset version/hash, 3-way macro-F1 comparison, shipped choice + rationale, per-artifact SHA-256, output shape (FR-011)
+- [X] T027 [P] [US3] Add the classifier-selection rationale + comparison numbers to `DECISIONS.md` (Principle IV)
+- [X] T028 [P] [US3] Commit the held-out `modelserver/eval/eval_set.jsonl` (text + label; disjoint from training) for the eval gate
 
 **Checkpoint**: Real, defended artifacts shipped; manifest/card/decisions reproducible.
 
@@ -133,14 +133,14 @@ request without/with-bad token → 401/403; `/health` answers without inference.
 
 ### Tests for User Story 4
 
-- [ ] T029 [P] [US4] Integration test `tests/integration/test_auth_and_health.py` — missing token→401, invalid→403, `/health` no-inference 200, `/ready` 503 before load then 200 with versions
-- [ ] T030 [P] [US4] Unit test `tests/unit/test_manifest_hashing.py` — SHA-256 compute/compare; refuse-boot on mismatch, on absence, and on partial (only one artifact) (Edge Cases)
+- [X] T029 [P] [US4] Integration test `tests/integration/test_auth_and_health.py` — missing token→401, invalid→403, `/health` no-inference 200, `/ready` 503 before load then 200 with versions
+- [X] T030 [P] [US4] Unit test `tests/unit/test_manifest_hashing.py` — SHA-256 compute/compare; refuse-boot on mismatch, on absence, and on partial (only one artifact) (Edge Cases)
 
 ### Implementation for User Story 4
 
-- [ ] T031 [US4] Implement strict startup artifact validation in `modelserver/startup.py` — compute each file's SHA-256, compare to manifest, raise → refuse boot on mismatch/absence/partial (D4/FR-010/US4)
-- [ ] T032 [US4] Implement `GET /health` (liveness, no auth, no inference) and `GET /ready` (200 only after artifacts validated, else 503; includes model versions AND rolling per-operation p50/p95 latency + throughput counters) in `modelserver/routes.py` per `contracts/health-info.md`, satisfying the FR-021 "exposed as observable metrics" requirement at the endpoint level (in addition to the `latency_ms` log binding from T008) (D7/D11/FR-017/FR-021)
-- [ ] T033 [US4] Gate `/classify` and `/embed` behind readiness (`503` until validated) and enforce the `X-Service-Token` dependency on both; confirm credential-rotation behavior (valid replacement accepted, no code change) (FR-015/Edge Cases)
+- [X] T031 [US4] Implement strict startup artifact validation in `modelserver/startup.py` — compute each file's SHA-256, compare to manifest, raise → refuse boot on mismatch/absence/partial (D4/FR-010/US4)
+- [X] T032 [US4] Implement `GET /health` (liveness, no auth, no inference) and `GET /ready` (200 only after artifacts validated, else 503; includes model versions AND rolling per-operation p50/p95 latency + throughput counters) in `modelserver/routes.py` per `contracts/health-info.md`, satisfying the FR-021 "exposed as observable metrics" requirement at the endpoint level (in addition to the `latency_ms` log binding from T008) (D7/D11/FR-017/FR-021)
+- [X] T033 [US4] Gate `/classify` and `/embed` behind readiness (`503` until validated) and enforce the `X-Service-Token` dependency on both; confirm credential-rotation behavior (valid replacement accepted, no code change) (FR-015/Edge Cases)
 
 **Checkpoint**: Integrity + auth + health guarantees demonstrable.
 
@@ -155,10 +155,10 @@ bound → CI fails.
 
 ### Implementation for User Story 5
 
-- [ ] T034 [US5] Create repo-root `eval_thresholds.yaml` with `classifier: {metric: macro_f1, min: 0.80}` (FR-013/SC-003)
-- [ ] T035 [US5] Implement `modelserver/eval/run_eval.py` — load the shipped classifier (onnxruntime/joblib, no torch/network), score macro-F1 on `eval/eval_set.jsonl`, print it, exit non-zero if below the threshold (D10/FR-014)
-- [ ] T036 [US5] Update `.github/workflows/ci.yml` — add `"modelserver_token": "ci-test-token"` to the inline Vault secret writer; add a new `eval` job that installs only the `modelserver` uv group and runs `run_eval.py` (D5/D10)
-- [ ] T037 [P] [US5] Unit test `tests/unit/test_eval_gate.py` — `run_eval.py` passes at/above threshold and exits non-zero below (use a tiny known-scoring fixture)
+- [X] T034 [US5] Create repo-root `eval_thresholds.yaml` with `classifier: {metric: macro_f1, min: 0.80}` (FR-013/SC-003)
+- [X] T035 [US5] Implement `modelserver/eval/run_eval.py` — load the shipped classifier (onnxruntime/joblib, no torch/network), score macro-F1 on `eval/eval_set.jsonl`, print it, exit non-zero if below the threshold (D10/FR-014)
+- [X] T036 [US5] Update `.github/workflows/ci.yml` — add `"modelserver_token": "ci-test-token"` to the inline Vault secret writer; add a new `eval` job that installs only the `modelserver` uv group and runs `run_eval.py` (D5/D10)
+- [X] T037 [P] [US5] Unit test `tests/unit/test_eval_gate.py` — `run_eval.py` passes at/above threshold and exits non-zero below (use a tiny known-scoring fixture)
 
 **Checkpoint**: Eval gate live; regressions blocked in CI.
 
@@ -168,15 +168,15 @@ bound → CI fails.
 
 **Purpose**: Caller contract (FR-019), batch/truncation tests, concurrency (FR-018) + no-PII-log (SC-008) verification, SLO benchmark, docs, coverage.
 
-- [ ] T038 [P] Implement `app/infra/modelserver_client.py` — async `httpx` client (reuse `app/infra/http.py`), `X-Service-Token` header, `tenacity` timeout + retry (never on 4xx), typed returns, optional ≤128 chunk helper, per `contracts/modelserver-client.md` (FR-019/D13)
-- [ ] T039 [P] Unit test `tests/unit/test_modelserver_client.py` — token header sent, timeout, retry-NOT-on-4xx, batch chunking (stub transport)
-- [ ] T040 [P] Unit test `tests/unit/test_truncation.py` and `tests/unit/test_version_stamp.py` — >512 tokens truncates+warns, ≤512 untouched; every result carries the correct per-artifact version
-- [ ] T041 [P] Integration test `tests/integration/test_batch_limits.py` — >128 items→422, cold-start readiness, over-long truncation path end-to-end
-- [ ] T042 [P] Implement `modelserver/eval/bench.py` — report classifier/embedder p95 + batch throughput (FR-021/SC-009; not CI-gated, D11)
-- [ ] T043 [P] Add RUNBOOK/quickstart notes: image-size check (<500 MB), Git LFS guidance for large artifacts, how to rotate `modelserver_token` (D15)
-- [ ] T044 Verify coverage gates (classifier path ≥95%, overall ≥80%) and run `specs/005-modelserver/quickstart.md` end-to-end on the live stack
-- [ ] T045 [P] Integration test `tests/integration/test_concurrency.py` — issue many concurrent `/classify` and `/embed` requests and assert per-input correctness + determinism under load (FR-018; closes analysis F2)
-- [ ] T046 [P] Test `tests/integration/test_no_pii_logs.py` — capture modelserver logs across a representative run and assert request texts, embeddings, and the service token never appear, and that only `/classify`,`/embed`,`/health`,`/ready` are exposed (SC-008/FR-020 + FR-006 surface check; closes analysis F3/F6)
+- [X] T038 [P] Implement `app/infra/modelserver_client.py` — async `httpx` client (reuse `app/infra/http.py`), `X-Service-Token` header, `tenacity` timeout + retry (never on 4xx), typed returns, optional ≤128 chunk helper, per `contracts/modelserver-client.md` (FR-019/D13)
+- [X] T039 [P] Unit test `tests/unit/test_modelserver_client.py` — token header sent, timeout, retry-NOT-on-4xx, batch chunking (stub transport)
+- [X] T040 [P] Unit test `tests/unit/test_truncation.py` and `tests/unit/test_version_stamp.py` — >512 tokens truncates+warns, ≤512 untouched; every result carries the correct per-artifact version
+- [X] T041 [P] Integration test `tests/integration/test_batch_limits.py` — >128 items→422, cold-start readiness, over-long truncation path end-to-end
+- [X] T042 [P] Implement `modelserver/eval/bench.py` — report classifier/embedder p95 + batch throughput (FR-021/SC-009; not CI-gated, D11)
+- [X] T043 [P] Add RUNBOOK/quickstart notes: image-size check (<500 MB), Git LFS guidance for large artifacts, how to rotate `modelserver_token` (D15)
+- [X] T044 Verify coverage gates (classifier path ≥95%, overall ≥80%) and run `specs/005-modelserver/quickstart.md` end-to-end on the live stack
+- [X] T045 [P] Integration test `tests/integration/test_concurrency.py` — issue many concurrent `/classify` and `/embed` requests and assert per-input correctness + determinism under load (FR-018; closes analysis F2)
+- [X] T046 [P] Test `tests/integration/test_no_pii_logs.py` — capture modelserver logs across a representative run and assert request texts, embeddings, and the service token never appear, and that only `/classify`,`/embed`,`/health`,`/ready` are exposed (SC-008/FR-020 + FR-006 surface check; closes analysis F3/F6)
 
 ---
 

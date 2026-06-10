@@ -72,3 +72,15 @@ jobs:
           # Integration tests read DB/Redis URLs from Vault, not the environment; we keep
           # DATABASE_URL/REDIS_URL OUT of env so Settings() defaults stay clean for unit tests.
         run: uv run pytest --cov=app --cov=worker --cov=modelserver --cov-report=term-missing
+
+  # Eval gate — classifier macro-F1 must stay >= 0.80 (US5 / FR-013 / D10)
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Sync modelserver group only (lean; no torch/DB)
+        run: uv sync --only-group modelserver --no-install-project
+      - name: Run eval gate
+        run: uv run python modelserver/eval/run_eval.py

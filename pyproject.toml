@@ -51,6 +51,7 @@ modelserver = [
     "secure>=1.0",
     "scikit-learn>=1.3",
     "joblib>=1.3",
+    "pyyaml>=6.0",
 ]
 # Offline training group — torch/transformers; NEVER in the serving image
 training = [
@@ -76,6 +77,8 @@ branch = true
 # SQLAlchemy async bridges sync/async via greenlet; trace it so route bodies that resume
 # after `await session...` are measured (else they read as uncovered).
 concurrency = ["thread", "greenlet"]
+# Operational scripts — not library code; manually invoked, not testable in CI
+omit = ["modelserver/eval/bench.py"]
 
 [tool.coverage.report]
 show_missing = true
