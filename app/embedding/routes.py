@@ -116,7 +116,6 @@ async def list_index_runs(
     request: Request,
     target: Client = Depends(get_acting_client_read),
     limit: int = Query(50, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
 ) -> list[IndexBuildRunOut]:
     """List index build runs for a client (most recent first, FR-010)."""
     session_factory = request.app.state.session_factory
@@ -125,7 +124,6 @@ async def list_index_runs(
         runs = await embedding_service.IndexBuildService.list_runs(
             session, client_id=target.id, limit=limit
         )
-        # TODO: Implement offset in service if needed
         return [IndexBuildRunOut.model_validate(run) for run in runs]
 
 

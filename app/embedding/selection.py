@@ -1,10 +1,12 @@
 """Source selection logic for multi-source documents."""
 
 import json
+from typing import Any
+
 from app.ingestion.enums import SourceReliability
 
 
-def select_source(document_sources: list) -> object:
+def select_source(document_sources: list[Any]) -> Any:
     """Select the best source payload for a multi-source document (FR-024).
 
     Ordering: reliability (highest rank) → richness (longest payload) → recency (most recent).

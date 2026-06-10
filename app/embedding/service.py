@@ -176,7 +176,7 @@ class IndexBuildService:
             select(DocumentWatchlist.document_id)
             .distinct()
             .join(Watchlist, DocumentWatchlist.watchlist_id == Watchlist.id)
-            .where(Watchlist.is_active == True)
+            .where(Watchlist.is_active.is_(True))
         )
 
         # Main query: get documents with eligible status
@@ -206,21 +206,4 @@ class IndexBuildService:
         )
 
         return (await session.execute(stmt)).scalars().all()
-
-    @staticmethod
-    def update_run_counts(
-        session: Session,
-        run_id: int,
-        documents_processed: int = 0,
-        chunks_created: int = 0,
-        documents_skipped: int = 0,
-        documents_errored: int = 0,
-    ) -> None:
-        """Atomically update run counters (sync version for transaction-local use)."""
-        run = session.query(IndexBuildRun).filter(IndexBuildRun.id == run_id).first()
-        if run:
-            run.documents_processed += documents_processed
-            run.chunks_created += chunks_created
-            run.documents_skipped += documents_skipped
-            run.documents_errored += documents_errored
 

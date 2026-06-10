@@ -104,8 +104,6 @@ class DocumentIndexState(Base):
     )
 
     __table_args__ = (
-        # 1:1 constraint
-        Index("uq_document_index_state_document", "document_id", unique=True),
         # Hot scan: find not-indexed / retryable documents for client X
         Index("ix_document_index_state_client_id", "client_id"),
         Index("ix_document_index_state_client_status", "client_id", "status"),
