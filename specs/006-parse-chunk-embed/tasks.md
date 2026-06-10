@@ -30,9 +30,9 @@ and the spec defines acceptance scenarios + Success Criteria SC-001…SC-013.
 
 **Purpose**: Package scaffolding, dependencies, and configuration.
 
-- [ ] T001 Create the `app/embedding/` package skeleton (`__init__.py`, `parsers/__init__.py`, and empty `enums.py`, `models.py`, `schemas.py`, `selection.py`, `router.py`, `tokenizer.py`, `chunking.py`, `service.py`, `runner.py`, `routes.py`, `parsers/base.py`, `parsers/pubmed_jats.py`, `parsers/europepmc_jats.py`, `parsers/openfda_faers.py`, `parsers/openfda_label.py`, `parsers/regulatory_feed.py`) each opening with a one-sentence module docstring, per plan.md structure
-- [ ] T002 Add runtime deps `pgvector`, `lxml`, `tokenizers` to `[project].dependencies` in `pyproject.toml` and run `uv sync` (D6/D7/D9)
-- [ ] T003 [P] Add embedding settings to `app/core/config.py` Settings (extra="forbid"): `embedder_tokenizer_path` (default `modelserver/models/tokenizer.json`), `embedder_model_version`, `chunk_target_tokens=256`, `chunk_overlap_ratio=0.15`, `chunk_max_tokens=512` (research D6)
+- [x] T001 Create the `app/embedding/` package skeleton (`__init__.py`, `parsers/__init__.py`, and empty `enums.py`, `models.py`, `schemas.py`, `selection.py`, `router.py`, `tokenizer.py`, `chunking.py`, `service.py`, `runner.py`, `routes.py`, `parsers/base.py`, `parsers/pubmed_jats.py`, `parsers/europepmc_jats.py`, `parsers/openfda_faers.py`, `parsers/openfda_label.py`, `parsers/regulatory_feed.py`) each opening with a one-sentence module docstring, per plan.md structure
+- [x] T002 Add runtime deps `pgvector`, `lxml`, `tokenizers` to `[project].dependencies` in `pyproject.toml` and run `uv sync` (D6/D7/D9)
+- [x] T003 [P] Add embedding settings to `app/core/config.py` Settings (extra="forbid"): `embedder_tokenizer_path` (default `modelserver/models/tokenizer.json`), `embedder_model_version`, `chunk_target_tokens=256`, `chunk_overlap_ratio=0.15`, `chunk_max_tokens=512` (research D6)
 
 ---
 
@@ -43,15 +43,15 @@ service ops that EVERY user story depends on.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 [P] Implement `app/embedding/enums.py` — `ChunkType`, `DocumentIndexStatus`, `IndexBuildRunStatus` as `StrEnum` (data-model.md)
-- [ ] T005 Implement `app/embedding/models.py` — ORM `Chunk` (`Vector(768)` embedding, GENERATED `tsvector` column, `ordinal`, metadata, indexes), `DocumentIndexState` (1:1, status/attempts/last_error/embedder_version), `IndexBuildRun` (counts/status); CHECK constraints mirror enums (data-model.md) (depends on T004)
-- [ ] T006 Create Alembic migration `app/db/migrations/versions/0006_chunks_index_state.py` — `CREATE EXTENSION IF NOT EXISTS vector`; create `chunks`, `document_index_state`, `index_build_runs` with all columns/CHECKs, GIN index on `text_tsv`, **HNSW** index on `embedding` (`vector_cosine_ops`), partial-unique `(client_id) WHERE status='running'`, and the metadata indexes; reversible `downgrade()` (drops tables, leaves the extension) (data-model.md) (depends on T005)
-- [ ] T007 [P] Implement `app/embedding/schemas.py` — `IndexBuildRunOut`, `DocumentIndexStateOut` (Pydantic, no ORM at the boundary). NOTE: `ParsedChunk` is defined once in `parsers/base.py` (T009), NOT here (data-model.md)
-- [ ] T008 [P] Implement `app/embedding/tokenizer.py` — load `tokenizer.json` via `tokenizers` from `settings.embedder_tokenizer_path`; `count_tokens(text)` with the special-token reserve; `verify_embedder_version(client)` calling modelserver `GET /ready` and comparing `ready_json["models"]["embedder"]["sha256"]` (dict access) to `settings.embedder_model_version` (the pinned **sha256**), raising on mismatch (FR-025, contracts/embedder-usage.md, D6)
-- [ ] T009 [P] Implement `app/embedding/parsers/base.py` — `ParsedChunk` dataclass + `Parser` protocol (contracts/parser-router.md)
-- [ ] T010 Implement `app/embedding/router.py` — `PARSERS` registry + `route(source, raw_payload) -> list[ParsedChunk]`; unknown source raises a parse error classified permanent (depends on T009)
-- [ ] T011 Implement `app/embedding/chunking.py` — section-aware splitter: target ~256 tokens, ~15% overlap, hard cap < 512 using `tokenizer.count_tokens`; oversized sections sub-split; structural chunks (`table`/`figure_caption`) exempt from overlap; a structural chunk whose own text exceeds the cap is **hard-split at a token boundary (preferring a table-row boundary) as a last resort and logged**, so every emitted chunk is ≤ cap (FR-008, depends on T008)
-- [ ] T012 [P] Implement base DB ops in `app/embedding/service.py` — `create_run`, `finish_run`, `list_runs`/`get_run` (client-scoped), `get_or_create_index_state`, `set_index_state`, `insert_chunks`, `get_documents_to_index` (client-scoped); all queries filter by `client_id` (data-model.md, FR-014)
+- [x] T004 [P] Implement `app/embedding/enums.py` — `ChunkType`, `DocumentIndexStatus`, `IndexBuildRunStatus` as `StrEnum` (data-model.md)
+- [x] T005 Implement `app/embedding/models.py` — ORM `Chunk` (`Vector(768)` embedding, GENERATED `tsvector` column, `ordinal`, metadata, indexes), `DocumentIndexState` (1:1, status/attempts/last_error/embedder_version), `IndexBuildRun` (counts/status); CHECK constraints mirror enums (data-model.md) (depends on T004)
+- [x] T006 Create Alembic migration `app/db/migrations/versions/0006_chunks_index_state.py` — `CREATE EXTENSION IF NOT EXISTS vector`; create `chunks`, `document_index_state`, `index_build_runs` with all columns/CHECKs, GIN index on `text_tsv`, **HNSW** index on `embedding` (`vector_cosine_ops`), partial-unique `(client_id) WHERE status='running'`, and the metadata indexes; reversible `downgrade()` (drops tables, leaves the extension) (data-model.md) (depends on T005)
+- [x] T007 [P] Implement `app/embedding/schemas.py` — `IndexBuildRunOut`, `DocumentIndexStateOut` (Pydantic, no ORM at the boundary). NOTE: `ParsedChunk` is defined once in `parsers/base.py` (T009), NOT here (data-model.md)
+- [x] T008 [P] Implement `app/embedding/tokenizer.py` — load `tokenizer.json` via `tokenizers` from `settings.embedder_tokenizer_path`; `count_tokens(text)` with the special-token reserve; `verify_embedder_version(client)` calling modelserver `GET /ready` and comparing `ready_json["models"]["embedder"]["sha256"]` (dict access) to `settings.embedder_model_version` (the pinned **sha256**), raising on mismatch (FR-025, contracts/embedder-usage.md, D6)
+- [x] T009 [P] Implement `app/embedding/parsers/base.py` — `ParsedChunk` dataclass + `Parser` protocol (contracts/parser-router.md)
+- [x] T010 Implement `app/embedding/router.py` — `PARSERS` registry + `route(source, raw_payload) -> list[ParsedChunk]`; unknown source raises a parse error classified permanent (depends on T009)
+- [x] T011 Implement `app/embedding/chunking.py` — section-aware splitter: target ~256 tokens, ~15% overlap, hard cap < 512 using `tokenizer.count_tokens`; oversized sections sub-split; structural chunks (`table`/`figure_caption`) exempt from overlap; a structural chunk whose own text exceeds the cap is **hard-split at a token boundary (preferring a table-row boundary) as a last resort and logged**, so every emitted chunk is ≤ cap (FR-008, depends on T008)
+- [x] T012 [P] Implement base DB ops in `app/embedding/service.py` — `create_run`, `finish_run`, `list_runs`/`get_run` (client-scoped), `get_or_create_index_state`, `set_index_state`, `insert_chunks`, `get_documents_to_index` (client-scoped); all queries filter by `client_id` (data-model.md, FR-014)
 
 **Checkpoint**: Schema migrates up/down; models, schemas, tokenizer, router, chunker, and base service ops exist.
 
@@ -68,17 +68,17 @@ the correct `client_id` (SC-001, SC-006).
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] Unit test `tests/unit/test_tokenizer_count.py` — exact token counts via the embedder tokenizer + special-token reserve (FR-025)
-- [ ] T014 [P] [US1] Unit test `tests/unit/test_chunking.py` — target/overlap/cap, oversized-section split, structural-chunk no-overlap (FR-008)
-- [ ] T015 [P] [US1] Integration test `tests/integration/test_index_build.py` — full build over seeded documents → chunks persisted with 768 embedding + version + ordinal, client-scoped; document that yields no chunks → `indexed_empty` (SC-001/006/008)
+- [x] T013 [P] [US1] Unit test `tests/unit/test_tokenizer_count.py` — exact token counts via the embedder tokenizer + special-token reserve (FR-025)
+- [x] T014 [P] [US1] Unit test `tests/unit/test_chunking.py` — target/overlap/cap, oversized-section split, structural-chunk no-overlap (FR-008)
+- [x] T015 [P] [US1] Integration test `tests/integration/test_index_build.py` — full build over seeded documents → chunks persisted with 768 embedding + version + ordinal, client-scoped; document that yields no chunks → `indexed_empty` (SC-001/006/008)
 
 ### Implementation for User Story 1
 
-- [ ] T016 [P] [US1] Implement `app/embedding/parsers/pubmed_jats.py` — JATS XML (via `lxml`) → section-tagged `text` chunks + MeSH/metadata capture (contracts/parser-router.md)
-- [ ] T017 [US1] Implement `app/embedding/runner.py` happy path: build the client via `ModelserverClient.from_settings(settings)` (do NOT reference `settings.modelserver_url`); verify embedder version at start (FR-025); for each not-indexed document → select source → `route()` (wrap CPU-bound parse in `asyncio.to_thread`, Constitution Eng-std) → `chunking` → `ModelserverClient.embed_chunked()` (returns `list[dict]`; read `r["embedding"]` and `r["model_version"]["sha256"]` via dict access) → **768-dim guard** (FR-016) → persist chunks (stamp `embedder_version` = sha256) + flip `document_index_state` to `indexed`/`indexed_empty` in **one transaction** (FR-028); injected `session_factory` (ARQ-ready) (depends on T010/T011/T012/T016/T008)
-- [ ] T018 [US1] Add `IndexBuildTriggered` domain event to `app/domain/events.py` and register it with the audit handler (mirrors `IngestionRunTriggered`)
-- [ ] T019 [US1] Implement `app/embedding/routes.py` — `POST /clients/{client_id}/index` (`require_admin` + `get_acting_client` + `BackgroundTasks`, commit run row **before** `add_task`), set `index_build_runs.triggered_by_user_id` from the `require_admin` user (audit attribution, Constitution V), dispatch `IndexBuildTriggered`; `GET /clients/{client_id}/index-runs` + `GET .../index-runs/{run_id}` via `get_acting_client_read` (contracts/index-trigger.md, index-runs.md) (depends on T012/T017/T018)
-- [ ] T020 [US1] Register `embedding_router` in `app/main.py`; add PII-free `structlog` binding (`client_id`/`run_id`/`document_id`, never chunk text/PII) in the runner (FR-019)
+- [x] T016 [P] [US1] Implement `app/embedding/parsers/pubmed_jats.py` — JATS XML (via `lxml`) → section-tagged `text` chunks + MeSH/metadata capture (contracts/parser-router.md)
+- [x] T017 [US1] Implement `app/embedding/runner.py` happy path: build the client via `ModelserverClient.from_settings(settings)` (do NOT reference `settings.modelserver_url`); verify embedder version at start (FR-025); for each not-indexed document → select source → `route()` (wrap CPU-bound parse in `asyncio.to_thread`, Constitution Eng-std) → `chunking` → `ModelserverClient.embed_chunked()` (returns `list[dict]`; read `r["embedding"]` and `r["model_version"]["sha256"]` via dict access) → **768-dim guard** (FR-016) → persist chunks (stamp `embedder_version` = sha256) + flip `document_index_state` to `indexed`/`indexed_empty` in **one transaction** (FR-028); injected `session_factory` (ARQ-ready) (depends on T010/T011/T012/T016/T008)
+- [x] T018 [US1] Add `IndexBuildTriggered` domain event to `app/domain/events.py` and register it with the audit handler (mirrors `IngestionRunTriggered`)
+- [x] T019 [US1] Implement `app/embedding/routes.py` — `POST /clients/{client_id}/index` (`require_admin` + `get_acting_client` + `BackgroundTasks`, commit run row **before** `add_task`), set `index_build_runs.triggered_by_user_id` from the `require_admin` user (audit attribution, Constitution V), dispatch `IndexBuildTriggered`; `GET /clients/{client_id}/index-runs` + `GET .../index-runs/{run_id}` via `get_acting_client_read` (contracts/index-trigger.md, index-runs.md) (depends on T012/T017/T018)
+- [x] T020 [US1] Register `embedding_router` in `app/main.py`; add PII-free `structlog` binding (`client_id`/`run_id`/`document_id`, never chunk text/PII) in the runner (FR-019)
 
 **Checkpoint**: A manager/admin can trigger a build; PubMed documents become embedded, client-scoped, searchable chunks. MVP complete.
 
@@ -100,11 +100,11 @@ section labels, tables not split mid-row, figure captions as discrete chunks (SC
 
 ### Implementation for User Story 2
 
-- [ ] T025 [P] [US2] Implement `app/embedding/parsers/europepmc_jats.py` — full JATS → `text` + `table` (header-per-row) + `figure_caption` chunks via `lxml`
-- [ ] T026 [P] [US2] Implement `app/embedding/parsers/openfda_faers.py` — structured JSON → natural-language `structured_data` chunk
-- [ ] T027 [P] [US2] Implement `app/embedding/parsers/openfda_label.py` — label JSON → per-section chunks with section name retained
-- [ ] T028 [P] [US2] Implement `app/embedding/parsers/regulatory_feed.py` — MedWatch/EMA/MHRA alert dict → summary chunk
-- [ ] T029 [US2] Register all parsers in the `PARSERS` registry (`app/embedding/router.py`) keyed by the seven `SourceName` values (openfda_faers vs openfda_label vs the three feeds); ensure each chunk inherits the document's `source_reliability` at persist (FR-007) (depends on T025–T028)
+- [x] T025 [P] [US2] Implement `app/embedding/parsers/europepmc_jats.py` — full JATS → `text` + `table` (header-per-row) + `figure_caption` chunks via `lxml`
+- [x] T026 [P] [US2] Implement `app/embedding/parsers/openfda_faers.py` — structured JSON → natural-language `structured_data` chunk
+- [x] T027 [P] [US2] Implement `app/embedding/parsers/openfda_label.py` — label JSON → per-section chunks with section name retained
+- [x] T028 [P] [US2] Implement `app/embedding/parsers/regulatory_feed.py` — MedWatch/EMA/MHRA alert dict → summary chunk
+- [x] T029 [US2] Register all parsers in the `PARSERS` registry (`app/embedding/router.py`) keyed by the seven `SourceName` values (openfda_faers vs openfda_label vs the three feeds); ensure each chunk inherits the document's `source_reliability` at persist (FR-007) (depends on T025–T028)
 - [ ] T030 [US2] Add committed per-source fixtures under `tests/fixtures/embedding/` so the parser tests and SC-005 run offline (read `app/ingestion/adapters/*.py` to match each stored `raw_payload` shape — D9)
 
 **Checkpoint**: All seven sources parse faithfully into typed chunks.
@@ -126,7 +126,7 @@ add one document → only that document is processed (SC-003).
 
 ### Implementation for User Story 3
 
-- [ ] T033 [P] [US3] Implement `app/embedding/selection.py` — `select_source(document_sources)` ordering by `SourceReliability.rank` → richness (payload/body length) → most-recent `fetched_at` (FR-024, D8)
+- [x] T033 [P] [US3] Implement `app/embedding/selection.py` — `select_source(document_sources)` ordering by `SourceReliability.rank` → richness (payload/body length) → most-recent `fetched_at` (FR-024, D8)
 - [ ] T034 [US3] Wire `select_source` into the runner so a multi-source document is parsed from exactly one payload and chunks are never merged across sources (FR-024) (depends on T033/T017)
 - [ ] T035 [US3] Implement incremental selection in `service.get_documents_to_index` — include only `not_indexed`/`errored_transient`; exclude `indexed`/`indexed_empty`/`errored_permanent`; **also exclude documents with no `document_watchlists` link to a `watchlists.is_active = true` row** (join `document_watchlists` → `watchlists`; a doc still linked to ≥1 active watchlist is included) so deactivating a watchlist stops new indexing for it (FR-020); guarantee 0 embed calls on a clean re-run (FR-009)
 - [ ] T036 [US3] Enforce `(document_id, ordinal)` uniqueness in `service.insert_chunks` as the last-line duplicate guard (idempotent persist) (D10/D11)
