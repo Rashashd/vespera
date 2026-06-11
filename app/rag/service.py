@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from sqlalchemy import func, select
@@ -28,7 +29,8 @@ async def retrieve(
     without calling the modelserver (FR-015/SC-007).
     """
     from app.rag.corroboration import build_corroboration
-    from app.rag.retrieval import dense_candidates, project_passages
+    from app.rag.fusion import reciprocal_rank_fusion
+    from app.rag.retrieval import dense_candidates, lexical_candidates, project_passages
 
     # Pre-check: empty corpus → skip embed + return immediately (FR-015/SC-007)
     chunk_count = (
@@ -58,13 +60,8 @@ async def retrieve(
     # Embedder-version guard (FR-004) — raises EmbedderVersionMismatch if mismatch
     await assert_index_version(session, client.id, embedder_sha)
 
-    # Dense-only retrieval (US1; replaced by hybrid in US2)
     n_candidates = min(req.top_k * 5, 50)
-    dense = await dense_candidates(
-        session=session,
-        client_id=client.id,
-        qvec=vector,
-        n=n_candidates,
+    filters = dict(
         chunk_types=[ct.value for ct in req.chunk_types] if req.chunk_types else None,
         source_reliabilities=(
             [sr.value for sr in req.source_reliabilities] if req.source_reliabilities else None
@@ -73,7 +70,24 @@ async def retrieve(
         date_to=req.date_to,
     )
 
-    if not dense:
+    # Hybrid retrieval: dense + lexical concurrently (US2 / FR-007)
+    dense, lexical = await asyncio.gather(
+        dense_candidates(
+            session=session, client_id=client.id, qvec=vector, n=n_candidates, **filters
+        ),
+        lexical_candidates(
+            session=session,
+            client_id=client.id,
+            query_str=req.query,
+            n=n_candidates,
+            **filters,
+        ),
+    )
+
+    # RRF fusion (US2) — produces de-duplicated list ordered by fused score desc, id asc
+    fused = reciprocal_rank_fusion(dense, lexical)
+
+    if not fused:
         return RetrieveResponse(
             query_hash=query_hash(req.query),
             embedder_version=embedder_sha,
@@ -83,15 +97,15 @@ async def retrieve(
         )
 
     # Project top_k candidates to full passage objects
-    top_candidates = dense[: req.top_k]
+    top_candidates = fused[: req.top_k]
     passages = await project_passages(session=session, candidates=top_candidates)
 
-    # Assign rank and placeholder score (US1: no reranker yet; dense rank as proxy)
+    # Assign rank and RRF-rank proxy score (US4 reranker will replace this)
     for i, p in enumerate(passages):
         p.rank = i + 1
-        p.score = float(n_candidates - i)
+        p.score = float(len(fused) - i)
 
-    # Corroboration
+    # Corroboration (US3)
     corr_count, corr_sources = build_corroboration(passages)
 
     return RetrieveResponse(

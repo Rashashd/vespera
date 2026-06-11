@@ -102,14 +102,14 @@ passage in the fused result; fused hit@k/MRR ≥ the better single leg.
 
 ### Tests for User Story 2
 
-- [ ] T020 [P] [US2] Unit test RRF fusion math + deterministic `id` tie-break in `tests/unit/test_rrf_fusion.py` (FR-007/010)
-- [ ] T021 [P] [US2] Integration test dense-only vs lexical-only vs fused; lexical-only & semantic-only both surface in `tests/integration/test_retrieval_hybrid.py` (US2)
+- [X] T020 [P] [US2] Unit test RRF fusion math + deterministic `id` tie-break in `tests/unit/test_rrf_fusion.py` (FR-007/010)
+- [X] T021 [P] [US2] Integration test dense-only vs lexical-only vs fused; lexical-only & semantic-only both surface in `tests/integration/test_retrieval_hybrid.py` (US2)
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Implement `lexical_candidates()` (client-scoped `websearch_to_tsquery('english', :q)` + `ts_rank_cd`, same optional filters, `ORDER BY rank_score DESC, id ASC LIMIT n`) in `app/rag/retrieval.py` (D3) — same file as T016/T017
-- [ ] T023 [P] [US2] Implement `reciprocal_rank_fusion()` (k=60, sum 1/(k+rank), `id` tie-break, de-dup across legs) in `app/rag/fusion.py` (D1/FR-007/010)
-- [ ] T024 [US2] Extend `service.retrieve()` to run dense + lexical concurrently (`asyncio.gather`), fuse, then project the fused top candidates (replaces the dense-only path) (FR-007) — depends on T022/T023
+- [X] T022 [US2] Implement `lexical_candidates()` (client-scoped `websearch_to_tsquery('english', :q)` + `ts_rank_cd`, same optional filters, `ORDER BY rank_score DESC, id ASC LIMIT n`) in `app/rag/retrieval.py` (D3) — same file as T016/T017
+- [X] T023 [P] [US2] Implement `reciprocal_rank_fusion()` (k=60, sum 1/(k+rank), `id` tie-break, de-dup across legs) in `app/rag/fusion.py` (D1/FR-007/010)
+- [X] T024 [US2] Extend `service.retrieve()` to run dense + lexical concurrently (`asyncio.gather`), fuse, then project the fused top candidates (replaces the dense-only path) (FR-007) — depends on T022/T023
 
 **Checkpoint**: hybrid retrieval — both legs contribute; US1 tests still pass.
 
@@ -126,13 +126,13 @@ counts once.
 
 ### Tests for User Story 3
 
-- [ ] T025 [P] [US3] Unit test corroboration grouping — N distinct docs; multi-passage→one source; never truncated in `tests/unit/test_corroboration.py` (FR-013/015)
-- [ ] T026 [P] [US3] Integration test corroboration count + all sources listed in `tests/integration/test_retrieval_corroboration.py` (US3/SC-003)
+- [X] T025 [P] [US3] Unit test corroboration grouping — N distinct docs; multi-passage→one source; never truncated in `tests/unit/test_corroboration.py` (FR-013/015)
+- [X] T026 [P] [US3] Integration test corroboration count + all sources listed in `tests/integration/test_retrieval_corroboration.py` (US3/SC-003)
 
 ### Implementation for User Story 3
 
 - [X] T027 [P] [US3] Implement `build_corroboration(passages)` (group by `document_id`; distinct count; `CorroborationSource` per doc with title/external_id/date/reliability/sources/`passage_chunk_ids`; never truncate) in `app/rag/corroboration.py` (D9/FR-013–015)
-- [ ] T028 [US3] Extend `service.retrieve()` to populate `corroboration_count` + `corroboration_sources` from the returned top-K (FR-014) — depends on T027
+- [X] T028 [US3] Extend `service.retrieve()` to populate `corroboration_count` + `corroboration_sources` from the returned top-K (FR-014) — depends on T027
 
 **Checkpoint**: corroboration surfaced over the cited top-K.
 
