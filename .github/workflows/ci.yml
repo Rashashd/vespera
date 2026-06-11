@@ -1,7 +1,10 @@
 name: CI
 
 on:
+  # Run on pushes to master and on every PR. Feature-branch pushes don't each fire a separate
+  # run (a PR already runs CI on every update), which avoids double-spending Actions minutes.
   push:
+    branches: [master]
   pull_request:
 
 jobs:
