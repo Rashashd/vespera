@@ -83,6 +83,23 @@ class ModelserverClient:
         return out
 
     # ------------------------------------------------------------------
+    # Health & Ready
+    # ------------------------------------------------------------------
+
+    async def get_ready(self) -> dict:
+        """Call GET /ready; returns model metadata and status."""
+        if not self._http:
+            # Create a temporary client for this request
+            async with self as _:
+                resp = await self._http.get("/ready")
+                resp.raise_for_status()
+                return resp.json()
+        else:
+            resp = await self._http.get("/ready")
+            resp.raise_for_status()
+            return resp.json()
+
+    # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
 

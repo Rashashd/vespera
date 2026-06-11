@@ -8,6 +8,7 @@ Uses ASGI transport against the fixture modelserver app — no network needed.
 
 from __future__ import annotations
 
+import importlib.util
 import math
 
 import pytest
@@ -16,7 +17,15 @@ MEDICAL_TEXT_A = "patient liver damage severe"
 MEDICAL_TEXT_B = "patient liver damage acute"
 UNRELATED_TEXT = "no trial participants"
 
-pytestmark = pytest.mark.asyncio
+# These exercise the standalone modelserver app via ASGI; it imports onnxruntime at boot,
+# which lives only in the (excluded) `modelserver` uv group. Skip unless that dep is present.
+pytestmark = [
+    pytest.mark.asyncio,
+    pytest.mark.skipif(
+        importlib.util.find_spec("onnxruntime") is None,
+        reason="requires modelserver runtime deps (onnxruntime); run under the modelserver env",
+    ),
+]
 
 
 def _cosine(v1: list[float], v2: list[float]) -> float:

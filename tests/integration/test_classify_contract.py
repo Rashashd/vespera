@@ -7,12 +7,22 @@ Uses ASGI transport against the fixture modelserver app — no network needed.
 
 from __future__ import annotations
 
+import importlib.util
+
 import pytest
 
 ADVERSE_TEXT = "patient developed acute liver failure after starting drug X"
 BENIGN_TEXT = "no adverse events were observed during the 12-week trial"
 
-pytestmark = pytest.mark.asyncio
+# Exercises the standalone modelserver app, which imports onnxruntime at boot (only in the
+# `modelserver` uv group). Skip unless that dep is present; CI installs it via --group modelserver.
+pytestmark = [
+    pytest.mark.asyncio,
+    pytest.mark.skipif(
+        importlib.util.find_spec("onnxruntime") is None,
+        reason="requires modelserver runtime deps (onnxruntime); run under the modelserver env",
+    ),
+]
 
 
 async def test_classify_returns_correct_shape(ms_authed):

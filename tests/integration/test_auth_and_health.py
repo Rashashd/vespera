@@ -6,12 +6,22 @@ artifacts loaded then 200 with model versions; /classify and /embed gated 503.
 
 from __future__ import annotations
 
+import importlib.util
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 ADVERSE_TEXT = "patient developed acute liver failure after starting drug X"
 
-pytestmark = pytest.mark.asyncio
+# Exercises the standalone modelserver app, which imports onnxruntime at boot (only in the
+# `modelserver` uv group). Skip unless that dep is present; CI installs it via --group modelserver.
+pytestmark = [
+    pytest.mark.asyncio,
+    pytest.mark.skipif(
+        importlib.util.find_spec("onnxruntime") is None,
+        reason="requires modelserver runtime deps (onnxruntime); run under the modelserver env",
+    ),
+]
 
 
 # ---------------------------------------------------------------------------

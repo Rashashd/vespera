@@ -29,13 +29,13 @@ _SECURITY_HEADERS = {
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Boot: load token + validate artifacts + load sessions; sets app.state.ready."""
-    from modelserver.config import ModelserverConfig
+    from modelserver.core.config import ModelserverConfig
+    from modelserver.core.logging import configure_logging, get_logger
+    from modelserver.core.manifest import Manifest
+    from modelserver.core.startup import load_modelserver_token, validate_artifacts
     from modelserver.inference.classifier import ClassifierSession
     from modelserver.inference.embedder import EmbedderSession
     from modelserver.inference.tokenize import load_tokenizer
-    from modelserver.logging import configure_logging, get_logger
-    from modelserver.manifest import Manifest
-    from modelserver.startup import load_modelserver_token, validate_artifacts
 
     config: ModelserverConfig = app.state.config
     configure_logging(config.log_level)
@@ -97,7 +97,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     """Create and configure the modelserver FastAPI application."""
-    from modelserver.config import get_config
+    from modelserver.core.config import get_config
     from modelserver.routes import router
 
     config = get_config()

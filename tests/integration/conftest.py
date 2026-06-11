@@ -2,6 +2,7 @@
 
 import os
 import uuid
+from datetime import UTC
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -167,8 +168,17 @@ async def make_client(auth_app):
 
     if not created_ids:
         return
+    # Spec-6 embedding rows: chunks cascade on client delete, but index_build_runs has no
+    # ON DELETE CASCADE on client_id, so it must be removed before the client row.
+    from app.embedding.models import Chunk, DocumentIndexState, IndexBuildRun
+
     async with factory() as s:
         async with s.begin():
+            await s.execute(delete(Chunk).where(Chunk.client_id.in_(created_ids)))
+            await s.execute(
+                delete(DocumentIndexState).where(DocumentIndexState.client_id.in_(created_ids))
+            )
+            await s.execute(delete(IndexBuildRun).where(IndexBuildRun.client_id.in_(created_ids)))
             await s.execute(
                 delete(WatchlistBudgetUsage).where(WatchlistBudgetUsage.client_id.in_(created_ids))
             )
@@ -177,6 +187,177 @@ async def make_client(auth_app):
             await s.execute(delete(AuditLog).where(AuditLog.client_id.in_(created_ids)))
             await s.execute(delete(User).where(User.client_id.in_(created_ids)))
             await s.execute(delete(Client).where(Client.id.in_(created_ids)))
+
+
+@pytest_asyncio.fixture
+async def make_watchlist(auth_app):
+    """Factory that inserts a watchlist row for a client."""
+    from app.clients.models import Watchlist
+
+    factory = auth_app.state.session_factory
+    created_ids: list[int] = []
+
+    async def _make(
+        client_id: int,
+        name: str | None = None,
+        is_active: bool = True,
+    ) -> Watchlist:
+        name = name or f"WL-{uuid.uuid4().hex[:8]}"
+        async with factory() as s:
+            async with s.begin():
+                watchlist = Watchlist(
+                    client_id=client_id,
+                    name=name,
+                    is_active=is_active,
+                    cadence="weekly",
+                    severity_threshold="serious",
+                )
+                s.add(watchlist)
+            await s.refresh(watchlist)
+        created_ids.append(watchlist.id)
+        return watchlist
+
+    yield _make
+
+    if created_ids:
+        from app.clients.models import Watchlist, WatchlistBudgetUsage, WatchlistItem
+
+        async with factory() as s:
+            async with s.begin():
+                await s.execute(
+                    delete(WatchlistBudgetUsage).where(
+                        WatchlistBudgetUsage.watchlist_id.in_(created_ids)
+                    )
+                )
+                await s.execute(
+                    delete(WatchlistItem).where(WatchlistItem.watchlist_id.in_(created_ids))
+                )
+                await s.execute(delete(Watchlist).where(Watchlist.id.in_(created_ids)))
+
+
+@pytest_asyncio.fixture
+async def make_document(auth_app):
+    """Factory that inserts a document with a source payload."""
+    from datetime import datetime
+
+    from app.ingestion.models import Document, DocumentSource, DocumentWatchlist
+
+    factory = auth_app.state.session_factory
+    created_ids: list[int] = []
+
+    async def _make(
+        client_id: int,
+        source_name: str = "pubmed",
+        source_payload: str | dict | None = None,
+        title: str | None = None,
+        published_at: datetime | None = None,
+        source_reliability: str = "peer_reviewed",
+        watchlist_id: int | None = None,
+    ) -> Document:
+        # raw_payload is a JSONB column: a Python str round-trips as a JSON string scalar
+        # (what the XML parsers want); a dict round-trips as a JSON object (what FAERS wants).
+        if source_payload is None:
+            source_payload = {"test": "data"}
+
+        title = title or f"Test Document {uuid.uuid4().hex[:8]}"
+        published_at = published_at or datetime.now(UTC)
+        unique = uuid.uuid4().hex
+
+        async with factory() as s:
+            async with s.begin():
+                doc = Document(
+                    client_id=client_id,
+                    normalized_external_id=f"test-{unique}",
+                    source_reliability=source_reliability,
+                    title=title,
+                    summary="Test summary",
+                    published_at=published_at,
+                )
+                s.add(doc)
+                await s.flush()
+
+                ds = DocumentSource(
+                    document_id=doc.id,
+                    client_id=client_id,
+                    source=source_name,
+                    source_external_id=f"ext-{unique}",
+                    source_reliability=source_reliability,
+                    raw_payload=source_payload,
+                    fetched_at=datetime.now(UTC),
+                )
+                s.add(ds)
+
+                # Optionally link the document to a watchlist (committed here so the
+                # runner's own sessions can see it — FR-020).
+                if watchlist_id is not None:
+                    s.add(
+                        DocumentWatchlist(
+                            document_id=doc.id,
+                            watchlist_id=watchlist_id,
+                            client_id=client_id,
+                        )
+                    )
+                await s.flush()
+                await s.refresh(doc)
+
+        created_ids.append(doc.id)
+        return doc
+
+    yield _make
+
+    if created_ids:
+        from app.ingestion.models import Document, DocumentSource, DocumentWatchlist
+
+        async with factory() as s:
+            async with s.begin():
+                await s.execute(
+                    delete(DocumentWatchlist).where(DocumentWatchlist.document_id.in_(created_ids))
+                )
+                await s.execute(
+                    delete(DocumentSource).where(DocumentSource.document_id.in_(created_ids))
+                )
+                await s.execute(delete(Document).where(Document.id.in_(created_ids)))
+
+
+@pytest_asyncio.fixture
+async def async_session(auth_app):
+    """Provide a direct async database session for tests."""
+    factory = auth_app.state.session_factory
+    async with factory() as session:
+        yield session
+
+
+@pytest_asyncio.fixture
+async def mock_modelserver_client():
+    """Mock ModelserverClient that returns dummy embeddings."""
+    from app.infra.modelserver_client import ModelserverClient
+
+    class MockModelserverClient(ModelserverClient):
+        async def embed_chunked(self, texts: list[str]) -> list[dict]:
+            """Return dummy 768-dim embeddings for testing."""
+            import numpy as np
+
+            results = []
+            for text in texts:
+                # Deterministic embedding based on text hash
+                seed = hash(text) % 2**31
+                np.random.seed(seed)
+                embedding = np.random.randn(768).astype(np.float32)
+                # L2 normalize
+                embedding = embedding / (np.linalg.norm(embedding) + 1e-8)
+                results.append(
+                    {
+                        "embedding": embedding.tolist(),
+                        "model_version": {"sha256": "test-model-sha256"},
+                    }
+                )
+            return results
+
+        async def get_ready(self) -> dict:
+            """Return mock ready response."""
+            return {"models": {"embedder": {"sha256": "test-model-sha256"}}}
+
+    return MockModelserverClient(base_url="http://test", token="test-token")
 
 
 async def login_token(client: AsyncClient, email: str, password: str = "Abcdef1!") -> str:

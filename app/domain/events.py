@@ -202,3 +202,13 @@ class IngestionRunTriggered(DomainEvent):
 
     run_id: int = 0
     watchlist_id: int = 0
+
+
+# --- Embedding events (spec 6); auto-audited via DomainEvent.__subclasses__ (D14). ---
+
+
+@dataclass(frozen=True, slots=True)
+class IndexBuildTriggered(DomainEvent):
+    """A manager/admin triggered an index build for a client's document corpus."""
+
+    run_id: int = 0

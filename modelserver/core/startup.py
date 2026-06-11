@@ -10,8 +10,8 @@ from pathlib import Path
 
 import hvac
 
-from modelserver.config import ModelserverConfig
-from modelserver.logging import get_logger
+from modelserver.core.config import ModelserverConfig
+from modelserver.core.logging import get_logger
 
 _log = get_logger(__name__)
 

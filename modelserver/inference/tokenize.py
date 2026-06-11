@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 from tokenizers import Tokenizer
 
-from modelserver.logging import get_logger
+from modelserver.core.logging import get_logger
 
 _log = get_logger(__name__)
 

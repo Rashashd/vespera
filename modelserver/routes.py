@@ -9,8 +9,8 @@ import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from modelserver.auth import require_service_token
-from modelserver.logging import get_logger
+from modelserver.core.auth import require_service_token
+from modelserver.core.logging import get_logger
 from modelserver.schemas import (
     ClassificationResult,
     ClassifyRequest,

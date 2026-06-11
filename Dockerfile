@@ -19,6 +19,9 @@ COPY app ./app
 COPY worker ./worker
 COPY scripts ./scripts
 COPY alembic.ini ./alembic.ini
+# The embedding pipeline counts tokens with the embedder's own tokenizer (FR-025), so the API
+# image needs the tokenizer artifact (small JSON; the ONNX models stay in the modelserver image).
+COPY modelserver/models/tokenizer.json ./modelserver/models/tokenizer.json
 
 RUN useradd --create-home appuser && chown -R appuser /app
 USER appuser

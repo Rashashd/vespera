@@ -11,7 +11,7 @@ import hashlib
 
 import pytest
 
-from modelserver.startup import validate_artifacts
+from modelserver.core.startup import validate_artifacts
 
 
 def _sha256(data: bytes) -> str:

@@ -85,3 +85,37 @@ Full rationale in `specs/005-modelserver/research.md` (D1–D16).
 - **768-dim L2-normalised embeddings** — output shape fixed for downstream cosine search;
   mean-pool with attention-mask weighting; normalised to unit sphere so dot-product = cosine
   (D3/FR-002). Quantize the embedder for production to stay lean (D15).
+
+## Parse, Chunk & Embed — RAG Index Build (006-parse-chunk-embed)
+
+Full rationale in `specs/006-parse-chunk-embed/research.md` (D1–D12).
+
+- **HNSW vector index over IVFFlat** — no training-on-empty-table overhead; incremental corpus
+  growth does not degrade recall. IVFFlat `lists` tuning and re-training across growing corpus
+  rejected. HNSW default `m=16, ef_construction=64` sufficient for Pantera scale (D1).
+- **Exact tokenizer-based chunking** — chunks counted with embedder's own tokenizer.json
+  (not LLM-style BPE assumptions). Hard cap at 512 tokens prevents silent truncation by the
+  embedder; boundary computed before embedding so no wasted API calls (FR-025/D6).
+- **Chunk target ~256 tokens, ~15% overlap** — balance: small chunks → more vectors to search
+  but finer granularity; overlap → continuity across span boundaries (D6/FR-008).
+- **Seven source parsers, one protocol** — PubMed/Europe PMC JATS XML via lxml; OpenFDA
+  FAERS/Label JSON; FDA MedWatch/EMA/MHRA regulatory feed. Each source has a single parser
+  instance; dispatch by source name via a registry. Unknown sources → permanent error (no retry).
+- **Source selection: reliability → richness → recency** — multi-source documents parse from
+  exactly one payload (highest rank tier, then longest, then newest). Never merge across sources
+  (determinism / auditability) (D8/FR-024).
+- **In-process index build via BackgroundTasks** — mirrors spec 4 ingestion pattern.
+  Atomic commit (chunks + state) within one transaction. Prevents half-indexed documents on crash.
+  One in-flight build per client enforced by partial-unique index (FR-026/FR-028).
+- **Idempotency + incremental via state machine** — document states: `not_indexed` →
+  (success) → `indexed` | (parse failure) → `errored_permanent` | (transient) → `errored_transient`.
+  Re-runs skip `indexed`, `indexed_empty`, `errored_permanent`. Retry `errored_transient`.
+  Active watchlist filter: exclude documents linked only to inactive watchlists (FR-020).
+- **Lexical leg: generated tsvector + GIN index** — `to_tsvector('english', text)` as STORED
+  column; automatic drift-prevention. Pair with dense vectors for hybrid retrieval (Spec 7).
+  drug column always NULL in v1; populated by Spec 8 NER (FR-023).
+- **PII-free logging** — never log chunk text, FAERS patient fields. Bind only `client_id`,
+  `run_id`, `document_id` for troubleshooting (FR-019/SC-007).
+- **Manager/admin-only trigger, staff-readable status** — `require_admin` guard on POST /index;
+  reviewer and client-user → 403 (FR-027/SC-013). GET endpoints via `acting_client_read`
+  (staff any role, or owning client-user).

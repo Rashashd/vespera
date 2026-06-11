@@ -6,12 +6,22 @@ sha256/version, and that the top-level response model_version matches.
 
 from __future__ import annotations
 
+import importlib.util
+
 import pytest
 
 ADVERSE = "patient developed acute liver failure"
 BENIGN = "no adverse events were observed"
 
-pytestmark = pytest.mark.asyncio
+# Boots the modelserver embedder (imports onnxruntime, only in the `modelserver` uv group).
+# Skip unless present; CI installs it via `uv sync --group modelserver`.
+pytestmark = [
+    pytest.mark.asyncio,
+    pytest.mark.skipif(
+        importlib.util.find_spec("onnxruntime") is None,
+        reason="requires modelserver runtime deps (onnxruntime); run under the modelserver env",
+    ),
+]
 
 
 async def test_classify_result_version_matches_top_level(ms_authed):

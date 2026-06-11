@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.startup import load_secrets_from_vault
 from app.db import models  # noqa: F401  (registers ORM tables)
 from app.db.base import Base
+from app.embedding import models as embedding_models  # noqa: F401  (registers spec-6 tables)
 
 target_metadata = Base.metadata
 

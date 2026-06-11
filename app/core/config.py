@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     ingestion_initial_lookback_days: int = 365  # first-run lookback window (D9)
     ingestion_per_source_cap: int = 200  # max records fetched per source per run (D9)
 
+    # --- Embedding: RAG index configuration (spec 6) ---
+    embedder_tokenizer_path: str = "modelserver/models/tokenizer.json"  # tokenizer.json path
+    embedder_model_version: str = ""  # pinned embedder SHA-256; from Vault (M3: fail-fast)
+    chunk_target_tokens: int = 256  # target chunk size in tokens (approximate)
+    chunk_overlap_ratio: float = 0.15  # overlap as fraction of target (15%)
+    chunk_max_tokens: int = 512  # hard cap; chunks never exceed this
+
 
 def get_settings() -> Settings:
     """Build a Settings instance from the environment (Vault bootstrap only)."""

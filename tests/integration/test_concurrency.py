@@ -6,6 +6,7 @@ Fires multiple concurrent requests and asserts per-input correctness + determini
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 
 import pytest
 
@@ -13,7 +14,15 @@ ADVERSE = "patient developed acute liver failure after starting drug X"
 BENIGN = "no adverse events were observed during the clinical trial"
 TEXTS = [ADVERSE, BENIGN, ADVERSE, BENIGN]
 
-pytestmark = pytest.mark.asyncio
+# Exercises the standalone modelserver app, which imports onnxruntime at boot (only in the
+# `modelserver` uv group). Skip unless that dep is present; CI installs it via --group modelserver.
+pytestmark = [
+    pytest.mark.asyncio,
+    pytest.mark.skipif(
+        importlib.util.find_spec("onnxruntime") is None,
+        reason="requires modelserver runtime deps (onnxruntime); run under the modelserver env",
+    ),
+]
 
 
 async def _classify(client, text: str) -> dict:
