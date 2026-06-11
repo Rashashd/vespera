@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     chunk_overlap_ratio: float = 0.15  # overlap as fraction of target (15%)
     chunk_max_tokens: int = 512  # hard cap; chunks never exceed this
 
+    # --- RAG retrieval: query cache configuration (spec 7) ---
+    query_embedding_cache_ttl: int = 3600  # Redis TTL for query embedding cache entries (seconds)
+
 
 def get_settings() -> Settings:
     """Build a Settings instance from the environment (Vault bootstrap only)."""

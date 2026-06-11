@@ -39,9 +39,9 @@ Web-service modular monolith: app code under `app/rag/`, modelserver under `mode
 
 **Purpose**: scaffolding and config that everything else builds on.
 
-- [ ] T001 Create the `app/rag/` package skeleton (`app/rag/__init__.py` with a one-sentence module docstring) and the `eval/rag/` directory, per plan.md Project Structure
-- [ ] T002 [P] Add the `rag:` threshold block (`hit_at_5: 0.85`, `mrr: 0.70`, `corroboration_accuracy: 1.0`) to `eval_thresholds.yaml`
-- [ ] T003 [P] Add `query_embedding_cache_ttl: int = 3600` to `Settings` in `app/core/config.py` (non-secret; respects `extra="forbid"`; NOT in `_REQUIRED_SECRETS`)
+- [X] T001 Create the `app/rag/` package skeleton (`app/rag/__init__.py` with a one-sentence module docstring) and the `eval/rag/` directory, per plan.md Project Structure
+- [X] T002 [P] Add the `rag:` threshold block (`hit_at_5: 0.85`, `mrr: 0.70`, `corroboration_accuracy: 1.0`) to `eval_thresholds.yaml`
+- [X] T003 [P] Add `query_embedding_cache_ttl: int = 3600` to `Settings` in `app/core/config.py` (non-secret; respects `extra="forbid"`; NOT in `_REQUIRED_SECRETS`)
 
 ---
 
@@ -51,12 +51,12 @@ Web-service modular monolith: app code under `app/rag/`, modelserver under `mode
 
 **⚠️ CRITICAL**: no user-story work begins until this phase is complete.
 
-- [ ] T004 Define boundary schemas `RetrieveRequest`, `RetrievedPassage`, `CorroborationSource`, `RetrieveResponse` in `app/rag/schemas.py` per data-model.md (validation: query 1..1024 non-blank, top_k 1..50 default 10, optional filters)
-- [ ] T005 [P] Implement `normalize_query()` (NFKC→strip→lower→collapse-whitespace), `cache_key()`, and `query_hash()` in `app/rag/query_embed.py` per contracts/query-cache.md
-- [ ] T006 Implement embedder-version guard `assert_index_version(session, client_id, embedder_sha)` (DISTINCT `chunks.embedder_version`; raise `EmbedderVersionMismatch` on mismatch; empty set = OK) in `app/rag/query_embed.py` (FR-004/D8) — same file as T005
-- [ ] T007 Implement embedder-SHA memoization in `app/rag/query_embed.py`: read `model_version.sha256` from the first `/embed` result and memoize on `app.state.embedder_sha` (optionally seed from the empty-by-default `settings.embedder_model_version` pin). **No `app/core/lifespan.py` change, no `/ready` call, no boot coupling.** Consumed by US1's version guard (T006/T015) and the US5 cache key (T042) (D7/D8)
-- [ ] T008 Create `POST /clients/{client_id}/search` route skeleton in `app/rag/routes.py` with `Depends(get_acting_client)` (suspended refused, NO `require_admin`) and register `rag_router` in `app/main.py` (D10/FR-021)
-- [ ] T009 Create `app/rag/service.py` orchestrator skeleton `async def retrieve(session, redis, ms_client, client, req) -> RetrieveResponse` defining pipeline order and the empty-corpus short-circuit (`results=[]`, corroboration 0 — FR-015) — depends on T004
+- [X] T004 Define boundary schemas `RetrieveRequest`, `RetrievedPassage`, `CorroborationSource`, `RetrieveResponse` in `app/rag/schemas.py` per data-model.md (validation: query 1..1024 non-blank, top_k 1..50 default 10, optional filters)
+- [X] T005 [P] Implement `normalize_query()` (NFKC→strip→lower→collapse-whitespace), `cache_key()`, and `query_hash()` in `app/rag/query_embed.py` per contracts/query-cache.md
+- [X] T006 Implement embedder-version guard `assert_index_version(session, client_id, embedder_sha)` (DISTINCT `chunks.embedder_version`; raise `EmbedderVersionMismatch` on mismatch; empty set = OK) in `app/rag/query_embed.py` (FR-004/D8) — same file as T005
+- [X] T007 Implement embedder-SHA memoization in `app/rag/query_embed.py`: read `model_version.sha256` from the first `/embed` result and memoize on `app.state.embedder_sha` (optionally seed from the empty-by-default `settings.embedder_model_version` pin). **No `app/core/lifespan.py` change, no `/ready` call, no boot coupling.** Consumed by US1's version guard (T006/T015) and the US5 cache key (T042) (D7/D8)
+- [X] T008 Create `POST /clients/{client_id}/search` route skeleton in `app/rag/routes.py` with `Depends(get_acting_client)` (suspended refused, NO `require_admin`) and register `rag_router` in `app/main.py` (D10/FR-021)
+- [X] T009 Create `app/rag/service.py` orchestrator skeleton `async def retrieve(session, redis, ms_client, client, req) -> RetrieveResponse` defining pipeline order and the empty-corpus short-circuit (`results=[]`, corroboration 0 — FR-015) — depends on T004
 
 **Checkpoint**: schemas, endpoint, version guard, and orchestrator seam exist — stories can begin.
 
@@ -74,19 +74,19 @@ corpus → empty + corroboration 0. (Dense/semantic ranking only at this stage.)
 
 ### Tests for User Story 1
 
-- [ ] T010 [P] [US1] Unit test query normalization + cache-key determinism in `tests/unit/test_query_cache_key.py`
-- [ ] T011 [P] [US1] Unit test embedder-version-mismatch refusal logic in `tests/unit/test_version_mismatch.py` (FR-004)
-- [ ] T012 [P] [US1] Integration test client isolation — zero foreign-client chunks in `tests/integration/test_retrieval_isolation.py` (SC-004/Principle V)
-- [ ] T013 [P] [US1] Integration test auth — suspended client refused (400), non-admin staff allowed in `tests/integration/test_retrieval_auth.py` (FR-021)
-- [ ] T014 [P] [US1] Integration test empty-corpus → `results: []` + corroboration 0 (no error) in `tests/integration/test_retrieval_empty_and_cache.py` (FR-015/SC-007)
+- [X] T010 [P] [US1] Unit test query normalization + cache-key determinism in `tests/unit/test_query_cache_key.py`
+- [X] T011 [P] [US1] Unit test embedder-version-mismatch refusal logic in `tests/unit/test_version_mismatch.py` (FR-004)
+- [X] T012 [P] [US1] Integration test client isolation — zero foreign-client chunks in `tests/integration/test_retrieval_isolation.py` (SC-004/Principle V)
+- [X] T013 [P] [US1] Integration test auth — suspended client refused (400), non-admin staff allowed in `tests/integration/test_retrieval_auth.py` (FR-021)
+- [X] T014 [P] [US1] Integration test empty-corpus → `results: []` + corroboration 0 (no error) in `tests/integration/test_retrieval_empty_and_cache.py` (FR-015/SC-007)
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implement `get_query_embedding()` (live `ModelserverClient.embed([q])`, no cache yet) and integrate `assert_index_version()` in `app/rag/query_embed.py` (FR-003/004) — after T005/T006
-- [ ] T016 [P] [US1] Implement `dense_candidates()` (client-scoped HNSW cosine `ORDER BY embedding <=> :qvec LIMIT n`, `SET LOCAL hnsw.ef_search=100`, optional chunk_type/reliability/date filters) in `app/rag/retrieval.py` (D2)
-- [ ] T017 [US1] Implement result projection (join `documents`/`document_sources` → `RetrievedPassage` with provenance + anchor) in `app/rag/retrieval.py` (FR-011/012/D9) — same file as T016
-- [ ] T018 [US1] Wire the dense-only path in `service.retrieve()`: version guard → embed → dense → project → top_k → `RetrieveResponse` (corroboration placeholder 0) (FR-001/009) — depends on T009/T015/T017
-- [ ] T019 [US1] Implement the route body in `app/rag/routes.py`: call service; map `EmbedderVersionMismatch`→409 `EMBEDDER_VERSION_MISMATCH`, `ModelserverError`→502; PII-free structured logging binding `client_id`+`query_hash` (FR-021/022/023)
+- [X] T015 [US1] Implement `get_query_embedding()` (live `ModelserverClient.embed([q])`, no cache yet) and integrate `assert_index_version()` in `app/rag/query_embed.py` (FR-003/004) — after T005/T006
+- [X] T016 [P] [US1] Implement `dense_candidates()` (client-scoped HNSW cosine `ORDER BY embedding <=> :qvec LIMIT n`, `SET LOCAL hnsw.ef_search=100`, optional chunk_type/reliability/date filters) in `app/rag/retrieval.py` (D2)
+- [X] T017 [US1] Implement result projection (join `documents`/`document_sources` → `RetrievedPassage` with provenance + anchor) in `app/rag/retrieval.py` (FR-011/012/D9) — same file as T016
+- [X] T018 [US1] Wire the dense-only path in `service.retrieve()`: version guard → embed → dense → project → top_k → `RetrieveResponse` (corroboration placeholder 0) (FR-001/009) — depends on T009/T015/T017
+- [X] T019 [US1] Implement the route body in `app/rag/routes.py`: call service; map `EmbedderVersionMismatch`→409 `EMBEDDER_VERSION_MISMATCH`, `ModelserverError`→502; PII-free structured logging binding `client_id`+`query_hash` (FR-021/022/023)
 
 **Checkpoint**: MVP — semantic search with citations, client-scoped, version-safe. Demoable.
 
@@ -131,7 +131,7 @@ counts once.
 
 ### Implementation for User Story 3
 
-- [ ] T027 [P] [US3] Implement `build_corroboration(passages)` (group by `document_id`; distinct count; `CorroborationSource` per doc with title/external_id/date/reliability/sources/`passage_chunk_ids`; never truncate) in `app/rag/corroboration.py` (D9/FR-013–015)
+- [X] T027 [P] [US3] Implement `build_corroboration(passages)` (group by `document_id`; distinct count; `CorroborationSource` per doc with title/external_id/date/reliability/sources/`passage_chunk_ids`; never truncate) in `app/rag/corroboration.py` (D9/FR-013–015)
 - [ ] T028 [US3] Extend `service.retrieve()` to populate `corroboration_count` + `corroboration_sources` from the returned top-K (FR-014) — depends on T027
 
 **Checkpoint**: corroboration surfaced over the cited top-K.
@@ -184,7 +184,7 @@ still succeeds via live embed; embedder-version change → stale entry not used.
 
 ### Implementation for User Story 5
 
-- [ ] T042 [US5] Add Redis GET/SET-with-TTL to `get_query_embedding()` in `app/rag/query_embed.py` (key = `rag:qemb:{embedder_sha}:{hash(norm_query)}`; best-effort try/except; version in key) (D7/FR-016–018) — extends T015
+- [X] T042 [US5] Add Redis GET/SET-with-TTL to `get_query_embedding()` in `app/rag/query_embed.py` (key = `rag:qemb:{embedder_sha}:{hash(norm_query)}`; best-effort try/except; version in key) (D7/FR-016–018) — extends T015
 - [ ] T043 [US5] Pass `app.state.redis` from the route into `service.retrieve()`; ensure cache failures are caught, logged (`rag.cache.unavailable`), and non-fatal in `app/rag/routes.py`/`service.py` (FR-018)
 
 **Checkpoint**: repeated queries cached; cache strictly optional.
