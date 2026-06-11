@@ -175,3 +175,62 @@ Chunks are stored in the `chunks` table with:
 - Build fails with "Embedder version mismatch" → modelserver is running a different artifact.
   Ensure both the app and modelserver use the same embedder artifact (SHA-256 mismatch is
   detected at build start and fails fast).
+
+## Modelserver (lean inference container, spec 5)
+
+Operational notes for the modelserver — a lean, stateless inference container (FastAPI +
+onnxruntime + numpy + no-torch tokenizers). Source layout: `modelserver/core/` (config, logging,
+auth, manifest, startup), `modelserver/inference/` (classifier, embedder, tokenize),
+`modelserver/eval/` (run_eval, bench), `modelserver/models/` (committed artifacts).
+
+### Image size check (< 500 MB)
+
+After building, verify the image stays under 500 MB (D1/Principle VI):
+
+```bash
+docker compose build modelserver
+docker images pantera-modelserver --format "{{.Size}}"
+```
+
+If the image grows beyond 500 MB:
+- Ensure the Dockerfile uses `uv sync --only-group modelserver --no-install-project` (not
+  `--group`, which pulls in `[project].dependencies`).
+- The `training` group (torch ~2 GB) must never appear in the serving image.
+- The `modelserver` group is self-contained: fastapi, uvicorn, onnxruntime, numpy, tokenizers,
+  pydantic, pydantic-settings, structlog, hvac, secure, scikit-learn, joblib, pyyaml.
+
+### Git LFS for large artifacts
+
+If any artifact in `modelserver/models/` exceeds 100 MB, track it with Git LFS:
+
+```bash
+git lfs track "modelserver/models/*.onnx"
+git lfs track "modelserver/models/*.joblib"
+git add .gitattributes modelserver/models/
+```
+
+Current artifacts (v1.0) are small (< 5 MB); Git LFS is only needed if a production BiomedBERT
+ONNX model replaces the current placeholder.
+
+### Rotating the modelserver_token
+
+The service reads its token from Vault at startup (`pantera/secrets.modelserver_token`); rotation
+needs no code change:
+
+1. Write the new token to Vault (`hvac` create_or_update_secret on `pantera/secrets`).
+2. `docker compose restart modelserver` to pick it up.
+3. Update callers (api/worker) to the same new token in Vault and restart them. The token is
+   checked per request via `hmac.compare_digest`; the new value takes effect on next restart.
+
+### Updating model artifacts
+
+```bash
+uv run python scripts/generate_model_artifacts.py     # minimal dev artifacts
+# OR run notebooks/01_train_export_modelserver.ipynb   # production BiomedBERT
+uv run python modelserver/eval/run_eval.py            # must print PASS (macro-F1 >= 0.80)
+docker compose build modelserver && docker compose up -d --wait modelserver
+curl http://localhost:8001/ready                      # should show new sha256 values
+```
+
+Note: the api image also ships `modelserver/models/tokenizer.json` (the app counts tokens with the
+embedder's tokenizer — FR-025), so regenerating the tokenizer means rebuilding **both** images.
