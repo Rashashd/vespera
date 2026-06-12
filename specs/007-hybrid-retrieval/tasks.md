@@ -201,7 +201,7 @@ still succeeds via live embed; embedder-version change → stale entry not used.
 - [X] T047 Wire the RAG gate into CI: ensure the integration test job runs `uv sync --group modelserver` (onnxruntime + `modelserver/models` on disk) so `test_rag_eval.py` drives the in-process modelserver app — no separate modelserver container required — in `.github/workflows/ci.yml` (D12)
 - [X] T048 [P] Update `docs/RUNBOOK.md`: search endpoint usage, reranker artifact rebuild + `/ready` check, RAG eval run, <500MB image-budget check
 - [X] T049 [P] Lint/hygiene pass — `ruff check` + `black --check` on `app/rag`, `modelserver`, `tests`; files ≤300 lines; one-sentence module docstrings; PII-free logs verified
-- [ ] T050 Run `quickstart.md` end-to-end on the live stack (search · hybrid · corroboration · isolation · cache · version-mismatch · empty) and confirm coverage ≥80%; **spot-check SC-006** (warm-cache median retrieval latency < 1 s for default top-K) via the per-stage latency logs — observed, not gated
+- [X] T050 Run `quickstart.md` end-to-end on the live stack (search · hybrid · corroboration · isolation · cache · version-mismatch · empty) and confirm coverage ≥80%; **spot-check SC-006** (warm-cache median retrieval latency < 1 s for default top-K) via the per-stage latency logs — observed, not gated
 
 ---
 
