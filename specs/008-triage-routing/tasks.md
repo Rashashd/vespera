@@ -75,11 +75,11 @@ the triage state.
 
 - [ ] T014 [P] [US1] Implement the versioned ICH E2E seriousness keyword→tier artifact in `app/triage/keywords/ich_seriousness.py` (six criteria; reuse `SeverityLevel`).
 - [ ] T015 [US1] Implement severity bucketing (ICH defaults + regulatory-alert floor via `document.source_reliability`, reuse `SeverityLevel.rank`) in `app/triage/severity.py` (depends T014). Custom keywords are added in US3.
-- [ ] T016 [P] [US1] Author injection-hardened LLM prompts `app/prompts/triage_valence.txt` (receives `source_reliability`, FR-017) and `app/prompts/triage_lowconf_resolve.txt` (YES/NO).
+- [ ] T016 [P] [US1] Author injection-hardened LLM prompts `app/prompts/triage_valence.txt` (receives `source_reliability`, FR-017; embed the verbatim `positive`/`irrelevant` definitions from implementation-notes §8.2 / spec FR-005) and `app/prompts/triage_lowconf_resolve.txt` (YES/NO).
 - [ ] T017 [US1] Implement the async LLM call path in `app/triage/llm.py` — provider from `build_llm_client`, `httpx.AsyncClient` + tenacity (`stop_after_attempt(3)`, never 4xx), structured JSON validated by Pydantic; map any post-retry failure to the fail-safe signal (depends T016).
 - [ ] T018 [US1] Implement the three-stage classify decision (`confidence ≥ settings.triage_confidence_threshold` → trust the model verdict; below → `llm.resolve_yes_no`; LLM failure → escalate=YES) extending `app/triage/classify.py`. Use the raw `confidence` field, NOT `is_adverse` (see implementation-notes §3) (depends T010, T017).
 - [ ] T019 [US1] Implement routing + idempotent upsert (bucket→status table; `INSERT ... ON CONFLICT (document_id,drug,reaction) DO NOTHING`) in `app/triage/routing.py` (depends T006).
-- [ ] T020 [US1] Implement the triage orchestration in `app/triage/service.py` as a **thin** coordinator that delegates each stage to its module (`prefilter`/`ner` → `classify` → `severity`/`llm` valence → `routing`) and dispatches `FindingClassified` inside the finding-write transaction for atomic audit (FR-011). Keep the file ≤ ~300 lines; push any non-trivial logic into the stage modules so US2/US3 edit their own files, not this one (depends T009, T015, T018, T019).
+- [ ] T020 [US1] Implement the triage orchestration in `app/triage/service.py` as a **thin** coordinator that delegates each stage to its module (`prefilter`/`ner` → `classify` → `severity`/`llm` valence → `routing`) and dispatches `FindingClassified` inside the finding-write transaction for atomic audit (FR-011). Implement the FR-018 failure matrix exactly (implementation-notes §8.3): classifier/DB/config failure → **no finding**, emit `triage.operator_alert` ERROR (FR-019) with stage; LLM failure → finding via fail-safe (escalate / `positive`). Keep the file ≤ ~300 lines; push non-trivial logic into stage modules so US2/US3 edit their own files (depends T009, T015, T018, T019).
 - [ ] T021 [US1] Implement the per-document entrypoint `triage_document(...)` in `app/triage/runner.py` per the internal contract (returns `FindingOutcome[]`; structured logs bound with client_id + finding_id/document_id) (depends T020).
 - [ ] T022 [US1] Integrate `triage_document` into `app/embedding/runner.py` on the `DocumentIndexStatus.INDEXED` success path; triage failure logs + leaves the document in the "embedded, no finding" set without rolling back the embedding (depends T021).
 - [ ] T023 [US1] Implement the read endpoint `GET /clients/{id}/findings/{finding_id}` in `app/triage/routes.py` (client-scoped via `get_acting_client`; 404 cross-tenant) and register it in `app/main.py` (depends T008, T006).
@@ -98,11 +98,11 @@ the first is filtered (logged) and the second proceeds to a finding.
 
 ### Tests for User Story 2
 
-- [ ] T024 [P] [US2] Unit tests for the substantive-mention gate (incidental comparator → filtered; primary-subject → pass) in `tests/unit/test_triage_prefilter.py`.
+- [ ] T024 [P] [US2] Unit tests for the substantive-mention gate per implementation-notes §8.1 (incidental comparator with no same-sentence DISEASE → filtered; drug in title/summary OR co-occurring with a DISEASE in one sentence → pass) in `tests/unit/test_triage_prefilter.py`.
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Implement the substantive-mention pre-filter in `app/triage/prefilter.py` (watchlist-drug CHEMICAL match + substantive-context heuristic; emit a `triage.prefilter.filtered` structured log with the reason) (depends T009).
+- [ ] T025 [US2] Implement the substantive-mention pre-filter in `app/triage/prefilter.py` per the deterministic rule in implementation-notes §8.1 / spec FR-001 (normalized watchlist-drug CHEMICAL match over `title + "\n" + summary`; substantive = title/summary match OR same-sentence DISEASE co-occurrence; else incidental). Emit `triage.prefilter.filtered` (client_id, document_id, drug, reason) when filtered (depends T009).
 - [ ] T026 [US2] Wire the pre-filter into `app/triage/service.py` as a **single call-site insertion** ahead of classification so filtered documents produce no finding and short-circuit; keep all heuristic logic in `prefilter.py`, not `service.py` (depends T020, T025).
 
 **Checkpoint**: US1 + US2 — incidental mentions no longer create spurious findings.
@@ -140,7 +140,7 @@ escalation-direction check holds; inject an LLM fault and confirm escalate/posit
 ### Tests for User Story 4
 
 - [ ] T030 [P] [US4] Author the triage golden set `tests/data/triage_golden_set.jsonl` covering the six mandatory case categories (five buckets; regulatory floor; low-confidence→LLM; source_reliability absent; NO-classified regulatory alert → irrelevant; custom-keyword escalation) plus a planted-instruction injection case.
-- [ ] T031 [P] [US4] Fail-safe tests (LLM outage → low-confidence escalates to expedited; NO-finding defaults to `positive`; both logged) in `tests/unit/test_triage_failsafe.py`.
+- [ ] T031 [P] [US4] Fail-safe + failure-matrix tests (implementation-notes §8.3) in `tests/unit/test_triage_failsafe.py`: LLM outage → low-confidence escalates to expedited AND NO-finding defaults to `positive` (both logged); **classifier (`ModelserverError`) → no finding created + `triage.operator_alert` ERROR (stage=classify)**; **DB upsert/audit failure → transaction rolls back, no finding, `triage.operator_alert` (stage=persist)**.
 
 ### Implementation for User Story 4
 

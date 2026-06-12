@@ -44,8 +44,11 @@ async def triage_document(
   overwrites an assigned bucket.
 - **Client-scoped:** all reads (watchlist, custom keywords) and writes filter by `client_id` (FR-012).
 - **Atomic audit:** finding insert + `FindingClassified` audit row share one transaction (FR-011).
-- **Fail-safe:** classifier-unreachable → exception propagates, no finding created, retried by caller
-  (document stays in the "embedded, no finding" set for the sweep); LLM-unreachable → escalate/positive.
+- **Fail-safe (FR-018/FR-019, see implementation-notes §8.3):** classifier/DB/config failure → **no
+  finding**, emit `triage.operator_alert` ERROR (stage=classify|persist|config), document stays in the
+  "embedded, no finding" set for retry/sweep; LLM failure → finding created via fail-safe
+  (escalate for resolution, `positive` for valence). Asymmetry: can't decide without classifier/DB →
+  no finding; LLM is only a refinement → escalation-safe finding.
 - **No PII/secret logging;** every line binds `client_id` + (`finding_id`|`document_id`).
 
 ## Caller integration

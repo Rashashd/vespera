@@ -303,7 +303,57 @@ planted-instruction case whose outcome must not change.
 
 ---
 
-## 8. Definition of done per task
+## 8. Decision rules & failure matrix — pin these exactly (resolves CHK001/005/019/021)
+
+### 8.1 Substantive-mention rule (FR-001, T025) — deterministic
+
+Run NER (§2.8) over `f"{document.title}\n{document.summary}"`. A watchlist drug is **substantively
+mentioned** iff a normalized watchlist value matches a `CHEMICAL` entity (exact normalized equality OR
+the watchlist value is a whole-token substring of the entity) **and** at least one of:
+- the matched mention is in the title or summary text (it always is, since that's the NER input — so in
+  v1 a title/summary CHEMICAL match qualifies), **or**
+- the CHEMICAL co-occurs with a `DISEASE` entity in the **same sentence** (`doc.sents`) → forms a
+  candidate `(drug, reaction)` finding.
+
+A drug that appears **only** as a bare CHEMICAL with no same-sentence DISEASE and is not what the
+document is about is the incidental case the golden set tests; if you later run NER over body chunks,
+apply the same "title/summary OR same-sentence DISEASE" test. **Filtered documents produce NO finding**
+and emit `triage.prefilter.filtered` (client_id, document_id, drug, reason).
+
+### 8.2 Valence definitions (FR-005, T016 prompt) — use verbatim in the prompt
+
+- `positive` = a **beneficial/favorable outcome attributable to the drug** (efficacy, symptom
+  improvement, successful treatment, good tolerability).
+- `irrelevant` = drug mentioned but **no adverse event and no beneficial-outcome signal** (comparator/
+  control arm, methods/PK description with no outcome, packaging/administrative note, unrelated context).
+- Boundary question the prompt asks: *"Is there a beneficial drug→outcome signal?"* yes → `positive`,
+  else → `irrelevant`.
+
+### 8.3 Failure matrix (FR-018/FR-019) — distinct behavior per dependency
+
+| Failure (after tenacity retries) | Finding created? | Behavior | Signal |
+|---|---|---|---|
+| Classifier `/classify` unreachable/errors (`ModelserverError`) | **No** | can't decide safely → leave document untriaged for retry | `triage.operator_alert` ERROR (stage=`classify`) |
+| LLM unreachable/errors (low-conf resolve) | **Yes** | fail-safe **escalate** = YES → expedited (resolution_path=`escalated`) | `triage.llm.failed` WARN |
+| LLM unreachable/errors (valence) | **Yes** | fail-safe **`positive`** (FR-016) | `triage.llm.failed` WARN |
+| DB error on finding upsert / audit write | **No** | transaction rolls back (never a finding without its audit row) → retry | `triage.operator_alert` ERROR (stage=`persist`) |
+| Watchlist/client config read fails | **No** | transient → retry | `triage.operator_alert` ERROR (stage=`config`) |
+
+**Asymmetry to internalize:** classifier/DB failures → **no finding, retry** (we cannot decide safely
+without them). LLM failure → **finding created via fail-safe** (the LLM is only a refinement; escalation
+is the safe direction). The embedding runner's try/except around `triage_document` (T022) logs and
+swallows so a triage failure never rolls back a successful embedding; the document just stays in the
+"embedded, no finding" set that the sweep (T034) and the next run pick up.
+
+### 8.4 Operator alert (FR-019) — v1 is a structured event, not a notification system
+
+Emit one ERROR-level structlog event named exactly `triage.operator_alert` with
+`client_id`, `document_id`, `stage` ∈ {`classify`,`persist`,`config`}, and a non-PII `reason`. **Do not
+build paging/email here** — routing this event to n8n/paging is spec 11. This is the integration seam.
+
+---
+
+## 9. Definition of done per task
 
 - New/changed code: ruff + black clean; module docstring; ≤300 lines.
 - Migration: `upgrade` **and** `downgrade` verified against the live DB.

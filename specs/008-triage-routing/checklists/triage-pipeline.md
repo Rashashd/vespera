@@ -10,11 +10,11 @@
 
 ## Triage Pipeline Logic Requirements
 
-- [ ] CHK001 — Is the definition of "substantively mentions" a watchlist drug (FR-001) specified with measurable or testable criteria, or does it rely on implementation judgment? [Clarity, Spec §FR-001]
+- [x] CHK001 — Is the definition of "substantively mentions" a watchlist drug (FR-001) specified with measurable or testable criteria? [Clarity, Spec §FR-001 — deterministic rule: CHEMICAL match in title/summary OR same-sentence DISEASE co-occurrence; impl-notes §8.1]
 - [x] CHK002 — Is the three-stage classifier pipeline in FR-002 described with all three stages, their entry conditions, and their exit paths explicitly stated? [Completeness, Spec §FR-002]
 - [x] CHK003 — Is the ICH E2E seriousness keyword set referenced explicitly by name/document, or does the spec assume shared knowledge of its contents? [Completeness, Spec §FR-003 — six ICH seriousness criteria now enumerated; keyword list a spec-8 deliverable]
 - [x] CHK004 — Is the source-reliability floor rule (regulatory_alert → minimum urgent) consistently stated in FR-003, the Severity Rule entity description, User Story 1 acceptance scenario 6, and the edge cases — with no contradictions between sections? [Consistency, Spec §FR-003, §Key Entities, §User Story 1]
-- [ ] CHK005 — Is the scope of valence assessment (what distinguishes `positive` from `irrelevant`) defined with enough specificity that two implementers would produce consistent results? [Clarity, Spec §FR-005]
+- [x] CHK005 — Is the scope of valence assessment (`positive` vs `irrelevant`) defined with enough specificity that two implementers would converge? [Clarity, Spec §FR-005 — verbatim definitions + boundary question; impl-notes §8.2]
 - [x] CHK006 — Are the conditions under which the model verdict is accepted without LLM resolution (confidence ≥ threshold) clearly derivable from FR-002, or only implied? [Clarity, Spec §FR-002]
 
 ---
@@ -43,9 +43,9 @@
 
 ## Service Integration & Failure Modes
 
-- [ ] CHK019 — Are failure-mode requirements defined independently for each external dependency: modelserver classifier, LLM adapter, and the clients/watchlist database lookup? [Completeness, Spec §Edge Cases]
+- [x] CHK019 — Are failure-mode requirements defined independently for each external dependency (classifier, LLM, DB, config read)? [Completeness, Spec §FR-018 + failure matrix in impl-notes §8.3]
 - [x] CHK020 — Is there an explicit requirement that modelserver and LLM calls within triage are subject to the project-wide tenacity retry policy (established in prior specs), or is this left as an assumption? [Completeness, Inherited from Engineering Standards]
-- [ ] CHK021 — Is the operator alert described in the classifier-unreachable edge case defined with enough specificity (channel, trigger condition, content) to be implementable without further design decisions? [Clarity, Spec §Edge Cases]
+- [x] CHK021 — Is the operator alert defined with enough specificity (channel, trigger, content) to be implementable? [Clarity, Spec §FR-019 — `triage.operator_alert` ERROR event; client_id/document_id/stage/reason; v1 = structured event, routing is spec 11; impl-notes §8.4]
 - [x] CHK022 — Is the per-document automatic trigger mechanism (FR-009) described at a requirements level sufficient to produce a clear integration test between the embedding completion event and the triage invocation? [Clarity, Spec §FR-009]
 - [x] CHK023 — Is the dependency on `source_reliability` being set on the document before triage runs (required for the regulatory alert floor) explicitly documented as a prerequisite? [Completeness, Spec §Assumptions]
 
