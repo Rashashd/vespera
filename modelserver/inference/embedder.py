@@ -38,10 +38,11 @@ class EmbedderSession:
         input_ids, attention_mask = tokenize_batch(
             self._tokenizer, texts, max_length=self._max_tokens
         )
-        outputs = self._session.run(
-            None,
-            {"input_ids": input_ids, "attention_mask": attention_mask},
-        )
+        need = {i.name for i in self._session.get_inputs()}
+        feed: dict = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if "token_type_ids" in need:
+            feed["token_type_ids"] = np.zeros_like(input_ids)
+        outputs = self._session.run(None, {k: v for k, v in feed.items() if k in need})
         # last_hidden_state: [B, S, 768]
         last_hidden_state = outputs[0].astype(np.float32)
 
