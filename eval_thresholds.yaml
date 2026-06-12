@@ -1,3 +1,7 @@
 classifier:
   metric: macro_f1
   min: 0.80
+rag:
+  hit_at_5: 0.85
+  mrr: 0.70
+  corroboration_accuracy: 0.75

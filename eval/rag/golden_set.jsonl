@@ -1,0 +1,15 @@
+{"query": "hepatotoxicity drug induced liver damage", "relevant_document_keys": ["eval:hepato-1", "eval:hepato-2"], "expected_corroboration_count": 2}
+{"query": "QT prolongation cardiac arrhythmia azithromycin", "relevant_document_keys": ["eval:qt-1"], "expected_corroboration_count": null}
+{"query": "renal failure nephrotoxicity contrast agent", "relevant_document_keys": ["eval:renal-1"], "expected_corroboration_count": null}
+{"query": "Stevens Johnson syndrome toxic epidermal necrolysis", "relevant_document_keys": ["eval:sjs-1", "eval:sjs-2"], "expected_corroboration_count": 2}
+{"query": "anaphylaxis allergic reaction penicillin beta-lactam", "relevant_document_keys": ["eval:allergy-1"], "expected_corroboration_count": null}
+{"query": "bleeding hemorrhage anticoagulant warfarin NSAID", "relevant_document_keys": ["eval:bleed-1", "eval:bleed-2", "eval:bleed-3"], "expected_corroboration_count": 3}
+{"query": "neutropenia agranulocytosis bone marrow suppression", "relevant_document_keys": ["eval:neutro-1"], "expected_corroboration_count": null}
+{"query": "myopathy rhabdomyolysis statin myalgia creatine", "relevant_document_keys": ["eval:myop-1"], "expected_corroboration_count": null}
+{"query": "pulmonary fibrosis interstitial lung amiodarone", "relevant_document_keys": ["eval:pulm-1"], "expected_corroboration_count": null}
+{"query": "hypoglycemia severe insulin glucose", "relevant_document_keys": ["eval:hypo-1"], "expected_corroboration_count": null}
+{"query": "tardive dyskinesia antipsychotic haloperidol", "relevant_document_keys": ["eval:tardive-1"], "expected_corroboration_count": null}
+{"query": "pancreatitis acute abdominal enzyme elevation", "relevant_document_keys": ["eval:panc-1"], "expected_corroboration_count": null}
+{"query": "peripheral neuropathy neurotoxicity chemotherapy", "relevant_document_keys": ["eval:neuro-1"], "expected_corroboration_count": null}
+{"query": "hypertension blood pressure elevation bevacizumab", "relevant_document_keys": ["eval:htn-1", "eval:htn-2"], "expected_corroboration_count": 2}
+{"query": "angioedema bradykinin ACE inhibitor swelling", "relevant_document_keys": ["eval:angio-1"], "expected_corroboration_count": null}

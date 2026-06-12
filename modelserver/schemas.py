@@ -64,3 +64,29 @@ class EmbedResponse(BaseModel):
     model_version: ModelVersion
     dim: int = 768
     results: list[EmbeddingResult]
+
+
+# ---------------------------------------------------------------------------
+# Rerank
+# ---------------------------------------------------------------------------
+
+
+class RerankRequest(BaseModel):
+    """POST /rerank request body — query + batch ≤ 128 passages."""
+
+    query: str
+    passages: list[str] = Field(..., max_length=128)
+
+
+class RerankResult(BaseModel):
+    """Single rerank result: cross-encoder relevance logit (higher = more relevant)."""
+
+    score: float
+    model_version: ModelVersion
+
+
+class RerankResponse(BaseModel):
+    """POST /rerank response — one score per passage, in input order."""
+
+    model_version: ModelVersion
+    results: list[RerankResult]

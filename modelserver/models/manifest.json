@@ -22,6 +22,21 @@
       "format": "tokenizer",
       "version": "v1.0-wordlevel",
       "sha256": "aec6af8b382712d85c63f3c88472db76df511b7f784cf51114293e2902ca8de8"
+    },
+    {
+      "name": "reranker",
+      "file": "reranker.onnx",
+      "format": "onnx",
+      "version": "v1.0-ms-marco-minilm-l6-int8",
+      "sha256": "5a0be99394f650a28537f3282a639162cb8db554ed24a4fc1feef5a86c8cc9b4",
+      "max_tokens": 512
+    },
+    {
+      "name": "reranker_tokenizer",
+      "file": "reranker_tokenizer.json",
+      "format": "tokenizer",
+      "version": "v1.0-ms-marco-minilm-l6",
+      "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
     }
   ]
 }
