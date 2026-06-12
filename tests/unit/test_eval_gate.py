@@ -186,13 +186,17 @@ def test_eval_main_in_process_pass(tmp_path):
     from modelserver.eval.run_eval import main
 
     repo_root = Path(__file__).parent.parent.parent
+    _prev_model_dir = os.environ.get("MODEL_DIR")
     os.environ["MODEL_DIR"] = str(repo_root / "modelserver" / "models")
     os.environ["EVAL_SET_PATH"] = str(repo_root / "modelserver" / "eval" / "eval_set.jsonl")
     os.environ["THRESHOLD_PATH"] = str(repo_root / "eval_thresholds.yaml")
     try:
         rc = main()
     finally:
-        os.environ.pop("MODEL_DIR", None)
+        if _prev_model_dir is not None:
+            os.environ["MODEL_DIR"] = _prev_model_dir
+        else:
+            os.environ.pop("MODEL_DIR", None)
         os.environ.pop("EVAL_SET_PATH", None)
         os.environ.pop("THRESHOLD_PATH", None)
     assert rc == 0
@@ -214,13 +218,17 @@ def test_eval_main_in_process_fail(tmp_path):
     # Threshold > 1.0 is unreachable — forces FAIL regardless of classifier score
     _write_threshold(threshold_path, 1.1)
 
+    _prev_model_dir = os.environ.get("MODEL_DIR")
     os.environ["MODEL_DIR"] = str(tmp_path)
     os.environ["EVAL_SET_PATH"] = str(eval_path)
     os.environ["THRESHOLD_PATH"] = str(threshold_path)
     try:
         rc = main()
     finally:
-        os.environ.pop("MODEL_DIR", None)
+        if _prev_model_dir is not None:
+            os.environ["MODEL_DIR"] = _prev_model_dir
+        else:
+            os.environ.pop("MODEL_DIR", None)
         os.environ.pop("EVAL_SET_PATH", None)
         os.environ.pop("THRESHOLD_PATH", None)
     assert rc == 1
@@ -236,13 +244,17 @@ def test_eval_main_missing_classifier(tmp_path):
     threshold_path = tmp_path / "thresholds.yaml"
     _write_threshold(threshold_path, 0.80)
 
+    _prev_model_dir = os.environ.get("MODEL_DIR")
     os.environ["MODEL_DIR"] = str(tmp_path)
     os.environ["EVAL_SET_PATH"] = str(eval_path)
     os.environ["THRESHOLD_PATH"] = str(threshold_path)
     try:
         rc = main()
     finally:
-        os.environ.pop("MODEL_DIR", None)
+        if _prev_model_dir is not None:
+            os.environ["MODEL_DIR"] = _prev_model_dir
+        else:
+            os.environ.pop("MODEL_DIR", None)
         os.environ.pop("EVAL_SET_PATH", None)
         os.environ.pop("THRESHOLD_PATH", None)
     assert rc == 1
