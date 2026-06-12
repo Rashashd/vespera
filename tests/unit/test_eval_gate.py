@@ -166,13 +166,16 @@ def test_eval_missing_classifier_exits_1(tmp_path):
 
 
 @_skip_no_onnx
+@pytest.mark.skipif(os.getenv("CI") != "true", reason="OOM on low-RAM machines; CI-only")
 def test_eval_with_real_shipped_artifacts():
     """The real shipped classifier must pass the real eval gate."""
+    repo_root = str(Path(__file__).parent.parent.parent)
     result = subprocess.run(
         [sys.executable, "modelserver/eval/run_eval.py"],
         capture_output=True,
         text=True,
-        cwd=str(Path(__file__).parent.parent.parent),
+        cwd=repo_root,
+        env={**os.environ, "PYTHONPATH": repo_root},
     )
     assert (
         result.returncode == 0
@@ -181,6 +184,7 @@ def test_eval_with_real_shipped_artifacts():
 
 
 @_skip_no_onnx
+@pytest.mark.skipif(os.getenv("CI") != "true", reason="OOM on low-RAM machines; CI-only")
 def test_eval_main_in_process_pass(tmp_path):
     """Call main() in-process for coverage (uses shipped artifacts)."""
     from modelserver.eval.run_eval import main

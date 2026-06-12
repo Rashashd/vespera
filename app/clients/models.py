@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -39,6 +40,10 @@ class Client(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    # Added by migration 0007; per-client keyword escalation list (spec 8 FR-004).
+    custom_severity_keywords: Mapped[list] = mapped_column(
+        JSONB, nullable=False, server_default="'[]'::jsonb"
     )
 
     __table_args__ = (

@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     # --- RAG retrieval: query cache configuration (spec 7) ---
     query_embedding_cache_ttl: int = 3600  # Redis TTL for query embedding cache entries (seconds)
 
+    # --- Triage (spec 8) ---
+    modelserver_url: str = "http://modelserver:8001"
+    triage_confidence_threshold: float = 0.70
+    triage_staleness_max_age_minutes: int = 30
+    triage_llm_max_tokens: int = 256
+
 
 def get_settings() -> Settings:
     """Build a Settings instance from the environment (Vault bootstrap only)."""

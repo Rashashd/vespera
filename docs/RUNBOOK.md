@@ -303,6 +303,64 @@ redis-cli -h localhost -p 6379 KEYS "rag:qemb:*" | xargs redis-cli DEL
 ### Latency monitoring
 
 The modelserver's `/ready` endpoint includes a rolling-window latency breakdown:
+
+## Triage & Routing (spec 8)
+
+Triage fires automatically after each document is indexed. No manual trigger is needed.
+
+### scispaCy model setup
+
+The `en_ner_bc5cdr_md` model is declared as a project dependency and installed via `uv sync`.
+If the package wheel URL is ever unavailable (S3 outage), install it manually:
+```bash
+pip install https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_ner_bc5cdr_md-0.5.4.tar.gz
+```
+The model is loaded once per process (`@lru_cache`); it does not run in the modelserver container.
+
+### Query a finding's triage state
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/auth/jwt/login \
+  -d "username=reviewer@example.com&password=..." | jq -r .access_token)
+
+curl http://localhost:8000/clients/<client_id>/findings/<finding_id> \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response shape: `id`, `client_id`, `document_id`, `drug`, `reaction`, `bucket`, `status`,
+`resolution_path`, `model_confidence`, `created_at`.
+
+**Bucket → status mapping**:
+- `emergency` / `urgent` → `pending_expedited` (review queue)
+- `minor` / `positive` → `pending_batch` (batch queue)
+- `irrelevant` → `classified` (no action)
+
+**Error codes**:
+- `404` — finding not found or belongs to a different client.
+- `400 CLIENT_SUSPENDED` — client is suspended.
+
+### LLM configuration
+
+Triage uses the LLM configured in Vault (`anthropic_api_key` → Anthropic, else `openai_api_key` →
+OpenAI). In CI, `anthropic_api_key=ci-test-key` is a sentinel that will fail real LLM calls; the
+integration test mocks the LLM at the function level so no real provider is contacted.
+
+### Triage eval gate
+
+```bash
+# Run the golden-set eval (self-contained, no docker stack required)
+uv run pytest tests/integration/test_triage_eval.py -v
+# Expected: recall >= 0.90, precision >= 0.75, FN <= FP (SC-003)
+```
+
+### Staleness sweep (operator alert)
+
+Documents that are `INDEXED` but have zero findings after `triage_staleness_max_age_minutes`
+(default 30 min) emit `triage.operator_alert` (stage=sweep). These appear in structured logs:
+```
+{"event": "triage.operator_alert", "stage": "sweep", "document_id": ..., "reason": "indexed_with_no_finding_past_staleness_window"}
+```
+Routing these to a paging system is spec 11.
 ```bash
 curl http://localhost:8001/ready | jq .latency_ms
 # Shows p50/p95 for classify, embed, rerank operations

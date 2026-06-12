@@ -105,3 +105,7 @@ jobs:
         env:
           MAX_EVAL_EXAMPLES: "500"
         run: PYTHONPATH=. uv run python modelserver/eval/run_eval.py
+      - name: Sync app deps for triage eval (no torch/training group)
+        run: uv sync --no-group training
+      - name: Triage golden-set eval gate (recall>=0.90, precision>=0.75, SC-003)
+        run: PYTHONPATH=. uv run pytest tests/integration/test_triage_eval.py -v

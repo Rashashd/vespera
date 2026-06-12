@@ -1,0 +1,137 @@
+"""Outbound LLM calls for triage: low-confidence YES/NO resolution and valence assessment."""
+
+from __future__ import annotations
+
+import json
+from functools import lru_cache
+from pathlib import Path
+
+import httpx
+import structlog
+from pydantic import BaseModel
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+from app.core.config import Settings
+from app.infra.llm_adapter import LLMClient, build_llm_client
+
+_log = structlog.get_logger(__name__)
+_PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
+
+
+@lru_cache(maxsize=4)
+def _load_prompt(name: str) -> str:
+    return (_PROMPT_DIR / name).read_text(encoding="utf-8")
+
+
+class _AdverseResult(BaseModel):
+    adverse: bool
+
+
+class _ValenceResult(BaseModel):
+    valence: str
+
+
+def _should_retry(exc: BaseException) -> bool:
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code >= 500
+    return isinstance(exc, (httpx.TimeoutException, httpx.NetworkError))
+
+
+@retry(
+    retry=retry_if_exception_type((httpx.TimeoutException, httpx.NetworkError)),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    reraise=True,
+)
+async def _call_llm(llm: LLMClient, system_prompt: str, user_content: str, max_tokens: int) -> str:
+    """Make the raw LLM HTTP call; retries on timeout/network, never on 4xx."""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        if llm.provider == "anthropic":
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": llm.api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": llm.model,
+                    "max_tokens": max_tokens,
+                    "system": system_prompt,
+                    "messages": [{"role": "user", "content": user_content}],
+                },
+            )
+            resp.raise_for_status()
+            return resp.json()["content"][0]["text"]
+        else:
+            resp = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {llm.api_key}",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": llm.model,
+                    "max_tokens": max_tokens,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_content},
+                    ],
+                },
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+
+
+async def resolve_yes_no(
+    text: str,
+    source_reliability: str,
+    settings: Settings,
+    client_id: int,
+    document_id: int,
+) -> bool:
+    """Ask the LLM: is this document an adverse drug reaction? Returns True=YES.
+
+    Raises on failure so the caller can apply the fail-safe escalation.
+    """
+    llm = build_llm_client(settings)
+    prompt_template = _load_prompt("triage_lowconf_resolve.txt")
+    system_prompt = prompt_template.split("<document>")[0].strip()
+    user_content = text
+
+    raw = await _call_llm(llm, system_prompt, user_content, settings.triage_llm_max_tokens)
+    result = _AdverseResult.model_validate(json.loads(raw))
+    return result.adverse
+
+
+async def assess_valence(
+    text: str,
+    source_reliability: str,
+    settings: Settings,
+    client_id: int,
+    document_id: int,
+) -> str:
+    """Ask the LLM for valence of a NO-classified finding. Returns 'positive' or 'irrelevant'.
+
+    On any failure, returns 'positive' (fail-safe default per FR-016).
+    """
+    log = _log.bind(client_id=client_id, document_id=document_id)
+    try:
+        llm = build_llm_client(settings)
+        prompt_template = _load_prompt("triage_valence.txt")
+        system_prompt = (
+            prompt_template.split("<document>")[0]
+            .strip()
+            .format(source_reliability=source_reliability)
+        )
+        user_content = text
+
+        raw = await _call_llm(llm, system_prompt, user_content, settings.triage_llm_max_tokens)
+        result = _ValenceResult.model_validate(json.loads(raw))
+        if result.valence not in ("positive", "irrelevant"):
+            raise ValueError(f"unexpected valence: {result.valence!r}")
+        return result.valence
+    except Exception as exc:
+        log.warning("triage.llm.valence_failed", reason=str(exc))
+        return "positive"

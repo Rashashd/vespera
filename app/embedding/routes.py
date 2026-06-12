@@ -70,6 +70,7 @@ async def trigger_index_build(
             client_id=target.id,
             run_id=run_id,
             settings=settings,
+            dispatcher=dispatcher,
         )
 
     return IndexBuildRunOut.model_validate(run)
@@ -80,6 +81,7 @@ async def _run_index_build_background(
     client_id: int,
     run_id: int,
     settings,
+    dispatcher=None,
 ) -> None:
     """Background task runner (decoupled from request cycle)."""
     try:
@@ -88,6 +90,7 @@ async def _run_index_build_background(
                 session_factory=session_factory,
                 client_id=client_id,
                 modelserver_client=modelserver_client,
+                dispatcher=dispatcher,
             )
     except Exception as e:
         _log.error(

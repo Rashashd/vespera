@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -25,6 +26,7 @@ async def index_build_runner(
     client_id: int,
     modelserver_client: ModelserverClient | None = None,
     triggered_by_user_id: int | None = None,
+    dispatcher: Any = None,
 ) -> IndexBuildRun:
     """Execute a full index build: parse → chunk → embed → persist (FR-009/FR-010/FR-025).
 
@@ -101,6 +103,7 @@ async def index_build_runner(
                 chunker,
                 modelserver_client,
                 client_id,
+                dispatcher,
             )
             if success is None:
                 documents_skipped += 1
@@ -151,6 +154,7 @@ async def _process_document(
     chunker: Chunker,
     modelserver_client: ModelserverClient,
     client_id: int,
+    dispatcher: Any = None,
 ) -> tuple[bool | None, int]:
     """Process a single document: parse → chunk → embed → persist (atomic per-doc, FR-028).
 
@@ -354,6 +358,18 @@ async def _process_document(
             run_id=run_id,
             chunk_count=len(chunk_rows),
         )
+
+        # Triage fires after embedding commit; failures are logged and swallowed (FR-009).
+        if dispatcher is not None:
+            await _triage_after_index(
+                session_factory=session_factory,
+                document=document,
+                chunk_texts=chunk_texts,
+                client_id=client_id,
+                modelserver_client=modelserver_client,
+                dispatcher=dispatcher,
+            )
+
         return (True, len(chunk_rows))
 
     except Exception as e:
@@ -376,3 +392,71 @@ async def _process_document(
                 index_state.last_run_id = run_id
                 index_state.updated_at = datetime.now(UTC)
         return (False, 0)
+
+
+async def _triage_after_index(
+    *,
+    session_factory: Callable[[], AsyncSession],
+    document: Any,
+    chunk_texts: list[str],
+    client_id: int,
+    modelserver_client: ModelserverClient,
+    dispatcher: Any,
+) -> None:
+    """Call triage after successful embedding; swallows all errors (FR-009).
+
+    Joins chunk texts for NER; loads watchlist drugs and custom keywords from the DB.
+    """
+    try:
+        from app.clients.models import Client, WatchlistItem
+        from app.triage.runner import triage_document_runner
+
+        document_text = " ".join(chunk_texts)
+
+        # Load watchlist drug items for this document's provenance watchlists.
+        watchlist_ids = [dw.watchlist_id for dw in (document.provenance or [])]
+        watchlist_drugs: list[str] = []
+        custom_keywords: list[dict] = []
+
+        if watchlist_ids:
+            async with session_factory() as session:
+                items_result = await session.execute(
+                    select(WatchlistItem).where(
+                        WatchlistItem.watchlist_id.in_(watchlist_ids),
+                        WatchlistItem.item_type == "drug",
+                    )
+                )
+                watchlist_drugs = [i.value for i in items_result.scalars().all()]
+
+                client_result = await session.execute(select(Client).where(Client.id == client_id))
+                client_obj = client_result.scalar_one_or_none()
+                if client_obj is not None:
+                    custom_keywords = client_obj.custom_severity_keywords or []
+
+        if not watchlist_drugs:
+            _log.info(
+                "triage.skip.no_watchlist_drugs",
+                document_id=document.id,
+                client_id=client_id,
+            )
+            return
+
+        await triage_document_runner(
+            session_factory=session_factory,
+            document_id=document.id,
+            client_id=client_id,
+            document_text=document_text,
+            source_reliability=document.source_reliability,
+            watchlist_drugs=watchlist_drugs,
+            custom_keywords=custom_keywords,
+            ms_client=modelserver_client,
+            dispatcher=dispatcher,
+        )
+    except Exception as exc:
+        _log.error(
+            "triage.after_index.failed",
+            document_id=document.id,
+            client_id=client_id,
+            error=str(exc),
+            exc_info=True,
+        )

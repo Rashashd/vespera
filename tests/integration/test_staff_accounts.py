@@ -113,10 +113,10 @@ async def test_manager_lists_staff(client, make_staff_user):
     manager = await make_staff_user(role="manager")
     reviewer = await make_staff_user(role="reviewer")
     token = await login_token(client, manager.email)
-    resp = await client.get("/staff", headers={"Authorization": f"Bearer {token}"})
+    resp = await client.get("/staff?limit=2000", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
-    ids = {u["id"] for u in resp.json()}
-    assert manager.id in ids and reviewer.id in ids
+    emails = {u["email"] for u in resp.json()}
+    assert manager.email in emails and reviewer.email in emails
 
 
 # ---- role + active updates ---------------------------------------------------

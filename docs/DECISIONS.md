@@ -119,3 +119,37 @@ Full rationale in `specs/006-parse-chunk-embed/research.md` (D1–D12).
 - **Manager/admin-only trigger, staff-readable status** — `require_admin` guard on POST /index;
   reviewer and client-user → 403 (FR-027/SC-013). GET endpoints via `acting_client_read`
   (staff any role, or owning client-user).
+
+## Triage & Routing (008-triage-routing)
+
+Full rationale in `specs/008-triage-routing/research.md` (D1–D8). Project-level highlights:
+
+- **scispaCy BC5CDR for NER** (D1) — `en_ner_bc5cdr_md` runs as a module-level singleton
+  (`@lru_cache`). CHEMICAL entities = watchlist drugs; DISEASE entities = reactions. No same-sentence
+  DISEASE + drug in title/summary → incidental; filtered before classification (US2). The
+  `en_ner_bc5cdr_md` model is in main project deps (not the no-torch modelserver group); it is
+  CPU-bound and off-loaded via `asyncio.to_thread`.
+- **Three-stage classify (D3)** — confidence ≥ `Settings.triage_confidence_threshold` (0.70) → trust
+  model; below → LLM resolve; LLM failure → escalate=YES (fail-safe). Raw `confidence` is used for
+  re-thresholding, not `is_adverse` (which reflects the modelserver's internal 0.50 cutoff).
+- **First real outbound LLM call (D3)** — `LLMClient` was only a config handle (provider/model/api_key);
+  spec 8 builds the HTTP call from scratch (`httpx.AsyncClient` + tenacity retry). Branches on
+  `llm.provider`: Anthropic (`POST /v1/messages`) and OpenAI (`POST /v1/chat/completions`). Structured
+  JSON output validated with Pydantic. Retry on timeout/network only — never on 4xx.
+- **Injection hardening (Constitution Principle II)** — LLM prompts frame the document as untrusted
+  data; a planted-instruction golden-set case is CI-gated. Full guardrails (NeMo) sequenced to spec 12.
+- **LLM call precedes Presidio redaction (documented deviation)** — the corpus is public literature;
+  logs bind IDs only. Sequenced to close in spec 12 with the broader Presidio sweep.
+- **Confidence threshold in Settings, NOT eval_thresholds.yaml** — `eval_thresholds.yaml` is read
+  only by CI eval scripts (`recall_min`, `precision_min`). Runtime knobs always go in `Settings`.
+- **In-process triage trigger (D2)** — fires immediately after `INDEXED` success in the embedding
+  runner. Durable ARQ job wrapping is spec 11. A triage failure never rolls back a successful embed.
+- **Failure matrix (FR-018)** — classifier/DB failure → no finding (retry), emit `triage.operator_alert`
+  ERROR; LLM failure → finding via fail-safe (escalate / `positive`). Asymmetry is intentional:
+  classifier failure means we cannot decide safely; LLM failure is a refinement step only.
+- **ICH E2E keyword artifact** (D5) — versioned dict in `app/triage/keywords/ich_seriousness.py`;
+  per-client custom keywords escalate-only via `max(rank)` (FR-004). Regulatory-alert floor
+  (`source_reliability == "regulatory_alert"` → min URGENT) applies to YES verdicts only.
+- **Staleness sweep (SC-001)** — `app/triage/sweep.py` finds INDEXED docs with zero findings older
+  than `Settings.triage_staleness_max_age_minutes`; emits `triage.operator_alert` (stage=sweep).
+  Routing to paging/remediation is spec 11.
