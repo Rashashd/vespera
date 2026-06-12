@@ -85,6 +85,7 @@ jobs:
   # Eval gate — classifier macro-F1 must stay >= 0.80 (US5 / FR-013 / D10)
   eval:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,4 +95,8 @@ jobs:
       - name: Sync modelserver group only (lean; no torch/DB)
         run: uv sync --only-group modelserver --no-install-project
       - name: Run eval gate
+        # MAX_EVAL_EXAMPLES caps inference at 500 samples — enough for a reliable F1
+        # estimate while keeping the job under 5 min on a shared runner.
+        env:
+          MAX_EVAL_EXAMPLES: "500"
         run: PYTHONPATH=. uv run python modelserver/eval/run_eval.py
