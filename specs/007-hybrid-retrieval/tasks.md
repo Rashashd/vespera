@@ -155,7 +155,7 @@ token-auth); applying it reorders the fused top-K deterministically and improves
 
 - [X] T031 [P] [US4] Offline notebook `notebooks/train_reranker.ipynb`: load `cross-encoder/ms-marco-MiniLM-L-6-v2`, export + INT8-quantize to ONNX → write `modelserver/models/reranker.onnx` + `reranker_tokenizer.json` (D4; Git LFS if >100MB)
 - [X] T032 [P] [US4] Verify the dev-only `training` uv group in `pyproject.toml` already provides torch + transformers + accelerate + optimum[onnxruntime] (it does — confirmed) for the cross-encoder export; add `sentence-transformers` ONLY if the notebook loads via that API (optimum `ORTModelForSequenceClassification` does not need it). The serving `modelserver` group (onnxruntime + tokenizers) is unchanged
-- [ ] T033 [US4] Add `reranker` + `reranker_tokenizer` entries (file/version/sha256/max_tokens) to `modelserver/models/manifest.json` (auto SHA-256-validated at boot by `validate_artifacts`) — after T031 runs
+- [X] T033 [US4] Add `reranker` + `reranker_tokenizer` entries (file/version/sha256/max_tokens) to `modelserver/models/manifest.json` (auto SHA-256-validated at boot by `validate_artifacts`) — after T031 runs
 - [X] T034 [P] [US4] Implement `CrossEncoderSession` (tokenize (query,passage) pairs, ONNX run, relevance logit per passage; `intra_op_num_threads=1`; truncate 512) in `modelserver/inference/reranker.py` (D5)
 - [X] T035 [P] [US4] Add `RerankRequest`, `RerankResult`, `RerankResponse` to `modelserver/schemas.py` (D5/data-model)
 - [X] T036 [US4] Add `POST /rerank` (require_service_token, ready-gated, batch≤128, per-result version stamp, latency window key `rerank`) to `modelserver/routes.py` — depends on T034/T035
