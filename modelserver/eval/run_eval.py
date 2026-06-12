@@ -59,11 +59,7 @@ def _score_onnx(model_dir: Path, texts: list[str], labels: list[int]) -> float:
     opts.intra_op_num_threads = 1
     session = ort.InferenceSession(str(model_dir / "classifier.onnx"), sess_options=opts)
     input_ids, attention_mask = tokenize_batch(tokenizer, texts)
-    need = {i.name for i in session.get_inputs()}
-    feed: dict = {"input_ids": input_ids, "attention_mask": attention_mask}
-    if "token_type_ids" in need:
-        feed["token_type_ids"] = np.zeros_like(input_ids)
-    outputs = session.run(None, {k: v for k, v in feed.items() if k in need})
+    outputs = session.run(None, {"input_ids": input_ids, "attention_mask": attention_mask})
     logits = outputs[0]
     exp = np.exp(logits - logits.max(axis=1, keepdims=True))
     probs = exp / exp.sum(axis=1, keepdims=True)
@@ -87,6 +83,12 @@ def main() -> int:
 
     threshold = _load_threshold(threshold_path)
     texts, labels = _load_eval_set(eval_path)
+
+    max_examples = __import__("os").environ.get("MAX_EVAL_EXAMPLES")
+    if max_examples:
+        n = int(max_examples)
+        texts, labels = texts[:n], labels[:n]
+        print(f"MAX_EVAL_EXAMPLES={n}: scoring on first {len(texts)} examples")
 
     if not texts:
         print("ERROR: eval_set.jsonl is empty", file=sys.stderr)
