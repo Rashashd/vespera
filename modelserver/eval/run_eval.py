@@ -59,7 +59,11 @@ def _score_onnx(model_dir: Path, texts: list[str], labels: list[int]) -> float:
     opts.intra_op_num_threads = 1
     session = ort.InferenceSession(str(model_dir / "classifier.onnx"), sess_options=opts)
     input_ids, attention_mask = tokenize_batch(tokenizer, texts)
-    outputs = session.run(None, {"input_ids": input_ids, "attention_mask": attention_mask})
+    need = {i.name for i in session.get_inputs()}
+    feed: dict = {"input_ids": input_ids, "attention_mask": attention_mask}
+    if "token_type_ids" in need:
+        feed["token_type_ids"] = np.zeros_like(input_ids)
+    outputs = session.run(None, {k: v for k, v in feed.items() if k in need})
     logits = outputs[0]
     exp = np.exp(logits - logits.max(axis=1, keepdims=True))
     probs = exp / exp.sum(axis=1, keepdims=True)
