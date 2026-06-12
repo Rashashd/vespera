@@ -195,10 +195,10 @@ still succeeds via live embed; embedder-version change → stale entry not used.
 
 **Purpose**: the Principle-IV gate (depends on US2/US3/US4 existing) + docs + quality.
 
-- [ ] T044 [P] Build the committed RAG golden set (~15 cases: `query`, `relevant_document_keys` by `normalized_external_id`, `expected_corroboration_count`) in `eval/rag/golden_set.jsonl` (D12)
-- [ ] T045 Implement the shared scorer (hit@5, MRR, corroboration accuracy) + manual CLI in `eval/rag/run_rag_eval.py` vs `eval_thresholds.yaml[rag]` (D12) — depends on T044
-- [ ] T046 Implement the eval GATE `tests/integration/test_rag_eval.py`: boot the modelserver ASGI app in-process (`httpx.ASGITransport`, `MODEL_DIR=modelserver/models`; `skipif` onnxruntime absent), seed the golden corpus, run the pipeline → assert each metric ≥ threshold AND hybrid+rerank ≥ dense-only (FR-024–026/SC-001–003) — depends on T045 and US2/US3/US4
-- [ ] T047 Wire the RAG gate into CI: ensure the integration test job runs `uv sync --group modelserver` (onnxruntime + `modelserver/models` on disk) so `test_rag_eval.py` drives the in-process modelserver app — no separate modelserver container required — in `.github/workflows/ci.yml` (D12)
+- [X] T044 [P] Build the committed RAG golden set (~15 cases: `query`, `relevant_document_keys` by `normalized_external_id`, `expected_corroboration_count`) in `eval/rag/golden_set.jsonl` (D12)
+- [X] T045 Implement the shared scorer (hit@5, MRR, corroboration accuracy) + manual CLI in `eval/rag/run_rag_eval.py` vs `eval_thresholds.yaml[rag]` (D12) — depends on T044
+- [X] T046 Implement the eval GATE `tests/integration/test_rag_eval.py`: boot the modelserver ASGI app in-process (`httpx.ASGITransport`, `MODEL_DIR=modelserver/models`; `skipif` onnxruntime absent), seed the golden corpus, run the pipeline → assert each metric ≥ threshold AND hybrid+rerank ≥ dense-only (FR-024–026/SC-001–003) — depends on T045 and US2/US3/US4
+- [X] T047 Wire the RAG gate into CI: ensure the integration test job runs `uv sync --group modelserver` (onnxruntime + `modelserver/models` on disk) so `test_rag_eval.py` drives the in-process modelserver app — no separate modelserver container required — in `.github/workflows/ci.yml` (D12)
 - [ ] T048 [P] Update `docs/RUNBOOK.md`: search endpoint usage, reranker artifact rebuild + `/ready` check, RAG eval run, <500MB image-budget check
 - [ ] T049 [P] Lint/hygiene pass — `ruff check` + `black --check` on `app/rag`, `modelserver`, `tests`; files ≤300 lines; one-sentence module docstrings; PII-free logs verified
 - [ ] T050 Run `quickstart.md` end-to-end on the live stack (search · hybrid · corroboration · isolation · cache · version-mismatch · empty) and confirm coverage ≥80%; **spot-check SC-006** (warm-cache median retrieval latency < 1 s for default top-K) via the per-stage latency logs — observed, not gated
