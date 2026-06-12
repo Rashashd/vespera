@@ -94,4 +94,4 @@ jobs:
       - name: Sync modelserver group only (lean; no torch/DB)
         run: uv sync --only-group modelserver --no-install-project
       - name: Run eval gate
-        run: uv run python modelserver/eval/run_eval.py
+        run: PYTHONPATH=. uv run python modelserver/eval/run_eval.py
