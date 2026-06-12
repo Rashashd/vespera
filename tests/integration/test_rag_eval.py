@@ -214,24 +214,36 @@ _REAL_MODELS_DIR = Path(__file__).parent.parent.parent / "modelserver" / "models
 @pytest_asyncio.fixture(scope="module")
 async def eval_ms_app():
     """Boot modelserver with the committed real model artifacts (no reranker yet)."""
+    # Skip when LFS hasn't been downloaded — pointer file is ~133 bytes.
+    onnx_path = _REAL_MODELS_DIR / "classifier.onnx"
+    try:
+        real_onnx = onnx_path.stat().st_size > 1_000_000
+    except OSError:
+        real_onnx = False
+    if not real_onnx:
+        pytest.skip("Real ONNX artifacts not present (lfs not downloaded)")
+
     _prev_model_dir = os.environ.get("MODEL_DIR")
     _prev_token = os.environ.get("MODELSERVER_TOKEN")
-    os.environ["MODEL_DIR"] = str(_REAL_MODELS_DIR)
-    os.environ["MODELSERVER_TOKEN"] = "eval-test-token"  # gitleaks:allow
-    from modelserver.main import create_app
+    try:
+        os.environ["MODEL_DIR"] = str(_REAL_MODELS_DIR)
+        os.environ["MODELSERVER_TOKEN"] = "eval-test-token"  # gitleaks:allow
+        from modelserver.main import create_app
 
-    app = create_app()
-    async with app.router.lifespan_context(app):
-        yield app
-    # Restore (not pop) so session-scoped fixtures that set these vars still work
-    if _prev_model_dir is not None:
-        os.environ["MODEL_DIR"] = _prev_model_dir
-    else:
-        os.environ.pop("MODEL_DIR", None)
-    if _prev_token is not None:
-        os.environ["MODELSERVER_TOKEN"] = _prev_token
-    else:
-        os.environ.pop("MODELSERVER_TOKEN", None)
+        app = create_app()
+        async with app.router.lifespan_context(app):
+            yield app
+    finally:
+        # Restore (not pop) so session-scoped fixtures that set these vars still work.
+        # try/finally ensures cleanup runs even when lifespan setup raises (e.g. SHA mismatch).
+        if _prev_model_dir is not None:
+            os.environ["MODEL_DIR"] = _prev_model_dir
+        else:
+            os.environ.pop("MODEL_DIR", None)
+        if _prev_token is not None:
+            os.environ["MODELSERVER_TOKEN"] = _prev_token
+        else:
+            os.environ.pop("MODELSERVER_TOKEN", None)
 
 
 # ---------------------------------------------------------------------------

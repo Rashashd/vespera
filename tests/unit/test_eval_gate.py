@@ -13,9 +13,24 @@ import sys
 from pathlib import Path
 
 import joblib
+import pytest
 import yaml
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
+
+# Skip tests that load the real 110 MB ONNX when LFS hasn't been downloaded.
+# (LFS pointer files are ~133 bytes; real model is >100 MB.)
+def _real_onnx_present() -> bool:
+    p = Path(__file__).parent.parent.parent / "modelserver" / "models" / "classifier.onnx"
+    try:
+        return p.stat().st_size > 1_000_000
+    except OSError:
+        return False
+
+_skip_no_onnx = pytest.mark.skipif(
+    not _real_onnx_present(),
+    reason="Real ONNX artifacts not present (lfs not downloaded)",
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -148,6 +163,7 @@ def test_eval_missing_classifier_exits_1(tmp_path):
     assert result.returncode == 1
 
 
+@_skip_no_onnx
 def test_eval_with_real_shipped_artifacts():
     """The real shipped classifier must pass the real eval gate."""
     result = subprocess.run(
@@ -162,6 +178,7 @@ def test_eval_with_real_shipped_artifacts():
     assert "PASS" in result.stdout
 
 
+@_skip_no_onnx
 def test_eval_main_in_process_pass(tmp_path):
     """Call main() in-process for coverage (uses shipped artifacts)."""
     from modelserver.eval.run_eval import main
