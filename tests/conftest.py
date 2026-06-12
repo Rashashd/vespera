@@ -142,6 +142,84 @@ def _make_tokenizer_json(dest: Path) -> None:
     tok.save(str(dest))
 
 
+def _make_reranker_onnx(dest: Path) -> None:
+    """Tiny ONNX cross-encoder: inputs (input_ids, attention_mask, token_type_ids) → logits [B,1].
+
+    Score = sum of attention_mask (non-pad token count), which gives different values per
+    passage length — enough for ordering tests.
+    """
+    import onnx
+    from onnx import TensorProto, helper, numpy_helper
+
+    reduce_axes = numpy_helper.from_array(np.array([1], dtype=np.int64), name="reduce_axes")
+
+    nodes = [
+        helper.make_node("Cast", ["attention_mask"], ["float_mask"], to=TensorProto.FLOAT),
+        helper.make_node("ReduceSum", ["float_mask", "reduce_axes"], ["logits"], keepdims=1),
+    ]
+    graph = helper.make_graph(
+        nodes,
+        "fixture_reranker",
+        inputs=[
+            helper.make_tensor_value_info("input_ids", TensorProto.INT64, ["batch", "seq"]),
+            helper.make_tensor_value_info("attention_mask", TensorProto.INT64, ["batch", "seq"]),
+            helper.make_tensor_value_info("token_type_ids", TensorProto.INT64, ["batch", "seq"]),
+        ],
+        outputs=[
+            helper.make_tensor_value_info("logits", TensorProto.FLOAT, ["batch", 1]),
+        ],
+        initializer=[reduce_axes],
+    )
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 18)])
+    model.ir_version = 8
+    onnx.checker.check_model(model)
+    dest.write_bytes(model.SerializeToString())
+
+
+def _make_reranker_tokenizer_json(dest: Path) -> None:
+    """BERT-style WordLevel tokenizer with pair-encoding post-processor for reranker."""
+    from tokenizers import Tokenizer
+    from tokenizers.models import WordLevel
+    from tokenizers.pre_tokenizers import Whitespace
+    from tokenizers.processors import TemplateProcessing
+
+    vocab: dict[str, int] = {"[UNK]": 0, "[PAD]": 1, "[CLS]": 2, "[SEP]": 3}
+    for word in [
+        "patient",
+        "drug",
+        "adverse",
+        "event",
+        "liver",
+        "kidney",
+        "damage",
+        "treatment",
+        "dose",
+        "study",
+        "hepatotoxicity",
+        "reaction",
+        "associated",
+        "the",
+        "a",
+        "no",
+        "clinical",
+        "developed",
+        "severe",
+        "acute",
+    ]:
+        if word not in vocab:
+            vocab[word] = len(vocab)
+
+    tok = Tokenizer(WordLevel(vocab=vocab, unk_token="[UNK]"))
+    tok.pre_tokenizer = Whitespace()
+    tok.post_processor = TemplateProcessing(
+        single="[CLS] $A [SEP]",
+        pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+        special_tokens=[("[CLS]", 2), ("[SEP]", 3)],
+    )
+    tok.enable_padding(pad_id=1, pad_token="[PAD]")
+    tok.save(str(dest))
+
+
 def _build_manifest(d: Path) -> dict:
     return {
         "artifacts": [
@@ -195,6 +273,51 @@ def modelserver_model_dir(tmp_path_factory) -> Generator[Path, None, None]:
 
 
 # ---------------------------------------------------------------------------
+# Session-scoped model directory WITH reranker (for US4 tests)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def modelserver_model_dir_with_reranker(tmp_path_factory) -> Generator[Path, None, None]:
+    """Fixture model dir with all artifacts including reranker + reranker_tokenizer."""
+    d = tmp_path_factory.mktemp("ms_models_rr")
+
+    _make_classifier_joblib(d / "classifier.joblib")
+    _make_embedder_onnx(d / "embedder.onnx")
+    _make_tokenizer_json(d / "tokenizer.json")
+    _make_reranker_onnx(d / "reranker.onnx")
+    _make_reranker_tokenizer_json(d / "reranker_tokenizer.json")
+
+    manifest = _build_manifest(d)
+    manifest["artifacts"].extend(
+        [
+            {
+                "name": "reranker",
+                "file": "reranker.onnx",
+                "format": "onnx",
+                "version": "rr-fixture",
+                "sha256": _sha256(d / "reranker.onnx"),
+                "max_tokens": 512,
+            },
+            {
+                "name": "reranker_tokenizer",
+                "file": "reranker_tokenizer.json",
+                "format": "tokenizer",
+                "version": "rr-fixture",
+                "sha256": _sha256(d / "reranker_tokenizer.json"),
+            },
+        ]
+    )
+    (d / "manifest.json").write_text(json.dumps(manifest, indent=2))
+
+    os.environ["MODEL_DIR"] = str(d)
+    os.environ["MODELSERVER_TOKEN"] = "test-service-token"  # gitleaks:allow
+    yield d
+    os.environ.pop("MODEL_DIR", None)
+    os.environ.pop("MODELSERVER_TOKEN", None)
+
+
+# ---------------------------------------------------------------------------
 # ASGI app + client (function-scoped so each test gets a fresh lifespan)
 # ---------------------------------------------------------------------------
 
@@ -225,3 +348,35 @@ async def ms_authed(ms_client):
     """ms_client with X-Service-Token header pre-set."""
     ms_client.headers["X-Service-Token"] = "test-service-token"
     return ms_client
+
+
+# ---------------------------------------------------------------------------
+# Reranker-backed ASGI app + clients (function-scoped)
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def ms_app_with_reranker(modelserver_model_dir_with_reranker):
+    """Boot modelserver with reranker artifact via ASGI lifespan."""
+    from modelserver.main import create_app
+
+    app = create_app()
+    async with app.router.lifespan_context(app):
+        yield app
+
+
+@pytest_asyncio.fixture
+async def ms_client_with_reranker(ms_app_with_reranker):
+    """Async ASGI client bound to modelserver with reranker."""
+    from httpx import ASGITransport, AsyncClient
+
+    transport = ASGITransport(app=ms_app_with_reranker)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
+
+
+@pytest_asyncio.fixture
+async def ms_authed_with_reranker(ms_client_with_reranker):
+    """ms_client_with_reranker with X-Service-Token header pre-set."""
+    ms_client_with_reranker.headers["X-Service-Token"] = "test-service-token"
+    return ms_client_with_reranker

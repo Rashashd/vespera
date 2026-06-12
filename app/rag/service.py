@@ -30,6 +30,7 @@ async def retrieve(
     """
     from app.rag.corroboration import build_corroboration
     from app.rag.fusion import reciprocal_rank_fusion
+    from app.rag.rerank import rerank_candidates
     from app.rag.retrieval import dense_candidates, lexical_candidates, project_passages
 
     # Pre-check: empty corpus → skip embed + return immediately (FR-015/SC-007)
@@ -96,14 +97,24 @@ async def retrieve(
             corroboration_sources=[],
         )
 
+    # Rerank fused candidates via cross-encoder (US4/FR-008); best-effort — fall back on error
+    try:
+        top_candidates = await rerank_candidates(
+            ms_client=ms_client,
+            query=req.query,
+            candidates=fused,
+            top_k=req.top_k,
+        )
+    except Exception:
+        top_candidates = fused[: req.top_k]
+
     # Project top_k candidates to full passage objects
-    top_candidates = fused[: req.top_k]
     passages = await project_passages(session=session, candidates=top_candidates)
 
-    # Assign rank and RRF-rank proxy score (US4 reranker will replace this)
+    # Assign rank (1-based) and score from reranker or fused position proxy
     for i, p in enumerate(passages):
         p.rank = i + 1
-        p.score = float(len(fused) - i)
+        p.score = float(len(top_candidates) - i)
 
     # Corroboration (US3)
     corr_count, corr_sources = build_corroboration(passages)

@@ -21,11 +21,17 @@ class ModelserverError(Exception):
 
 
 class ModelserverClient:
-    """Typed async client for /classify and /embed (FR-019)."""
+    """Typed async client for /classify, /embed, and /rerank (FR-019)."""
 
-    def __init__(self, base_url: str, token: str) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._token = token
+        self._transport = transport  # None → production networking; set for in-process testing
         self._http: httpx.AsyncClient | None = None
 
     @classmethod
@@ -36,9 +42,16 @@ class ModelserverClient:
         )
 
     async def __aenter__(self) -> ModelserverClient:
-        self._http = build_http_client()
-        self._http.headers["X-Service-Token"] = self._token
-        self._http.base_url = httpx.URL(self._base_url)
+        if self._transport is not None:
+            self._http = httpx.AsyncClient(
+                transport=self._transport,
+                base_url=self._base_url,
+                headers={"X-Service-Token": self._token},
+            )
+        else:
+            self._http = build_http_client()
+            self._http.headers["X-Service-Token"] = self._token
+            self._http.base_url = httpx.URL(self._base_url)
         return self
 
     async def __aexit__(self, *_: Any) -> None:
@@ -80,6 +93,24 @@ class ModelserverClient:
         out: list[dict] = []
         for i in range(0, len(texts), _MAX_BATCH):
             out.extend(await self.embed(texts[i : i + _MAX_BATCH]))
+        return out
+
+    # ------------------------------------------------------------------
+    # Rerank
+    # ------------------------------------------------------------------
+
+    async def rerank(self, query: str, passages: list[str]) -> list[dict]:
+        """Call POST /rerank; returns result dicts in input order. Empty passages → []."""
+        if not passages:
+            return []
+        resp = await self._post_with_retry("/rerank", {"query": query, "passages": passages})
+        return resp["results"]
+
+    async def rerank_chunked(self, query: str, passages: list[str]) -> list[dict]:
+        """Split passages into ≤128 batches (same query each), concatenate results in order."""
+        out: list[dict] = []
+        for i in range(0, len(passages), _MAX_BATCH):
+            out.extend(await self.rerank(query, passages[i : i + _MAX_BATCH]))
         return out
 
     # ------------------------------------------------------------------

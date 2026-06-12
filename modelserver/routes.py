@@ -19,12 +19,15 @@ from modelserver.schemas import (
     EmbedRequest,
     EmbedResponse,
     ModelVersion,
+    RerankRequest,
+    RerankResponse,
+    RerankResult,
 )
 
 router = APIRouter()
 _log = get_logger(__name__)
 
-_READY_COUNTERS: dict[str, list[float]] = {"classify": [], "embed": []}
+_READY_COUNTERS: dict[str, list[float]] = {"classify": [], "embed": [], "rerank": []}
 _MAX_WINDOW = 1000
 
 
@@ -128,3 +131,34 @@ async def embed(body: EmbedRequest, request: Request) -> EmbedResponse:
         model_version=mv_dict["sha256"][:12],
     )
     return EmbedResponse(model_version=mv, results=results)
+
+
+@router.post(
+    "/rerank",
+    dependencies=[Depends(require_service_token)],
+    response_model=RerankResponse,
+)
+async def rerank(body: RerankRequest, request: Request) -> RerankResponse:
+    """Cross-encoder reranking — batch ≤ 128 passages, scores in input order (US4)."""
+    if not getattr(request.app.state, "ready", False):
+        raise HTTPException(status_code=503, detail="Service not ready")
+    if request.app.state.reranker is None:
+        raise HTTPException(status_code=503, detail="Reranker not loaded")
+
+    t0 = time.perf_counter()
+    scores = request.app.state.reranker.rerank(body.query, body.passages)
+    latency_ms = (time.perf_counter() - t0) * 1000
+    _record_latency("rerank", latency_ms)
+
+    mv_dict = request.app.state.manifest.model_version("reranker")
+    mv = ModelVersion(**mv_dict)
+
+    results = [RerankResult(score=s, model_version=mv) for s in scores]
+    _log.info(
+        "rerank",
+        operation="rerank",
+        batch_size=len(body.passages),
+        latency_ms=round(latency_ms, 2),
+        model_version=mv_dict["sha256"][:12],
+    )
+    return RerankResponse(model_version=mv, results=results)

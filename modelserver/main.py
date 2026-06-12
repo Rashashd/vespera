@@ -69,10 +69,32 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         max_tokens=config.max_tokens,
     )
 
+    # 5b. Load reranker session + its own tokenizer (if artifact present in manifest)
+    reranker = None
+    reranker_version_entry: dict | None = None
+    rr_entry = manifest.raw.get("artifacts") and next(
+        (a for a in manifest.raw["artifacts"] if a["name"] == "reranker"), None
+    )
+    if rr_entry is not None:
+        from modelserver.inference.reranker import CrossEncoderSession
+
+        rr_tok_entry = manifest.artifact("reranker_tokenizer")
+        reranker_tokenizer = load_tokenizer(str(model_dir / rr_tok_entry["file"]))
+        reranker = CrossEncoderSession(
+            model_dir / rr_entry["file"],
+            tokenizer=reranker_tokenizer,
+            max_tokens=config.max_tokens,
+        )
+        reranker_version_entry = {
+            "version": rr_entry["version"],
+            "sha256": rr_entry["sha256"],
+        }
+
     # 6. Publish on app.state
     app.state.manifest = manifest
     app.state.classifier = classifier
     app.state.embedder = embedder
+    app.state.reranker = reranker
     app.state.model_versions = {
         "classifier": {
             "version": clf_entry["version"],
@@ -87,6 +109,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             "max_tokens": emb_entry.get("max_tokens", 512),
         },
     }
+    if reranker_version_entry is not None:
+        app.state.model_versions["reranker"] = {
+            "name": "reranker",
+            "version": reranker_version_entry["version"],
+            "sha256": reranker_version_entry["sha256"],
+            "format": rr_entry["format"],  # type: ignore[index]
+        }
     app.state.ready = True
     log.info("modelserver.ready")
 
