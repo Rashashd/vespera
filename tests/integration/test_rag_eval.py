@@ -214,6 +214,8 @@ _REAL_MODELS_DIR = Path(__file__).parent.parent.parent / "modelserver" / "models
 @pytest_asyncio.fixture(scope="module")
 async def eval_ms_app():
     """Boot modelserver with the committed real model artifacts (no reranker yet)."""
+    _prev_model_dir = os.environ.get("MODEL_DIR")
+    _prev_token = os.environ.get("MODELSERVER_TOKEN")
     os.environ["MODEL_DIR"] = str(_REAL_MODELS_DIR)
     os.environ["MODELSERVER_TOKEN"] = "eval-test-token"  # gitleaks:allow
     from modelserver.main import create_app
@@ -221,8 +223,15 @@ async def eval_ms_app():
     app = create_app()
     async with app.router.lifespan_context(app):
         yield app
-    os.environ.pop("MODEL_DIR", None)
-    os.environ.pop("MODELSERVER_TOKEN", None)
+    # Restore (not pop) so session-scoped fixtures that set these vars still work
+    if _prev_model_dir is not None:
+        os.environ["MODEL_DIR"] = _prev_model_dir
+    else:
+        os.environ.pop("MODEL_DIR", None)
+    if _prev_token is not None:
+        os.environ["MODELSERVER_TOKEN"] = _prev_token
+    else:
+        os.environ.pop("MODELSERVER_TOKEN", None)
 
 
 # ---------------------------------------------------------------------------
