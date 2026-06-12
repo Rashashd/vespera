@@ -31,9 +31,9 @@ client-isolation tests (SC-005); the constitution requires 95%+ coverage on the 
 
 **Purpose**: Dependencies and package scaffolding.
 
-- [ ] T001 [P] Add `scispacy` + `en_ner_bc5cdr_md` (pinned wheel URL) to the app/worker dependency group in `pyproject.toml` (NOT the `modelserver` group — preserve the no-torch serving image); run `uv lock`.
-- [ ] T002 Add triage config. **Runtime knobs go in `Settings` (`app/core/config.py`)** — `modelserver_url: str = "http://modelserver:8001"`, `triage_confidence_threshold: float = 0.70`, `triage_staleness_max_age_minutes: int = 30`, `triage_llm_max_tokens: int = 256` (see implementation-notes §5; nothing loads `eval_thresholds.yaml` at runtime). **CI-gate floors go in `eval_thresholds.yaml`** — add a `triage:` block with `recall_min: 0.90` and `precision_min: 0.75` ONLY (read by the eval runner, not the app).
-- [ ] T003 Create the `app/triage/` package skeleton (`app/triage/__init__.py`, `app/triage/keywords/__init__.py`) and confirm `app/prompts/` exists for the new prompt files.
+- [x] T001 [P] Add `scispacy` + `en_ner_bc5cdr_md` (pinned wheel URL) to the app/worker dependency group in `pyproject.toml` (NOT the `modelserver` group — preserve the no-torch serving image); run `uv lock`.
+- [x] T002 Add triage config. **Runtime knobs go in `Settings` (`app/core/config.py`)** — `modelserver_url: str = "http://modelserver:8001"`, `triage_confidence_threshold: float = 0.70`, `triage_staleness_max_age_minutes: int = 30`, `triage_llm_max_tokens: int = 256` (see implementation-notes §5; nothing loads `eval_thresholds.yaml` at runtime). **CI-gate floors go in `eval_thresholds.yaml`** — add a `triage:` block with `recall_min: 0.90` and `precision_min: 0.75` ONLY (read by the eval runner, not the app).
+- [x] T003 Create the `app/triage/` package skeleton (`app/triage/__init__.py`, `app/triage/keywords/__init__.py`) and confirm `app/prompts/` exists for the new prompt files.
 
 ---
 
@@ -43,13 +43,13 @@ client-isolation tests (SC-005); the constitution requires 95%+ coverage on the 
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 [P] Define triage enums `Bucket`, `FindingStatus`, `ResolutionPath` (StrEnum, mirrored by DB CHECKs) in `app/triage/enums.py`.
-- [ ] T005 Create migration `app/db/migrations/versions/0007_findings_and_custom_keywords.py` (`down_revision = "0006"`) — create `findings` (columns + `UNIQUE(document_id, drug, reaction)` + indexes on client_id/status/(client_id,bucket)) and add `clients.custom_severity_keywords` JSONB default `'[]'`. **Also add the `custom_severity_keywords` `mapped_column` to the `Client` ORM model in `app/clients/models.py`** (the migration changes the DB; the ORM model must match). Verify `alembic upgrade head` AND `alembic downgrade -1` both run clean.
-- [ ] T006 Create the `Finding` ORM model in `app/triage/models.py` mirroring migration 0007 (unique constraint, indexes, CHECKs). **Register it by adding `from app.triage import models as triage_models  # noqa: F401` to `app/db/migrations/env.py`** (next to the existing per-module model imports — this is how tables register on `Base.metadata`).
-- [ ] T007 [P] Extend `FindingClassified` in `app/domain/events.py` to add `resolution_path: str` and `routing_outcome: str` (keep auto-audit registration intact).
-- [ ] T008 [P] Define Pydantic schemas in `app/triage/schemas.py`: `FindingStateResponse` (API boundary) and internal `FindingOutcome` DTO (no ORM at boundaries).
-- [ ] T009 Implement the scispaCy BC5CDR loader + drug/reaction entity extraction in `app/triage/ner.py` (load model once as a lifespan/module singleton; run extraction via `asyncio.to_thread`; return CHEMICAL + DISEASE spans).
-- [ ] T010 Implement the modelserver `/classify` wrapper call in `app/triage/classify.py` (reuse `ModelserverClient`; return raw `confidence` + `is_adverse`).
+- [x] T004 [P] Define triage enums `Bucket`, `FindingStatus`, `ResolutionPath` (StrEnum, mirrored by DB CHECKs) in `app/triage/enums.py`.
+- [x] T005 Create migration `app/db/migrations/versions/0007_findings_and_custom_keywords.py` (`down_revision = "0006"`) — create `findings` (columns + `UNIQUE(document_id, drug, reaction)` + indexes on client_id/status/(client_id,bucket)) and add `clients.custom_severity_keywords` JSONB default `'[]'`. **Also add the `custom_severity_keywords` `mapped_column` to the `Client` ORM model in `app/clients/models.py`** (the migration changes the DB; the ORM model must match). Verify `alembic upgrade head` AND `alembic downgrade -1` both run clean.
+- [x] T006 Create the `Finding` ORM model in `app/triage/models.py` mirroring migration 0007 (unique constraint, indexes, CHECKs). **Register it by adding `from app.triage import models as triage_models  # noqa: F401` to `app/db/migrations/env.py`** (next to the existing per-module model imports — this is how tables register on `Base.metadata`).
+- [x] T007 [P] Extend `FindingClassified` in `app/domain/events.py` to add `resolution_path: str` and `routing_outcome: str` (keep auto-audit registration intact).
+- [x] T008 [P] Define Pydantic schemas in `app/triage/schemas.py`: `FindingStateResponse` (API boundary) and internal `FindingOutcome` DTO (no ORM at boundaries).
+- [x] T009 Implement the scispaCy BC5CDR loader + drug/reaction entity extraction in `app/triage/ner.py` (load model once as a lifespan/module singleton; run extraction via `asyncio.to_thread`; return CHEMICAL + DISEASE spans).
+- [x] T010 Implement the modelserver `/classify` wrapper call in `app/triage/classify.py` (reuse `ModelserverClient`; return raw `confidence` + `is_adverse`).
 
 **Checkpoint**: Schema, model, enums, events, NER, and classifier client are ready.
 
@@ -67,22 +67,22 @@ the triage state.
 
 ### Tests for User Story 1
 
-- [ ] T011 [P] [US1] Unit tests for the severity rule (emergency/urgent/minor mapping, ICH criteria, regulatory-alert floor) in `tests/unit/test_triage_severity.py`.
-- [ ] T012 [P] [US1] Integration test routing all five buckets end-to-end per-document in `tests/integration/test_triage_pipeline.py`. MUST also assert: (a) each triaged finding has `corroboration_sources IS NULL` (FR-014); (b) the emitted `audit_log` row's payload contains `bucket`, `model_confidence`/confidence, `resolution_path`, and `routing_outcome` with no gaps (FR-011, SC-006).
-- [ ] T013 [P] [US1] Contract test for `GET /clients/{id}/findings/{finding_id}` (200 shape, 404 cross-tenant, 400 suspended) in `tests/integration/test_finding_state_endpoint.py`.
+- [x] T011 [P] [US1] Unit tests for the severity rule (emergency/urgent/minor mapping, ICH criteria, regulatory-alert floor) in `tests/unit/test_triage_severity.py`.
+- [x] T012 [P] [US1] Integration test routing all five buckets end-to-end per-document in `tests/integration/test_triage_pipeline.py`. MUST also assert: (a) each triaged finding has `corroboration_sources IS NULL` (FR-014); (b) the emitted `audit_log` row's payload contains `bucket`, `model_confidence`/confidence, `resolution_path`, and `routing_outcome` with no gaps (FR-011, SC-006).
+- [x] T013 [P] [US1] Contract test for `GET /clients/{id}/findings/{finding_id}` (200 shape, 404 cross-tenant, 400 suspended) in `tests/integration/test_finding_state_endpoint.py`.
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Implement the versioned ICH E2E seriousness keyword→tier artifact in `app/triage/keywords/ich_seriousness.py` (six criteria; reuse `SeverityLevel`).
-- [ ] T015 [US1] Implement severity bucketing (ICH defaults + regulatory-alert floor via `document.source_reliability`, reuse `SeverityLevel.rank`) in `app/triage/severity.py` (depends T014). Custom keywords are added in US3.
-- [ ] T016 [P] [US1] Author injection-hardened LLM prompts `app/prompts/triage_valence.txt` (receives `source_reliability`, FR-017; embed the verbatim `positive`/`irrelevant` definitions from implementation-notes §8.2 / spec FR-005) and `app/prompts/triage_lowconf_resolve.txt` (YES/NO).
-- [ ] T017 [US1] Implement the async LLM call path in `app/triage/llm.py` — provider from `build_llm_client`, `httpx.AsyncClient` + tenacity (`stop_after_attempt(3)`, never 4xx), structured JSON validated by Pydantic; map any post-retry failure to the fail-safe signal (depends T016).
-- [ ] T018 [US1] Implement the three-stage classify decision (`confidence ≥ settings.triage_confidence_threshold` → trust the model verdict; below → `llm.resolve_yes_no`; LLM failure → escalate=YES) extending `app/triage/classify.py`. Use the raw `confidence` field, NOT `is_adverse` (see implementation-notes §3) (depends T010, T017).
-- [ ] T019 [US1] Implement routing + idempotent upsert (bucket→status table; `INSERT ... ON CONFLICT (document_id,drug,reaction) DO NOTHING`) in `app/triage/routing.py` (depends T006).
-- [ ] T020 [US1] Implement the triage orchestration in `app/triage/service.py` as a **thin** coordinator that delegates each stage to its module (`prefilter`/`ner` → `classify` → `severity`/`llm` valence → `routing`) and dispatches `FindingClassified` inside the finding-write transaction for atomic audit (FR-011). Implement the FR-018 failure matrix exactly (implementation-notes §8.3): classifier/DB/config failure → **no finding**, emit `triage.operator_alert` ERROR (FR-019) with stage; LLM failure → finding via fail-safe (escalate / `positive`). Keep the file ≤ ~300 lines; push non-trivial logic into stage modules so US2/US3 edit their own files (depends T009, T015, T018, T019).
-- [ ] T021 [US1] Implement the per-document entrypoint `triage_document(...)` in `app/triage/runner.py` per the internal contract (returns `FindingOutcome[]`; structured logs bound with client_id + finding_id/document_id) (depends T020).
-- [ ] T022 [US1] Integrate `triage_document` into `app/embedding/runner.py` on the `DocumentIndexStatus.INDEXED` success path; triage failure logs + leaves the document in the "embedded, no finding" set without rolling back the embedding (depends T021).
-- [ ] T023 [US1] Implement the read endpoint `GET /clients/{id}/findings/{finding_id}` in `app/triage/routes.py` (client-scoped via `get_acting_client`; 404 cross-tenant) and register it in `app/main.py` (depends T008, T006).
+- [x] T014 [P] [US1] Implement the versioned ICH E2E seriousness keyword→tier artifact in `app/triage/keywords/ich_seriousness.py` (six criteria; reuse `SeverityLevel`).
+- [x] T015 [US1] Implement severity bucketing (ICH defaults + regulatory-alert floor via `document.source_reliability`, reuse `SeverityLevel.rank`) in `app/triage/severity.py` (depends T014). Custom keywords are added in US3.
+- [x] T016 [P] [US1] Author injection-hardened LLM prompts `app/prompts/triage_valence.txt` (receives `source_reliability`, FR-017; embed the verbatim `positive`/`irrelevant` definitions from implementation-notes §8.2 / spec FR-005) and `app/prompts/triage_lowconf_resolve.txt` (YES/NO).
+- [x] T017 [US1] Implement the async LLM call path in `app/triage/llm.py` — provider from `build_llm_client`, `httpx.AsyncClient` + tenacity (`stop_after_attempt(3)`, never 4xx), structured JSON validated by Pydantic; map any post-retry failure to the fail-safe signal (depends T016).
+- [x] T018 [US1] Implement the three-stage classify decision (`confidence ≥ settings.triage_confidence_threshold` → trust the model verdict; below → `llm.resolve_yes_no`; LLM failure → escalate=YES) extending `app/triage/classify.py`. Use the raw `confidence` field, NOT `is_adverse` (see implementation-notes §3) (depends T010, T017).
+- [x] T019 [US1] Implement routing + idempotent upsert (bucket→status table; `INSERT ... ON CONFLICT (document_id,drug,reaction) DO NOTHING`) in `app/triage/routing.py` (depends T006).
+- [x] T020 [US1] Implement the triage orchestration in `app/triage/service.py` as a **thin** coordinator that delegates each stage to its module (`prefilter`/`ner` → `classify` → `severity`/`llm` valence → `routing`) and dispatches `FindingClassified` inside the finding-write transaction for atomic audit (FR-011). Implement the FR-018 failure matrix exactly (implementation-notes §8.3): classifier/DB/config failure → **no finding**, emit `triage.operator_alert` ERROR (FR-019) with stage; LLM failure → finding via fail-safe (escalate / `positive`). Keep the file ≤ ~300 lines; push non-trivial logic into stage modules so US2/US3 edit their own files (depends T009, T015, T018, T019).
+- [x] T021 [US1] Implement the per-document entrypoint `triage_document(...)` in `app/triage/runner.py` per the internal contract (returns `FindingOutcome[]`; structured logs bound with client_id + finding_id/document_id) (depends T020).
+- [x] T022 [US1] Integrate `triage_document` into `app/embedding/runner.py` on the `DocumentIndexStatus.INDEXED` success path; triage failure logs + leaves the document in the "embedded, no finding" set without rolling back the embedding (depends T021).
+- [x] T023 [US1] Implement the read endpoint `GET /clients/{id}/findings/{finding_id}` in `app/triage/routes.py` (client-scoped via `get_acting_client`; 404 cross-tenant) and register it in `app/main.py` (depends T008, T006).
 
 **Checkpoint**: MVP — documents triage automatically into correct queues; state is queryable; decisions audited.
 

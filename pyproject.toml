@@ -24,6 +24,8 @@ dependencies = [
     "pgvector>=0.3",
     "lxml>=5.0",
     "tokenizers>=0.20",
+    "scispacy>=0.5.4",
+    "en_ner_bc5cdr_md @ https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_ner_bc5cdr_md-0.5.4.tar.gz",
 ]
 
 [dependency-groups]

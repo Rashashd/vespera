@@ -19,6 +19,7 @@ from app.ingestion.routes_documents import router as documents_router
 from app.ingestion.routes_ingestion import router as ingestion_router
 from app.observability.headers import add_security_headers
 from app.rag.routes import router as rag_router
+from app.triage.routes import router as triage_router
 
 
 def create_app() -> FastAPI:
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(documents_router)  # spec 4/4b: /clients/{id}/documents browse
     app.include_router(embedding_router)  # spec 6: /clients/{id}/index build + status reads
     app.include_router(rag_router)  # spec 7: /clients/{id}/search RAG retrieval
+    app.include_router(triage_router)  # spec 8: /clients/{id}/findings/{id} triage state
     # Rate-limit machinery (FR-011): a default in-memory limiter so the middleware works
     # before startup; the lifespan upgrades app.state.limiter to the Redis-backed one.
     app.state.limiter = Limiter(key_func=get_remote_address)

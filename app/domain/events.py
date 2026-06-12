@@ -14,11 +14,13 @@ class DomainEvent:
 
 @dataclass(frozen=True, slots=True)
 class FindingClassified(DomainEvent):
-    """A finding was assigned a triage bucket (example event for later features)."""
+    """A finding was assigned a triage bucket and routed to the appropriate queue."""
 
     finding_id: int = 0
     bucket: str = ""
     confidence: float = 0.0
+    resolution_path: str = ""  # "model" | "llm" | "escalated"
+    routing_outcome: str = ""  # "pending_expedited" | "pending_batch" | "classified"
 
 
 @dataclass(frozen=True, slots=True)
