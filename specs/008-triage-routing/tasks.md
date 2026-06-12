@@ -159,7 +159,7 @@ escalation-direction check holds; inject an LLM fault and confirm escalate/posit
 - [x] T035 [P] Review per-stage structured logging (pre-filter / classify / bucket-or-valence / route) — each binds `client_id` + `finding_id`/`document_id`, never PII/secrets.
 - [x] T036 [P] Update `docs/DECISIONS.md` (scispaCy reaction-extraction choice; LLM-ahead-of-guardrails sequenced deviation) and `docs/RUNBOOK.md` (scispaCy model download step).
 - [x] T037 Run `uv run ruff check` AND `uv run black --check app worker tests` AND `uv run pytest --cov` — confirm 80% overall / 95%+ on the triage classifier path.
-- [ ] T038 Execute `specs/008-triage-routing/quickstart.md` scenarios 1–7 against the live stack and record results.
+- [x] T038 Execute `specs/008-triage-routing/quickstart.md` scenarios 1–7 against the live stack and record results.
 
 ---
 
