@@ -234,3 +234,80 @@ curl http://localhost:8001/ready                      # should show new sha256 v
 
 Note: the api image also ships `modelserver/models/tokenizer.json` (the app counts tokens with the
 embedder's tokenizer — FR-025), so regenerating the tokenizer means rebuilding **both** images.
+
+## RAG Retrieval (spec 7)
+
+### Search endpoint
+
+```bash
+# Search a client's evidence corpus (reviewer or manager staff)
+TOKEN=$(curl -s -X POST http://localhost:8000/auth/jwt/login \
+  -d "username=reviewer@example.com&password=..." | jq -r .access_token)
+
+curl http://localhost:8000/clients/<client_id>/search \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "hepatotoxicity drug induced", "top_k": 10}'
+```
+
+Response includes: `results[]` (ranked passages with provenance), `corroboration_count`
+(distinct documents), `corroboration_sources[]`, `query_hash` (PII-free), `embedder_version`.
+
+**Error codes**:
+- `409 EMBEDDER_VERSION_MISMATCH` — the client's chunk index was built with a different embedder;
+  rebuild the index before querying.
+- `502 MODELSERVER_UNAVAILABLE` — the modelserver is down or erroring; check `GET /health` on port 8001.
+- `400 CLIENT_SUSPENDED` — client is suspended; reactivate before searching.
+
+### Reranker artifact rebuild
+
+When a new cross-encoder checkpoint is available:
+
+```bash
+# Run the export notebook (requires uv training group — torch + optimum)
+uv run --group training jupyter notebook notebooks/02_train_export_reranker.ipynb
+
+# Update manifest.json with the SHA-256 printed at the end of the notebook (T033)
+# Then verify the modelserver boots and /ready shows the reranker
+docker compose restart modelserver
+curl http://localhost:8001/ready | jq .models.reranker
+
+# Image size check (must stay < 500 MB)
+docker images pantera-modelserver --format "{{.Size}}"
+```
+
+### RAG eval run
+
+```bash
+# Print thresholds and golden-set stats
+uv run python eval/rag/run_rag_eval.py
+
+# Run the full eval gate (requires PANTERA_INTEGRATION=1 + docker compose up)
+PANTERA_INTEGRATION=1 uv run pytest tests/integration/test_rag_eval.py -v
+
+# Expected output: hit_at_5 >= 0.85, mrr >= 0.70, corroboration_accuracy >= 1.0
+```
+
+### Query-embedding cache
+
+Query embeddings are cached in Redis with a version-scoped key
+`rag:qemb:{embedder_sha}:{query_hash}` and a configurable TTL (default 3600 s,
+`Settings.query_embedding_cache_ttl`). Cache outages are non-fatal — the query proceeds
+via a live embed call.
+
+To clear all cached query embeddings after an embedder upgrade:
+```bash
+redis-cli -h localhost -p 6379 KEYS "rag:qemb:*" | xargs redis-cli DEL
+```
+
+### Latency monitoring
+
+The modelserver's `/ready` endpoint includes a rolling-window latency breakdown:
+```bash
+curl http://localhost:8001/ready | jq .latency_ms
+# Shows p50/p95 for classify, embed, rerank operations
+```
+
+For the end-to-end retrieval latency, check the structured logs for `rag.search.ok` events
+which include `result_count`. Warm-cache median latency target is < 1 s for default top-K
+of 10 (SC-006).
