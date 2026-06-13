@@ -8,7 +8,9 @@ import pytest
 import structlog
 from structlog.testing import LogCapture
 
+from app.embedding import document_indexer as indexer_module
 from app.embedding import runner as runner_module
+from app.embedding import triage_trigger as triage_module
 from app.embedding.runner import index_build_runner
 
 pytestmark = pytest.mark.skipif(
@@ -27,14 +29,19 @@ def capture_runner_logs():
     """
     cap = LogCapture()
     old_config = structlog.get_config()
-    old_log = runner_module._log
+    # Indexing logs are now spread across three modules (runner orchestrates, document_indexer
+    # does the PII-sensitive per-doc work, triage_trigger fires triage) — rebind all three.
+    modules = (runner_module, indexer_module, triage_module)
+    old_logs = {m: m._log for m in modules}
     structlog.configure(processors=[cap], cache_logger_on_first_use=False)
-    runner_module._log = structlog.get_logger("app.embedding.runner")
+    for m in modules:
+        m._log = structlog.get_logger(m.__name__)
     try:
         yield cap.entries
     finally:
         structlog.configure(**old_config)
-        runner_module._log = old_log
+        for m, old in old_logs.items():
+            m._log = old
 
 
 @pytest.mark.asyncio

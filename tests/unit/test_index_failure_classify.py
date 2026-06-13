@@ -1,6 +1,6 @@
 """Unit tests for failure classification in index build (T037, FR-011)."""
 
-from app.embedding.runner import ParseError
+from app.embedding.parsers.base import ParseError
 
 
 class TestFailureClassification:
