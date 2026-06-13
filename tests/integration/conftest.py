@@ -49,9 +49,9 @@ async def make_user(auth_app):
     scope routes by user.client_id); if client_id is None → 'staff' (new agency model).
     Pass user_type explicitly to override.
     """
+    from app.audit.models import AuditLog
     from app.auth.backend import password_helper
     from app.auth.models import User
-    from app.db.models import AuditLog
 
     factory = auth_app.state.session_factory
     created_ids: list[int] = []
@@ -99,9 +99,9 @@ async def make_user(auth_app):
 @pytest_asyncio.fixture
 async def make_staff_user(auth_app):
     """Factory for staff users (user_type='staff', client_id=None); convenience wrapper."""
+    from app.audit.models import AuditLog
     from app.auth.backend import password_helper
     from app.auth.models import User
-    from app.db.models import AuditLog
 
     factory = auth_app.state.session_factory
     created_ids: list[int] = []
@@ -142,6 +142,7 @@ async def make_staff_user(auth_app):
 @pytest_asyncio.fixture
 async def make_client(auth_app):
     """Factory that inserts a client row and tears down its watchlists/users/audit on exit."""
+    from app.audit.models import AuditLog
     from app.auth.models import User
     from app.clients.models import (
         Client,
@@ -149,7 +150,6 @@ async def make_client(auth_app):
         WatchlistBudgetUsage,
         WatchlistItem,
     )
-    from app.db.models import AuditLog
 
     factory = auth_app.state.session_factory
     created_ids: list[int] = []

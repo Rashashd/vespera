@@ -26,7 +26,7 @@ def _wl_name() -> str:
 
 
 async def _audit_count(auth_app, *, action: str, client_id: int) -> int:
-    from app.db.models import AuditLog
+    from app.audit.models import AuditLog
 
     async with auth_app.state.session_factory() as s:
         return (

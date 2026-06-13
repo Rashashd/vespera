@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skipif(
 
 
 async def _audit_count(auth_app, **filters) -> int:
-    from app.db.models import AuditLog
+    from app.audit.models import AuditLog
 
     stmt = select(func.count()).select_from(AuditLog)
     for col, val in filters.items():
@@ -116,8 +116,8 @@ async def test_create_via_script_is_audited(auth_app):
     """The operator script creates an active client and records one ClientCreated row."""
     from sqlalchemy import delete
 
+    from app.audit.models import AuditLog
     from app.clients.models import Client
-    from app.db.models import AuditLog
     from scripts import seed_client
 
     name = f"Scripted {uuid.uuid4().hex[:8]}"

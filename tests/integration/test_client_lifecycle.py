@@ -18,9 +18,9 @@ pytestmark = pytest.mark.skipif(
 @pytest_asyncio.fixture
 async def api_client_tracker(auth_app):
     """Collect client IDs created via the API; tears them down after the test."""
+    from app.audit.models import AuditLog
     from app.auth.models import User
     from app.clients.models import Client, Watchlist, WatchlistBudgetUsage, WatchlistItem
-    from app.db.models import AuditLog
 
     ids: list[int] = []
 

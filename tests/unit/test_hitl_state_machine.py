@@ -48,7 +48,7 @@ class TestApproveTransitions:
 
         # Patch _mark_expedited_finding_reported to be a no-op
         with pytest.MonkeyPatch.context() as mp:
-            mp.setattr(svc, "_mark_expedited_finding_reported", AsyncMock())
+            mp.setattr("app.reports.review.mark_expedited_finding_reported", AsyncMock())
             result = await svc.approve_report(
                 report_id=1,
                 client_id=10,
@@ -71,7 +71,7 @@ class TestApproveTransitions:
         dispatcher.dispatch = AsyncMock()
 
         with pytest.MonkeyPatch.context() as mp:
-            mp.setattr(svc, "_mark_expedited_finding_reported", AsyncMock())
+            mp.setattr("app.reports.review.mark_expedited_finding_reported", AsyncMock())
             result = await svc.approve_report(
                 report_id=1,
                 client_id=10,
@@ -217,7 +217,7 @@ class TestEditApproveProvenance:
         new_fields = [{"field": "Drug", "text": "Warfarin (corrected)", "provenance": "anything"}]
 
         with pytest.MonkeyPatch.context() as mp:
-            mp.setattr(svc, "_mark_expedited_finding_reported", AsyncMock())
+            mp.setattr("app.reports.review.mark_expedited_finding_reported", AsyncMock())
             result = await svc.edit_approve_report(
                 report_id=1,
                 client_id=10,

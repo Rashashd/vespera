@@ -6,7 +6,6 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
-from app.api import health
 from app.auth.routes_auth import _users_me_router as auth_me_router
 from app.auth.routes_auth import router as auth_router
 from app.auth.routes_staff import router as staff_router
@@ -18,6 +17,7 @@ from app.embedding.routes import router as embedding_router
 from app.ingestion.routes_documents import router as documents_router
 from app.ingestion.routes_ingestion import router as ingestion_router
 from app.observability.headers import add_security_headers
+from app.observability.health import router as health_router
 from app.rag.routes import router as rag_router
 from app.reports.routes import router as reports_router
 from app.triage.routes import router as triage_router
@@ -26,7 +26,7 @@ from app.triage.routes import router as triage_router
 def create_app() -> FastAPI:
     """Create and configure the Pantera FastAPI application."""
     app = FastAPI(title="Pantera", version="0.1.0", lifespan=lifespan)
-    app.include_router(health.router)
+    app.include_router(health_router)
     app.include_router(auth_router)  # spec 2: /auth/jwt/login (rate-limited), /logout
     app.include_router(auth_me_router)  # spec 4b: PATCH /auth/users/me (self-service pw change)
     app.include_router(staff_router)  # spec 4b: manager-owned staff account CRUD

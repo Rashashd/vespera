@@ -29,10 +29,10 @@ async def test_audit_failure_rolls_back_state(tmp_path):
     """Against real Postgres: an in-transaction failure leaves no audit_log row."""
     from sqlalchemy import func, select
 
+    from app.audit.models import AuditLog
     from app.core.config import Settings
     from app.core.startup import load_secrets_from_vault
     from app.db.base import create_engine, create_session_factory
-    from app.db.models import AuditLog
 
     settings = Settings()
     await load_secrets_from_vault(settings)

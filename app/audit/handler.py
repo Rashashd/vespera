@@ -4,8 +4,8 @@ from dataclasses import asdict
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit.models import AuditLog
 from app.core.dispatcher import EventDispatcher
-from app.db.models import AuditLog
 from app.domain.events import DomainEvent
 
 

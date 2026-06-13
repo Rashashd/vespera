@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models owned by the foundation (the append-only audit log)."""
+"""The append-only audit-log ORM model (consumed by the passive handler in this package)."""
 
 from datetime import datetime
 

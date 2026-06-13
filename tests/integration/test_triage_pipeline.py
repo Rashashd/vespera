@@ -93,8 +93,8 @@ async def test_five_bucket_routing(
 
     import app.triage.llm as llm_mod
     import app.triage.ner as ner_mod
+    from app.audit.models import AuditLog
     from app.clients.models import WatchlistItem
-    from app.db.models import AuditLog
     from app.triage.models import Finding
     from app.triage.runner import triage_document_runner
 

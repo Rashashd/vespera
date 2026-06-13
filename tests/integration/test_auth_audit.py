@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skipif(
 
 
 async def _count(auth_app, **filters):
-    from app.db.models import AuditLog
+    from app.audit.models import AuditLog
 
     stmt = select(func.count()).select_from(AuditLog)
     for col, val in filters.items():
@@ -35,7 +35,7 @@ async def test_successful_login_is_audited_with_fk(client, make_user, auth_app):
 
 async def test_failed_login_unknown_email_is_system_actor(client, auth_app):
     """An unknown-email failed login is recorded as a system event (sentinel 0, NULL FK)."""
-    from app.db.models import SYSTEM_ACTOR_ID, AuditLog
+    from app.audit.models import SYSTEM_ACTOR_ID, AuditLog
 
     email = f"{uuid.uuid4().hex}@x.com"
     await client.post("/auth/jwt/login", data={"username": email, "password": "Nope1234!"})

@@ -104,7 +104,7 @@ async def test_set_emails_creates_audit_entry(client, make_staff_user, make_clie
     """Updating report emails creates an audit entry (FR-021)."""
     from sqlalchemy import func, select
 
-    from app.db.models import AuditLog
+    from app.audit.models import AuditLog
 
     admin = await make_staff_user(role="admin")
     target = await make_client()

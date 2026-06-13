@@ -1,16 +1,7 @@
-"""Parser router dispatches by source type."""
+"""Parser router: dispatch a raw payload to the right parser by source type."""
 
-from app.embedding.parsers.base import ParsedChunk
+from app.embedding.parsers.base import ParsedChunk, ParseError
 from app.ingestion.enums import SourceName
-
-
-class ParseError(Exception):
-    """Raised when a parser fails."""
-
-    def __init__(self, message: str, is_transient: bool = False) -> None:
-        """Initialize parse error with transient vs permanent classification."""
-        super().__init__(message)
-        self.is_transient = is_transient
 
 
 def route(source: str, raw_payload: str | dict) -> list[ParsedChunk]:
@@ -29,13 +20,8 @@ def route(source: str, raw_payload: str | dict) -> list[ParsedChunk]:
     try:
         source_enum = SourceName(source)
     except ValueError:
-        raise ParseError(
-            f"Unknown source: {source}",
-            is_transient=False,
-        ) from None
+        raise ParseError(f"Unknown source: {source}", is_transient=False) from None
 
-    # Dispatch to parser based on source (import and call per parser module)
-    # TODO: Implement each parser module (T016, T025–T028) and wire here
     match source_enum:
         case SourceName.PUBMED:
             from app.embedding.parsers.pubmed_jats import PubMedParser
@@ -53,15 +39,7 @@ def route(source: str, raw_payload: str | dict) -> list[ParsedChunk]:
             from app.embedding.parsers.openfda_label import OpenFDALabelParser
 
             return OpenFDALabelParser().parse(raw_payload)
-        case SourceName.FDA_MEDWATCH:
-            from app.embedding.parsers.regulatory_feed import RegulatoryFeedParser
-
-            return RegulatoryFeedParser().parse(raw_payload)
-        case SourceName.EMA:
-            from app.embedding.parsers.regulatory_feed import RegulatoryFeedParser
-
-            return RegulatoryFeedParser().parse(raw_payload)
-        case SourceName.MHRA:
+        case SourceName.FDA_MEDWATCH | SourceName.EMA | SourceName.MHRA:
             from app.embedding.parsers.regulatory_feed import RegulatoryFeedParser
 
             return RegulatoryFeedParser().parse(raw_payload)

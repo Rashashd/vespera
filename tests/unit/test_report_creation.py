@@ -312,7 +312,6 @@ class TestMaybeAutoDiscardBatch:
     @pytest.mark.asyncio
     async def test_auto_discards_when_no_included_findings_remain(self):
         from app.domain.events import ReportDiscarded
-        from app.reports import service as svc
 
         mock_report = _make_report(status="drafted")
         mock_report.report_type = "batch"
@@ -329,7 +328,9 @@ class TestMaybeAutoDiscardBatch:
         dispatcher = AsyncMock()
         dispatcher.dispatch = AsyncMock()
 
-        await svc._maybe_auto_discard_batch(1, 10, reviewer, session, dispatcher)
+        from app.reports import _helpers
+
+        await _helpers.maybe_auto_discard_batch(1, 10, reviewer, session, dispatcher)
 
         assert mock_report.status == ReportStatus.DISCARDED
         dispatcher.dispatch.assert_called_once()
@@ -338,7 +339,6 @@ class TestMaybeAutoDiscardBatch:
 
     @pytest.mark.asyncio
     async def test_no_auto_discard_when_included_findings_remain(self):
-        from app.reports import service as svc
 
         remaining_rf = MagicMock()
         included_mock = MagicMock()
@@ -350,6 +350,8 @@ class TestMaybeAutoDiscardBatch:
         dispatcher = AsyncMock()
         dispatcher.dispatch = AsyncMock()
 
-        await svc._maybe_auto_discard_batch(1, 10, MagicMock(), session, dispatcher)
+        from app.reports import _helpers
+
+        await _helpers.maybe_auto_discard_batch(1, 10, MagicMock(), session, dispatcher)
 
         dispatcher.dispatch.assert_not_called()

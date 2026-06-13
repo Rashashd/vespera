@@ -6,11 +6,11 @@ from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
 # Import models so their tables register on Base.metadata.
+from app.audit import models as audit_models  # noqa: F401  (registers the audit_log table)
 from app.auth import models as auth_models  # noqa: F401  (registers the users table)
 from app.clients import models as clients_models  # noqa: F401  (registers spec-3 tables)
 from app.core.config import get_settings
 from app.core.startup import load_secrets_from_vault
-from app.db import models  # noqa: F401  (registers ORM tables)
 from app.db.base import Base
 from app.embedding import models as embedding_models  # noqa: F401  (registers spec-6 tables)
 from app.reports import models as reports_models  # noqa: F401  (registers spec-9 tables)

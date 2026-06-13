@@ -17,7 +17,7 @@ async def _count_audit(factory, event_type: str, client_id: int | None = None) -
     """Count audit rows of a given event_type, optionally filtered by client_id."""
     from sqlalchemy import func, select
 
-    from app.db.models import AuditLog
+    from app.audit.models import AuditLog
 
     async with factory() as s:
         stmt = select(func.count()).select_from(AuditLog).where(AuditLog.event_type == event_type)
@@ -47,8 +47,8 @@ async def test_client_created_audit(client, make_staff_user, make_client, auth_a
     # Cleanup
     from sqlalchemy import delete
 
+    from app.audit.models import AuditLog
     from app.clients.models import Client
-    from app.db.models import AuditLog
 
     factory = auth_app.state.session_factory
     async with factory() as s:
@@ -77,7 +77,7 @@ async def test_staff_created_audit(client, make_staff_user, auth_app):
     """POST /staff creates exactly one UserCreated audit entry for the new user."""
     from sqlalchemy import func, select
 
-    from app.db.models import AuditLog
+    from app.audit.models import AuditLog
 
     manager = await make_staff_user(role="manager")
     token = await login_token(client, manager.email)
@@ -115,7 +115,7 @@ async def test_audit_records_target_client_id(client, make_staff_user, make_clie
     """Staff events record the target client_id in audit_log, not the actor's (NULL) (D11)."""
     from sqlalchemy import select
 
-    from app.db.models import AuditLog
+    from app.audit.models import AuditLog
 
     manager = await make_staff_user(role="manager")
     target = await make_client()

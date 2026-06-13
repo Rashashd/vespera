@@ -58,9 +58,9 @@ async def probed_client(probed_app):
 @pytest_asyncio.fixture
 async def make_staff_for_probe(probed_app):
     """Staff user factory scoped to probed_app's session factory."""
+    from app.audit.models import AuditLog
     from app.auth.backend import password_helper
     from app.auth.models import User
-    from app.db.models import AuditLog
 
     factory = probed_app.state.session_factory
     created: list[int] = []
@@ -96,9 +96,9 @@ async def make_staff_for_probe(probed_app):
 @pytest_asyncio.fixture
 async def make_tenant(probed_app):
     """Client factory scoped to probed_app's session factory."""
+    from app.audit.models import AuditLog
     from app.auth.models import User
     from app.clients.models import Client, Watchlist, WatchlistBudgetUsage, WatchlistItem
-    from app.db.models import AuditLog
 
     factory = probed_app.state.session_factory
     created: list[int] = []

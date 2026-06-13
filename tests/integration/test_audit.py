@@ -1,7 +1,7 @@
 """Audit handler test: one event yields exactly one audit_log row (US4 / SC-006)."""
 
 from app.audit.handler import audit_log_handler
-from app.db.models import AuditLog
+from app.audit.models import AuditLog
 from app.domain.events import ReportApproved
 
 

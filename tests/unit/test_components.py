@@ -5,12 +5,12 @@ from types import SimpleNamespace
 import pytest
 
 from app.audit.handler import _target_for, audit_log_handler, register_audit_handlers
+from app.audit.models import AuditLog
 from app.core.config import Settings, get_settings
 from app.core.dependencies import get_redis, get_settings_dep
 from app.core.dispatcher import EventDispatcher
 from app.core.startup import check_model_artifacts
 from app.db.base import create_engine, create_session_factory
-from app.db.models import AuditLog
 from app.domain.events import ClientErased, DomainEvent, FindingClassified, ReportApproved
 from app.infra.llm_adapter import build_llm_client
 

@@ -10,11 +10,11 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit.models import SYSTEM_ACTOR_ID
 from app.auth.backend import current_active_user, get_jwt_strategy, password_helper
 from app.auth.models import User
 from app.auth.rate_limit import LOGIN_RATE_LIMIT, login_limiter
 from app.core.dependencies import get_session
-from app.db.models import SYSTEM_ACTOR_ID
 from app.domain.events import LoginFailed, UserLoggedIn
 
 router = APIRouter(prefix="/auth/jwt", tags=["auth"])

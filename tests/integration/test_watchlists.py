@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skipif(
 
 
 async def _audit_count(auth_app, **filters) -> int:
-    from app.db.models import AuditLog
+    from app.audit.models import AuditLog
 
     stmt = select(func.count()).select_from(AuditLog)
     for col, val in filters.items():

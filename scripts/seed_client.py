@@ -11,7 +11,7 @@ from app.core.config import get_settings
 from app.core.dispatcher import EventDispatcher
 from app.core.startup import load_secrets_from_vault
 from app.db.base import create_engine, create_session_factory
-from app.db.models import SYSTEM_ACTOR_ID
+from app.audit.models import SYSTEM_ACTOR_ID
 from app.domain.events import ClientCreated, ClientSuspended, ClientUpdated
 
 
