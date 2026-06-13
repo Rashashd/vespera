@@ -3,7 +3,7 @@
 Not CI-gated — run manually from repo root to validate performance characteristics.
 
 Usage:
-    uv run python modelserver/eval/bench.py
+    uv run python eval/classifier/bench.py
 
 Env vars:
     MODELSERVER_URL    — default http://localhost:8001

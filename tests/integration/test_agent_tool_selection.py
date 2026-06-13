@@ -11,7 +11,9 @@ from pathlib import Path
 
 import yaml
 
-_GOLDEN = Path(__file__).resolve().parent.parent / "data" / "agent_tool_selection_golden.jsonl"
+_GOLDEN = (
+    Path(__file__).resolve().parent.parent.parent / "eval" / "agent" / "tool_selection_golden.jsonl"
+)
 _THRESHOLDS = Path(__file__).resolve().parent.parent.parent / "eval_thresholds.yaml"
 
 

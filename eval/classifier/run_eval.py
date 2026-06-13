@@ -1,11 +1,11 @@
 """Eval gate: load shipped classifier, score macro-F1, exit non-zero if below threshold.
 
 Usage (from repo root):
-    uv run python modelserver/eval/run_eval.py
+    uv run python eval/classifier/run_eval.py
 
 Env overrides:
     MODEL_DIR      — path to directory containing classifier.joblib (default: modelserver/models)
-    EVAL_SET_PATH  — path to eval_set.jsonl (default: modelserver/eval/eval_set.jsonl)
+    EVAL_SET_PATH  — path to eval_set.jsonl (default: eval/classifier/eval_set.jsonl)
     THRESHOLD_PATH — path to eval_thresholds.yaml (default: eval_thresholds.yaml)
 
 Exit codes:
@@ -77,9 +77,7 @@ def main() -> int:
         __import__("os").environ.get("MODEL_DIR", str(repo_root / "modelserver" / "models"))
     )
     eval_path = Path(
-        __import__("os").environ.get(
-            "EVAL_SET_PATH", str(repo_root / "modelserver" / "eval" / "eval_set.jsonl")
-        )
+        __import__("os").environ.get("EVAL_SET_PATH", str(Path(__file__).parent / "eval_set.jsonl"))
     )
     threshold_path = Path(
         __import__("os").environ.get("THRESHOLD_PATH", str(repo_root / "eval_thresholds.yaml"))

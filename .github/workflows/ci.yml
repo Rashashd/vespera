@@ -81,7 +81,7 @@ jobs:
       - name: Tests with coverage (80% overall gate)
         env:
           PANTERA_INTEGRATION: "1"
-          # PYTHONPATH needed so subprocess calls to run_eval.py can import modelserver.*
+          # PYTHONPATH needed so test_eval_gate.py can import/subprocess eval/classifier/run_eval.py
           PYTHONPATH: "."
           # Integration tests read DB/Redis URLs from Vault, not the environment; we keep
           # DATABASE_URL/REDIS_URL OUT of env so Settings() defaults stay clean for unit tests.
@@ -104,7 +104,7 @@ jobs:
         # estimate while keeping the job under 5 min on a shared runner.
         env:
           MAX_EVAL_EXAMPLES: "500"
-        run: PYTHONPATH=. uv run python modelserver/eval/run_eval.py
+        run: PYTHONPATH=. uv run python eval/classifier/run_eval.py
       - name: Sync app deps for triage eval (no torch/training group)
         run: uv sync --no-group training
       - name: Triage golden-set eval gate (recall>=0.90, precision>=0.75, SC-003)
