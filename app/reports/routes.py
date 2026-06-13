@@ -252,6 +252,7 @@ async def consolidate_batch_route(
     session: AsyncSession = Depends(get_session),
 ) -> ConsolidateResponse | None:
     """Consolidate pending_batch findings for a watchlist cycle into one batch report."""
+    # Capture all primitives inside the transaction (avoid post-commit attribute expiry).
     async with session.begin():
         report = await consolidate_batch(
             watchlist_id=watchlist_id,
@@ -261,29 +262,29 @@ async def consolidate_batch_route(
             session=session,
             dispatcher=request.app.state.dispatcher,
         )
+        if report is None:
+            result = None
+        else:
+            included = (
+                (
+                    await session.execute(
+                        select(ReportFinding).where(ReportFinding.report_id == report.id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            result = ConsolidateResponse(
+                report_id=report.id,
+                status=ReportStatus(report.status),
+                finding_count=len(included),
+            )
 
-    if report is None:
+    if result is None:
         from fastapi.responses import Response
 
         return Response(status_code=status.HTTP_204_NO_CONTENT)  # type: ignore[return-value]
-
-    # Count included findings
-    async with session.begin():
-        included = (
-            (
-                await session.execute(
-                    select(ReportFinding).where(ReportFinding.report_id == report.id)
-                )
-            )
-            .scalars()
-            .all()
-        )
-
-    return ConsolidateResponse(
-        report_id=report.id,
-        status=ReportStatus(report.status),
-        finding_count=len(included),
-    )
+    return result
 
 
 # ── Admin re-trigger for expedited draft ─────────────────────────────────────

@@ -252,12 +252,22 @@ async def edit_approve_report(
     if ReportStatus(report.status) not in _REVIEW_STATUSES:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="invalid_status_transition")
 
-    # Tag all supplied claims as reviewer_attested (grounding gate doesn't apply — FR-017)
-    attested_fields = [
-        {**c, "provenance": "reviewer_attested"}
-        for c in (structured_fields or report.structured_fields)
-    ]
-    report.structured_fields = attested_fields
+    # Preserve provenance for claims left unchanged; tag only edited/new claims as
+    # reviewer_attested (FR-017/D5). Match against original claims by (field, text).
+    original_grounded = {
+        (c.get("field"), c.get("text")): c
+        for c in (report.structured_fields or [])
+        if c.get("provenance") == "drafted_grounded"
+    }
+    submitted = structured_fields if structured_fields else list(report.structured_fields or [])
+    merged_fields = []
+    for c in submitted:
+        match = original_grounded.get((c.get("field"), c.get("text")))
+        if match is not None:
+            merged_fields.append(match)  # unchanged → keep drafted_grounded + source_ref
+        else:
+            merged_fields.append({**c, "provenance": "reviewer_attested"})
+    report.structured_fields = merged_fields
     report.draft_body = draft_body or report.draft_body
     report.status = ReportStatus.APPROVED
     report.updated_at = _now()
@@ -319,10 +329,11 @@ async def reject_report(
             "ts": _now().isoformat(),
         }
     ]
-    if new_revision_count >= redraft_cap:
+    # Allow `redraft_cap` redraft rounds; escalate on the (cap+1)th rejection (FR-016/SC-005).
+    if new_revision_count > redraft_cap:
         report.status = ReportStatus.NEEDS_MANUAL_REVISION
     else:
-        report.status = ReportStatus.DRAFTED  # will be updated to drafted after redraft run
+        report.status = ReportStatus.DRAFTED  # redraft run will refresh the body
     report.updated_at = _now()
 
     await dispatcher.dispatch(

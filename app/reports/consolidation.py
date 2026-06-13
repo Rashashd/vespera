@@ -158,22 +158,32 @@ async def consolidate_batch(
 
 
 def _build_batch_structured_fields(findings: list[Finding]) -> list[dict]:
-    """Build a claim list grouping findings by reaction."""
-    claims: list[dict] = []
-    by_reaction: dict[str, list[Finding]] = {}
-    for f in findings:
-        by_reaction.setdefault(f.reaction, []).append(f)
+    """Build a claim list, split into positive and minor sections, grouped by reaction (FR-012).
 
-    for reaction, group in by_reaction.items():
-        drugs = sorted({f.drug for f in group})
-        claims.append(
-            {
-                "field": "Reaction",
-                "text": f"{reaction} reported for: {', '.join(drugs)} ({len(group)} findings)",
-                "provenance": "drafted_grounded",
-                "source_ref": None,
-            }
-        )
+    Batch summary lines aggregate already-grounded findings, so they carry the
+    `aggregated` provenance (no single source passage) and are exempt from the
+    per-claim grounding gate (SC-001 covers machine-drafted, passage-grounded claims).
+    """
+    claims: list[dict] = []
+    for bucket_value, section in (
+        ("positive", "Positive findings"),
+        ("minor", "Minor adverse events"),
+    ):
+        group_findings = [f for f in findings if f.bucket == bucket_value]
+        by_reaction: dict[str, list[Finding]] = {}
+        for f in group_findings:
+            by_reaction.setdefault(f.reaction, []).append(f)
+        for reaction, group in by_reaction.items():
+            drugs = sorted({f.drug for f in group})
+            claims.append(
+                {
+                    "field": "Reaction",
+                    "section": section,
+                    "text": f"{reaction} reported for: {', '.join(drugs)} ({len(group)} findings)",
+                    "provenance": "aggregated",
+                    "source_ref": None,
+                }
+            )
     return claims
 
 

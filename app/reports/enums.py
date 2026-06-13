@@ -31,6 +31,8 @@ class ClaimProvenance(StrEnum):
 
     DRAFTED_GROUNDED = "drafted_grounded"
     REVIEWER_ATTESTED = "reviewer_attested"
+    # Batch summary lines aggregate already-grounded findings; not tied to one passage.
+    AGGREGATED = "aggregated"
 
 
 class FindingReportState(StrEnum):

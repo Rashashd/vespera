@@ -19,7 +19,7 @@ def _make_finding(
     id: int = 1,
     drug: str = "Warfarin",
     reaction: str = "bleeding",
-    bucket: str = "urgent",
+    bucket: str = "minor",  # batches only ever contain minor/positive findings
     document_id: int = 100,
     client_id: int = 10,
     status: str = "pending_batch",
@@ -65,10 +65,11 @@ class TestBuildBatchStructuredFields:
         assert "Warfarin" in bleeding_claim["text"]
         assert "2 findings" in bleeding_claim["text"]
 
-    def test_provenance_is_drafted_grounded(self):
+    def test_provenance_is_aggregated(self):
         findings = [_make_finding()]
         claims = _build_batch_structured_fields(findings)
-        assert all(c["provenance"] == "drafted_grounded" for c in claims)
+        # Batch summary lines aggregate already-grounded findings (not passage-grounded).
+        assert all(c["provenance"] == "aggregated" for c in claims)
 
     def test_drugs_sorted_alphabetically(self):
         findings = [

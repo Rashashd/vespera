@@ -126,10 +126,10 @@ class TestRejectAndRedraftCap:
         assert result.status == ReportStatus.DRAFTED
 
     @pytest.mark.asyncio
-    async def test_third_rejection_triggers_needs_manual_revision(self):
+    async def test_third_rejection_still_redrafts(self):
         from app.reports import service as svc
 
-        # revision_count=2 + this rejection = 3 which is >= cap(3)
+        # revision_count=2 + this rejection = 3 == cap(3): still a redraft round (FR-016/SC-005)
         report = _make_report(status="drafted", revision_count=2)
         session = AsyncMock()
         session.get = AsyncMock(return_value=report)
@@ -140,14 +140,38 @@ class TestRejectAndRedraftCap:
             report_id=1,
             client_id=10,
             reviewer=_make_reviewer(),
-            comment="Still not good",
+            comment="Third round, redraft again",
+            redraft_cap=3,
+            session=session,
+            dispatcher=dispatcher,
+        )
+
+        assert result.status == ReportStatus.DRAFTED
+        assert result.revision_count == 3
+
+    @pytest.mark.asyncio
+    async def test_fourth_rejection_triggers_needs_manual_revision(self):
+        from app.reports import service as svc
+
+        # revision_count=3 + this rejection = 4 > cap(3): escalate on the 4th rejection
+        report = _make_report(status="drafted", revision_count=3)
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=report)
+        dispatcher = AsyncMock()
+        dispatcher.dispatch = AsyncMock()
+
+        result = await svc.reject_report(
+            report_id=1,
+            client_id=10,
+            reviewer=_make_reviewer(),
+            comment="Still not good after 3 redrafts",
             redraft_cap=3,
             session=session,
             dispatcher=dispatcher,
         )
 
         assert result.status == ReportStatus.NEEDS_MANUAL_REVISION
-        assert result.revision_count == 3
+        assert result.revision_count == 4
 
     @pytest.mark.asyncio
     async def test_rejection_comment_appended_to_history(self):
