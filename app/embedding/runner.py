@@ -13,7 +13,8 @@ from app.core.config import get_settings
 from app.embedding.chunking import Chunker
 from app.embedding.enums import DocumentIndexStatus, IndexBuildRunStatus
 from app.embedding.models import Chunk, IndexBuildRun
-from app.embedding.router import ParseError, route
+from app.embedding.parsers.base import ParseError
+from app.embedding.parsers.router import route
 from app.embedding.service import IndexBuildService
 from app.embedding.tokenizer import EmbedderTokenizer
 from app.infra.modelserver_client import ModelserverClient

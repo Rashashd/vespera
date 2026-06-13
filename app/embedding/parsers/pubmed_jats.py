@@ -30,7 +30,7 @@ class PubMedParser:
         try:
             root = etree.fromstring(raw_payload.encode("utf-8"))
         except etree.XMLSyntaxError as e:
-            from app.embedding.router import ParseError
+            from app.embedding.parsers.base import ParseError
 
             raise ParseError(f"Failed to parse JATS XML: {e}", is_transient=False) from e
 

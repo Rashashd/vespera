@@ -1,9 +1,17 @@
-"""Parser protocol and ParsedChunk dataclass."""
+"""Parser protocol, ParsedChunk dataclass, and the shared ParseError."""
 
 from dataclasses import dataclass
 from typing import Protocol
 
 from app.embedding.enums import ChunkType
+
+
+class ParseError(Exception):
+    """Raised when a parser fails; `is_transient` distinguishes retryable from permanent."""
+
+    def __init__(self, message: str, is_transient: bool = False) -> None:
+        super().__init__(message)
+        self.is_transient = is_transient
 
 
 @dataclass
