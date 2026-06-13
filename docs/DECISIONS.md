@@ -80,7 +80,7 @@ Full rationale in `specs/005-modelserver/research.md` (D1–D16).
 - **Lean image via uv group isolation** — `uv sync --only-group modelserver --no-install-project`
   installs only the 9-package serving set; torch/transformers live in `training` group (offline
   only). Target < 500 MB (D1).
-- **Eval gate at macro-F1 ≥ 0.80** — `eval_thresholds.yaml` + `modelserver/eval/run_eval.py`
+- **Eval gate at macro-F1 ≥ 0.80** — `eval_thresholds.yaml` + `eval/classifier/run_eval.py`
   block merges that regress classifier quality; runs in its own lean CI job (D10/FR-013).
 - **768-dim L2-normalised embeddings** — output shape fixed for downstream cosine search;
   mean-pool with attention-mask weighting; normalised to unit sphere so dot-product = cosine

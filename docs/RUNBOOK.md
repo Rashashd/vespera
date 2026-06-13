@@ -181,7 +181,7 @@ Chunks are stored in the `chunks` table with:
 Operational notes for the modelserver — a lean, stateless inference container (FastAPI +
 onnxruntime + numpy + no-torch tokenizers). Source layout: `modelserver/core/` (config, logging,
 auth, manifest, startup), `modelserver/inference/` (classifier, embedder, tokenize),
-`modelserver/eval/` (run_eval, bench), `modelserver/models/` (committed artifacts).
+`eval/classifier/` (run_eval, bench), `modelserver/models/` (committed artifacts).
 
 ### Image size check (< 500 MB)
 
@@ -227,7 +227,7 @@ needs no code change:
 ```bash
 uv run python scripts/generate_model_artifacts.py     # minimal dev artifacts
 # OR run notebooks/01_train_export_modelserver.ipynb   # production BiomedBERT
-uv run python modelserver/eval/run_eval.py            # must print PASS (macro-F1 >= 0.80)
+uv run python eval/classifier/run_eval.py            # must print PASS (macro-F1 >= 0.80)
 docker compose build modelserver && docker compose up -d --wait modelserver
 curl http://localhost:8001/ready                      # should show new sha256 values
 ```

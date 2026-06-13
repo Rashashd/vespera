@@ -12,7 +12,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import yaml
 
-_GOLDEN = Path(__file__).resolve().parent.parent / "data" / "report_grounding_golden.jsonl"
+_GOLDEN = (
+    Path(__file__).resolve().parent.parent.parent
+    / "eval"
+    / "agent"
+    / "report_grounding_golden.jsonl"
+)
 _THRESHOLDS = Path(__file__).resolve().parent.parent.parent / "eval_thresholds.yaml"
 
 

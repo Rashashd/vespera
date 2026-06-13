@@ -93,7 +93,7 @@ def test_eval_passes_at_threshold(tmp_path):
     result = subprocess.run(
         [
             sys.executable,
-            str(Path(__file__).parent.parent.parent / "modelserver" / "eval" / "run_eval.py"),
+            str(Path(__file__).parent.parent.parent / "eval" / "classifier" / "run_eval.py"),
         ],
         capture_output=True,
         text=True,
@@ -127,7 +127,7 @@ def test_eval_fails_below_threshold(tmp_path):
     result = subprocess.run(
         [
             sys.executable,
-            str(Path(__file__).parent.parent.parent / "modelserver" / "eval" / "run_eval.py"),
+            str(Path(__file__).parent.parent.parent / "eval" / "classifier" / "run_eval.py"),
         ],
         capture_output=True,
         text=True,
@@ -151,7 +151,7 @@ def test_eval_missing_classifier_exits_1(tmp_path):
     result = subprocess.run(
         [
             sys.executable,
-            str(Path(__file__).parent.parent.parent / "modelserver" / "eval" / "run_eval.py"),
+            str(Path(__file__).parent.parent.parent / "eval" / "classifier" / "run_eval.py"),
         ],
         capture_output=True,
         text=True,
@@ -171,7 +171,7 @@ def test_eval_with_real_shipped_artifacts():
     """The real shipped classifier must pass the real eval gate."""
     repo_root = str(Path(__file__).parent.parent.parent)
     result = subprocess.run(
-        [sys.executable, "modelserver/eval/run_eval.py"],
+        [sys.executable, "eval/classifier/run_eval.py"],
         capture_output=True,
         text=True,
         cwd=repo_root,
@@ -187,7 +187,7 @@ def test_eval_with_real_shipped_artifacts():
 @pytest.mark.skipif(os.getenv("CI") != "true", reason="OOM on low-RAM machines; CI-only")
 def test_eval_main_in_process_pass(tmp_path):
     """Call main() in-process for coverage (uses shipped artifacts)."""
-    from modelserver.eval.run_eval import main
+    from eval.classifier.run_eval import main
 
     repo_root = Path(__file__).parent.parent.parent
     _prev_model_dir = os.environ.get("MODEL_DIR")
@@ -208,7 +208,7 @@ def test_eval_main_in_process_pass(tmp_path):
 
 def test_eval_main_in_process_fail(tmp_path):
     """main() returns 1 when threshold exceeds maximum possible F1."""
-    from modelserver.eval.run_eval import main
+    from eval.classifier.run_eval import main
 
     clf_path = tmp_path / "classifier.joblib"
     _make_always_correct_clf(clf_path)
@@ -240,7 +240,7 @@ def test_eval_main_in_process_fail(tmp_path):
 
 def test_eval_main_missing_classifier(tmp_path):
     """main() returns 1 when no classifier artifact exists."""
-    from modelserver.eval.run_eval import main
+    from eval.classifier.run_eval import main
 
     eval_data = [{"text": "test", "label": 0}]
     eval_path = tmp_path / "eval_set.jsonl"

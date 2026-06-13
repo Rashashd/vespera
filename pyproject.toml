@@ -93,7 +93,7 @@ branch = true
 # after `await session...` are measured (else they read as uncovered).
 concurrency = ["thread", "greenlet"]
 # Operational scripts — not library code; manually invoked, not testable in CI
-omit = ["modelserver/eval/bench.py"]
+omit = ["eval/classifier/bench.py"]
 
 [tool.coverage.report]
 show_missing = true

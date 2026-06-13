@@ -1,6 +1,6 @@
 """Triage golden-set eval gate: recall>=0.90, precision>=0.75, FN<=FP (SC-003).
 
-Reads tests/data/triage_golden_set.jsonl and eval_thresholds.yaml.
+Reads eval/triage/golden_set.jsonl and eval_thresholds.yaml.
 Self-contained — mocks modelserver and LLM; no database or PANTERA_INTEGRATION required.
 """
 
@@ -17,7 +17,7 @@ from app.triage.classify import resolve_adverse
 from app.triage.enums import Bucket
 from app.triage.severity import assign_bucket
 
-_GOLDEN_SET = Path(__file__).resolve().parent.parent / "data" / "triage_golden_set.jsonl"
+_GOLDEN_SET = Path(__file__).resolve().parent.parent.parent / "eval" / "triage" / "golden_set.jsonl"
 _THRESHOLDS = Path(__file__).resolve().parent.parent.parent / "eval_thresholds.yaml"
 
 _EXPEDITED_BUCKETS = {Bucket.URGENT, Bucket.EMERGENCY}
