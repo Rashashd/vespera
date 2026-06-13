@@ -38,27 +38,25 @@ async def draft_expedited(finding_id: int, app_state: object) -> None:
                 log.warning("draft_expedited.client_not_found", client_id=finding.client_id)
                 return
 
-            # Build the modelserver client for retrieval
-            from app.infra.modelserver_client import ModelserverClient
-
-            ms_client = ModelserverClient(settings)
-
+            # Build the modelserver client for retrieval (must be entered so its HTTP client exists)
             from app.agent.graph import run_agent
+            from app.infra.modelserver_client import ModelserverClient
 
             log.info(
                 "draft_expedited.start",
                 client_id=finding.client_id,
                 bucket=finding.bucket,
             )
-            outcome = await run_agent(
-                finding=finding,
-                client=client,
-                session=session,
-                redis=redis,
-                ms_client=ms_client,
-                app_state=app_state,
-                settings=settings,
-            )
+            async with ModelserverClient.from_settings(settings) as ms_client:
+                outcome = await run_agent(
+                    finding=finding,
+                    client=client,
+                    session=session,
+                    redis=redis,
+                    ms_client=ms_client,
+                    app_state=app_state,
+                    settings=settings,
+                )
 
             if outcome["escalated"]:
                 await persist_operator_alert(
@@ -77,12 +75,21 @@ async def draft_expedited(finding_id: int, app_state: object) -> None:
                 dispatcher=dispatcher,
             )
 
-            # Emergency findings also get a follow-up artifact
-            if finding.bucket == Bucket.EMERGENCY and outcome.get("followup_result"):
+            # Emergency findings MUST get a follow-up artifact (FR-006) — deterministic, not
+            # contingent on the agent choosing to call draft_followup (it is a fixed template).
+            if finding.bucket == Bucket.EMERGENCY:
+                followup_result = outcome.get("followup_result") or {
+                    "template_ref": "emergency_author_outreach_v1",
+                    "cover_message": (
+                        f"A life-threatening adverse event has been identified: {finding.drug} "
+                        f"associated with {finding.reaction}. Please complete and return the "
+                        f"attached reporting form."
+                    ),
+                }
                 await create_followup(
                     finding=finding,
                     report=report,
-                    followup_result=outcome["followup_result"],
+                    followup_result=followup_result,
                     session=session,
                 )
 
@@ -139,24 +146,22 @@ async def redraft_report(
                 log.warning("redraft.finding_not_found")
                 return
 
+            from app.agent.graph import run_agent
             from app.infra.modelserver_client import ModelserverClient
 
-            ms_client = ModelserverClient(settings)
-
-            from app.agent.graph import run_agent
-
             log.info("redraft.start", revision_count=report.revision_count)
-            outcome = await run_agent(
-                finding=finding,
-                client=client,
-                session=session,
-                redis=redis,
-                ms_client=ms_client,
-                app_state=app_state,
-                settings=settings,
-                prior_draft_body=report.draft_body or "",
-                redraft_comment=comment,
-            )
+            async with ModelserverClient.from_settings(settings) as ms_client:
+                outcome = await run_agent(
+                    finding=finding,
+                    client=client,
+                    session=session,
+                    redis=redis,
+                    ms_client=ms_client,
+                    app_state=app_state,
+                    settings=settings,
+                    prior_draft_body=report.draft_body or "",
+                    redraft_comment=comment,
+                )
 
             if outcome["escalated"]:
                 await persist_operator_alert(

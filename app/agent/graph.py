@@ -29,12 +29,13 @@ def _build_compiled_graph(
     redis: Any,
     ms_client: Any,
     client: Any,
+    app_state: Any,
     finding: Finding,
 ) -> Any:
     """Build and compile the bounded StateGraph for one agent run."""
     from app.agent.llm_binding import build_agent_chat_model
 
-    tools = make_tools(session, redis, ms_client, client, finding=finding)
+    tools = make_tools(session, redis, ms_client, client, app_state, finding=finding)
     tool_map = {t.name: t for t in tools}
     chat_model = build_agent_chat_model(settings).bind_tools(tools)
 
@@ -187,7 +188,9 @@ async def run_agent(
         "redraft_comment": redraft_comment,
     }
 
-    compiled = _build_compiled_graph(settings, session, redis, ms_client, client, finding)
+    compiled = _build_compiled_graph(
+        settings, session, redis, ms_client, client, app_state, finding
+    )
 
     try:
         final_state = await compiled.ainvoke(initial_state)
