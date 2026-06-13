@@ -13,6 +13,7 @@ from app.core.startup import load_secrets_from_vault
 from app.db import models  # noqa: F401  (registers ORM tables)
 from app.db.base import Base
 from app.embedding import models as embedding_models  # noqa: F401  (registers spec-6 tables)
+from app.reports import models as reports_models  # noqa: F401  (registers spec-9 tables)
 from app.triage import models as triage_models  # noqa: F401  (registers spec-8 tables)
 
 target_metadata = Base.metadata

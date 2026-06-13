@@ -65,6 +65,13 @@ class Settings(BaseSettings):
     triage_staleness_max_age_minutes: int = 30
     triage_llm_max_tokens: int = 256
 
+    # --- Report drafting agent (spec 9) ---
+    agent_max_iterations: int = 8
+    agent_max_tokens: int = 8000
+    agent_llm_max_tokens: int = 2048
+    report_redraft_cap: int = 3
+    expedited_sla_hours: int = 24
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -14,11 +14,18 @@ class Bucket(StrEnum):
 
 
 class FindingStatus(StrEnum):
-    """Queue routing status; bucket→status invariant enforced in routing.py."""
+    """Queue routing status; bucket→status invariant enforced in routing.py (spec 8).
+
+    Spec-9 additions: processing/reported/discarded (widened CHECK in migration 0008).
+    """
 
     PENDING_EXPEDITED = "pending_expedited"
     PENDING_BATCH = "pending_batch"
     CLASSIFIED = "classified"
+    # Spec 9: report-lifecycle states
+    PROCESSING = "processing"
+    REPORTED = "reported"
+    DISCARDED = "discarded"
 
 
 class ResolutionPath(StrEnum):

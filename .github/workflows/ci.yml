@@ -109,3 +109,7 @@ jobs:
         run: uv sync --no-group training
       - name: Triage golden-set eval gate (recall>=0.90, precision>=0.75, SC-003)
         run: PYTHONPATH=. uv run pytest tests/integration/test_triage_eval.py -v
+      - name: Agent tool-selection eval gate (accuracy>=0.85, SC-002)
+        run: PYTHONPATH=. uv run pytest tests/integration/test_agent_tool_selection.py -v
+      - name: Report grounding eval gate (grounding>=0.90, SC-001/SC-010)
+        run: PYTHONPATH=. uv run pytest tests/integration/test_report_grounding.py -v

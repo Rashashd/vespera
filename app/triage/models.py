@@ -51,7 +51,8 @@ class Finding(Base):
             name="ck_findings_bucket",
         ),
         CheckConstraint(
-            "status IN ('pending_expedited','pending_batch','classified')",
+            "status IN ('pending_expedited','pending_batch','classified',"
+            "'processing','reported','discarded')",
             name="ck_findings_status",
         ),
         CheckConstraint(

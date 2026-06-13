@@ -8,3 +8,6 @@ rag:
 triage:
   recall_min: 0.90
   precision_min: 0.75
+agent:
+  tool_selection_accuracy_min: 0.85
+  report_grounding_min: 0.90

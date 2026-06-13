@@ -15,6 +15,7 @@ class Cadence(StrEnum):
 
     DAILY = "daily"
     WEEKLY = "weekly"
+    BIWEEKLY = "biweekly"
     MONTHLY = "monthly"
 
 

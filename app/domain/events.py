@@ -214,3 +214,63 @@ class IndexBuildTriggered(DomainEvent):
     """A manager/admin triggered an index build for a client's document corpus."""
 
     run_id: int = 0
+
+
+# --- Report drafting events (spec 9); auto-audited via DomainEvent.__subclasses__ (D14). ---
+
+
+@dataclass(frozen=True, slots=True)
+class ReportDrafted(DomainEvent):
+    """The agent produced a new draft report (expedited or batch)."""
+
+    report_id: int = 0
+    report_type: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ReportEdited(DomainEvent):
+    """A reviewer edited a report before approving (provenance → reviewer_attested)."""
+
+    report_id: int = 0
+    report_type: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ReportRejected(DomainEvent):
+    """A reviewer rejected a draft, triggering a redraft run."""
+
+    report_id: int = 0
+    report_type: str = ""
+    revision_count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class ReportDiscarded(DomainEvent):
+    """A reviewer or the system discarded a report (terminal state)."""
+
+    report_id: int = 0
+    report_type: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class FindingDiscarded(DomainEvent):
+    """A finding was permanently discarded from the reporting pipeline."""
+
+    finding_id: int = 0
+    kind: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ReportOperatorAlert(DomainEvent):
+    """The agent failed to produce a groundable draft; operator intervention needed."""
+
+    finding_id: int = 0
+    reason: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class BatchConsolidated(DomainEvent):
+    """A batch report was consolidated for a watchlist cycle."""
+
+    watchlist_id: int = 0
+    report_id: int = 0

@@ -1,0 +1,117 @@
+"""Pydantic boundary schemas for the reports API (no ORM leakage)."""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+from app.reports.enums import ClaimProvenance, FindingReportState, ReportStatus, ReportType
+
+
+class Claim(BaseModel):
+    """One structured claim in a report's claim list (FR-004)."""
+
+    text: str
+    provenance: ClaimProvenance
+    source_ref: str | None = None
+
+
+class ReportResponse(BaseModel):
+    """Full report response for GET /clients/{id}/reports/{rid} (FR-020)."""
+
+    id: int
+    client_id: int
+    report_type: ReportType
+    status: ReportStatus
+    structured_fields: list[Claim]
+    draft_body: str | None
+    corroboration_count: int
+    corroboration_sources: list[dict] | None
+    revision_count: int
+    reviewer_comments: list[dict]
+    sla_deadline: datetime | None
+    watchlist_id: int | None
+    cycle_period_start: datetime | None
+    cycle_period_end: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ReportSummary(BaseModel):
+    """Compact report entry for the reviewer queue list (GET /clients/{id}/reports)."""
+
+    id: int
+    client_id: int
+    report_type: ReportType
+    status: ReportStatus
+    corroboration_count: int
+    revision_count: int
+    sla_deadline: datetime | None
+    watchlist_id: int | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ApproveRequest(BaseModel):
+    """Body for POST .../reports/{rid}/approve (no payload required; included for future use)."""
+
+    pass
+
+
+class EditApproveRequest(BaseModel):
+    """Body for POST .../reports/{rid}/edit-approve; reviewer supplies corrected content."""
+
+    draft_body: str = Field(..., min_length=1)
+    structured_fields: list[Claim] = Field(default_factory=list)
+    comment: str = Field("", max_length=2000)
+
+
+class RejectRequest(BaseModel):
+    """Body for POST .../reports/{rid}/reject; reviewer must provide a redraft comment."""
+
+    comment: str = Field(..., min_length=1, max_length=2000)
+
+
+class DiscardRequest(BaseModel):
+    """Body for POST .../reports/{rid}/discard."""
+
+    reason: str = Field("", max_length=2000)
+
+
+class FindingDropRequest(BaseModel):
+    """Body for POST .../findings/{fid}/drop (puts finding back to pending_batch)."""
+
+    pass
+
+
+class FindingDiscardRequest(BaseModel):
+    """Body for POST .../findings/{fid}/discard (permanently discards the finding)."""
+
+    reason: str = Field("", max_length=2000)
+
+
+class ReportFindingResponse(BaseModel):
+    """One finding link entry within a batch report."""
+
+    id: int
+    report_id: int
+    finding_id: int
+    client_id: int
+    report_type: ReportType
+    state: FindingReportState
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ConsolidateResponse(BaseModel):
+    """Response for POST .../watchlists/{wid}/consolidate-batch."""
+
+    report_id: int
+    status: ReportStatus
+    finding_count: int

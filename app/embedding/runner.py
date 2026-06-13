@@ -27,6 +27,7 @@ async def index_build_runner(
     modelserver_client: ModelserverClient | None = None,
     triggered_by_user_id: int | None = None,
     dispatcher: Any = None,
+    app_state: Any = None,
 ) -> IndexBuildRun:
     """Execute a full index build: parse → chunk → embed → persist (FR-009/FR-010/FR-025).
 
@@ -104,6 +105,7 @@ async def index_build_runner(
                 modelserver_client,
                 client_id,
                 dispatcher,
+                app_state,
             )
             if success is None:
                 documents_skipped += 1
@@ -155,6 +157,7 @@ async def _process_document(
     modelserver_client: ModelserverClient,
     client_id: int,
     dispatcher: Any = None,
+    app_state: Any = None,
 ) -> tuple[bool | None, int]:
     """Process a single document: parse → chunk → embed → persist (atomic per-doc, FR-028).
 
@@ -368,6 +371,7 @@ async def _process_document(
                 client_id=client_id,
                 modelserver_client=modelserver_client,
                 dispatcher=dispatcher,
+                app_state=app_state,
             )
 
         return (True, len(chunk_rows))
@@ -402,11 +406,9 @@ async def _triage_after_index(
     client_id: int,
     modelserver_client: ModelserverClient,
     dispatcher: Any,
+    app_state: Any = None,
 ) -> None:
-    """Call triage after successful embedding; swallows all errors (FR-009).
-
-    Joins chunk texts for NER; loads watchlist drugs and custom keywords from the DB.
-    """
+    """Call triage then schedule expedited drafting for urgent/emergency findings (FR-009)."""
     try:
         from app.clients.models import Client, WatchlistItem
         from app.triage.runner import triage_document_runner
@@ -441,7 +443,7 @@ async def _triage_after_index(
             )
             return
 
-        await triage_document_runner(
+        outcomes = await triage_document_runner(
             session_factory=session_factory,
             document_id=document.id,
             client_id=client_id,
@@ -452,6 +454,20 @@ async def _triage_after_index(
             ms_client=modelserver_client,
             dispatcher=dispatcher,
         )
+
+        # Schedule expedited drafting for urgent/emergency findings (spec 9).
+        # Triage already committed, so findings are durable before we schedule.
+        if app_state is not None:
+            from app.reports.runner import draft_expedited
+            from app.triage.enums import Bucket
+
+            for outcome in outcomes:
+                if (
+                    outcome.created
+                    and outcome.finding_id is not None
+                    and outcome.bucket in (Bucket.URGENT, Bucket.EMERGENCY)
+                ):
+                    asyncio.create_task(draft_expedited(outcome.finding_id, app_state))
     except Exception as exc:
         _log.error(
             "triage.after_index.failed",
