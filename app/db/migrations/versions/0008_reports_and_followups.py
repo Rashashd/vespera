@@ -53,7 +53,7 @@ def upgrade() -> None:
             "structured_fields",
             postgresql.JSONB(),
             nullable=False,
-            server_default="'[]'::jsonb",
+            server_default=sa.text("'[]'::jsonb"),
         ),
         sa.Column("draft_body", sa.Text(), nullable=True),
         sa.Column("corroboration_count", sa.Integer(), nullable=False, server_default="0"),
