@@ -9,12 +9,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ReportSummary } from "@/api/schemas";
 
-const BUCKET_BAR: Record<string, string> = {
-  // bucket can't be derived from ReportSummary; use report_type as a proxy for color
-  expedited: "border-l-4 border-amber-500",
-  batch: "border-l-4 border-primary/30",
-};
-
 function sortQueue(reports: ReportSummary[]): ReportSummary[] {
   return [...reports].sort((a, b) => {
     // Expedited first
