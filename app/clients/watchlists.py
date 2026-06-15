@@ -64,6 +64,7 @@ async def create_watchlist(
     cadence: str,
     severity_threshold: str,
     budget_amount: Decimal | None,
+    budget_exceeded_policy: str = "continue",
     items: list[tuple[str, str]],
 ) -> Watchlist:
     """Create a watchlist with ≥1 de-duplicated item; the unique index enforces the name."""
@@ -78,6 +79,7 @@ async def create_watchlist(
         cadence=cadence,
         severity_threshold=severity_threshold,
         budget_amount=budget_amount,
+        budget_exceeded_policy=budget_exceeded_policy,
         is_active=True,
     )
     for item_type, value in deduped:

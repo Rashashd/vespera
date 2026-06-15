@@ -84,6 +84,14 @@ class Settings(BaseSettings):
     # unredacted clinical text on the agent path — keep OFF in production until Presidio (spec 12).
     tracing_enabled: bool = False
 
+    # --- ARQ worker / scheduler / dead-letter (spec 11) ---
+    jobs_inline: bool = False  # dev/test only; prod assertion forbids True (SC-008)
+    worker_max_jobs: int = 10  # bounds expedited fan-out (FR-015c)
+    worker_job_timeout: int = 600  # per-job seconds (index/draft can be slow)
+    worker_shutdown_grace_seconds: int = 600  # default = job timeout (FR-012)
+    scheduler_tick_cron_minute: int = 0  # hourly tick
+    dead_letter_retention_days: int = 90  # FR-009a
+
     # Per-1K-token prices in USD, keyed by pinned model id.
     # Units: USD per 1,000 tokens (input or output). Currency: USD.
     # anthropic claude-3-5-sonnet-20241022: $3/$15 per M tokens = $0.003/$0.015 per 1K

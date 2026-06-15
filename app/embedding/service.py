@@ -16,28 +16,32 @@ class IndexBuildService:
 
     @staticmethod
     async def create_run(
-        session: AsyncSession, client_id: int, triggered_by_user_id: int | None = None
+        session: AsyncSession,
+        client_id: int,
+        triggered_by_user_id: int | None = None,
+        watchlist_id: int | None = None,
     ) -> tuple[IndexBuildRun, bool]:
         """Create a new index build run, or return the in-flight one (FR-026).
 
-        The partial-unique index on (client_id) WHERE status='running' ensures at most one
-        per client is in-flight. Returns ``(run, created)`` where ``created`` is True only when
-        a brand-new run was inserted — callers use it to avoid launching a second runner.
+        watchlist_id=None → client-wide manual build (G2).
+        watchlist_id=N → watchlist-scoped cycle build (spec 11 D7).
+        Returns (run, created).
         """
-        # Check if a run is already in-flight for this client
+        # Check if a run is already in-flight for this client + watchlist scope
         stmt = select(IndexBuildRun).where(
             and_(
                 IndexBuildRun.client_id == client_id,
                 IndexBuildRun.status == IndexBuildRunStatus.RUNNING,
+                IndexBuildRun.watchlist_id == watchlist_id,
             )
         )
         existing = (await session.execute(stmt)).scalars().first()
         if existing:
             return existing, False
 
-        # Create a new run
         run = IndexBuildRun(
             client_id=client_id,
+            watchlist_id=watchlist_id,
             triggered_by_user_id=triggered_by_user_id,
             status=IndexBuildRunStatus.RUNNING,
         )
@@ -173,25 +177,30 @@ class IndexBuildService:
         await session.flush()
 
     @staticmethod
-    async def get_documents_to_index(session: AsyncSession, client_id: int) -> list[Document]:
+    async def get_documents_to_index(
+        session: AsyncSession,
+        client_id: int,
+        watchlist_id: int | None = None,
+    ) -> list[Document]:
         """Get documents ready for indexing for a client (FR-020, FR-009).
 
-        Returns documents that are:
-        - Linked to at least one active watchlist (FR-020)
-        - In state: not_indexed OR errored_transient (eligible for processing)
-        - NOT already indexed or in permanent error state
+        watchlist_id=None → client-wide (manual build, original behavior).
+        watchlist_id=N → only documents linked to that specific watchlist (D7).
 
-        Idempotency guarantee: excludes indexed/indexed_empty/errored_permanent.
+        Returns documents in state: not_indexed OR errored_transient that are linked to
+        at least one active watchlist (or the specified watchlist).
         """
-        # Subquery: get document IDs linked to at least one active watchlist
+        watchlist_filter = Watchlist.is_active.is_(True)
+        if watchlist_id is not None:
+            watchlist_filter = and_(Watchlist.id == watchlist_id, Watchlist.is_active.is_(True))
+
         active_watchlist_docs = (
             select(DocumentWatchlist.document_id)
             .distinct()
             .join(Watchlist, DocumentWatchlist.watchlist_id == Watchlist.id)
-            .where(Watchlist.is_active.is_(True))
+            .where(watchlist_filter)
         )
 
-        # Main query: get documents with eligible status
         stmt = (
             select(Document)
             .where(
@@ -206,11 +215,8 @@ class IndexBuildService:
             )
             .where(
                 or_(
-                    # Not yet indexed at all
                     DocumentIndexState.id.is_(None),
-                    # Transient failure (eligible for retry)
                     DocumentIndexState.status == DocumentIndexStatus.ERRORED_TRANSIENT,
-                    # Not yet indexed status
                     DocumentIndexState.status == DocumentIndexStatus.NOT_INDEXED,
                 )
             )

@@ -26,6 +26,7 @@ from app.reports.metrics_routes import router as metrics_router
 from app.reports.passages import router as passages_router
 from app.reports.portal_routes import router as portal_router
 from app.reports.routes import router as reports_router
+from app.scheduling.routes import router as scheduling_router
 from app.triage.routes import router as triage_router
 
 
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(portal_router)  # spec 10: portal reports (FR-030) + findings (FR-031)
     app.include_router(metrics_router)  # spec 10: GET /clients/{id}/metrics ops dashboard
     app.include_router(usage_router)  # spec 10: GET /clients/{id}/usage cost dashboard
+    app.include_router(scheduling_router)  # spec 11: cycles, dead-letters admin
     # Rate-limit machinery (FR-011): a default in-memory limiter so the middleware works
     # before startup; the lifespan upgrades app.state.limiter to the Redis-backed one.
     app.state.limiter = Limiter(key_func=get_remote_address)

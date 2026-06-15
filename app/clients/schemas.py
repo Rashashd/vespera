@@ -167,6 +167,7 @@ class WatchlistCreate(BaseModel):
     cadence: Cadence = Cadence.WEEKLY
     severity_threshold: SeverityLevel = SeverityLevel.SERIOUS
     budget_amount: Decimal | None = Field(default=None, ge=0)
+    budget_exceeded_policy: str = "continue"
     items: list[WatchlistItemAdd]
 
     _check_name = field_validator("name")(lambda cls, v: _clean_name(v))
@@ -179,6 +180,7 @@ class WatchlistUpdate(BaseModel):
     cadence: Cadence | None = None
     severity_threshold: SeverityLevel | None = None
     budget_amount: Decimal | None = Field(default=None, ge=0)
+    budget_exceeded_policy: str | None = None
     is_active: bool | None = None
 
     _check_name = field_validator("name")(lambda cls, v: _clean_name(v) if v is not None else v)
@@ -193,6 +195,7 @@ class WatchlistRead(BaseModel):
     cadence: Cadence
     severity_threshold: SeverityLevel
     budget_amount: Decimal | None
+    budget_exceeded_policy: str = "continue"
     is_active: bool
     budget_status: str
     current_period_spend: Decimal

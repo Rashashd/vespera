@@ -1,6 +1,5 @@
 """After-index hook: run triage on a freshly-indexed document, then schedule expedited drafting."""
 
-import asyncio
 from collections.abc import Callable
 from typing import Any
 
@@ -70,10 +69,10 @@ async def trigger_triage(
             dispatcher=dispatcher,
         )
 
-        # Schedule expedited drafting for urgent/emergency findings (spec 9).
-        # Triage already committed, so findings are durable before we schedule.
+        # Enqueue durable expedited drafting for urgent/emergency findings (spec 11 site 5).
+        # Works from both API (app.state.arq) and worker (WorkerContext.arq) — G5.
         if app_state is not None:
-            from app.reports.runner import draft_expedited
+            from app.jobs.enqueue import enqueue
             from app.triage.enums import Bucket
 
             for outcome in outcomes:
@@ -82,7 +81,14 @@ async def trigger_triage(
                     and outcome.finding_id is not None
                     and outcome.bucket in (Bucket.URGENT, Bucket.EMERGENCY)
                 ):
-                    asyncio.create_task(draft_expedited(outcome.finding_id, app_state))
+                    # G4: auto fan-out first draft revision = 0
+                    await enqueue(
+                        "task_expedited",
+                        job_id=f"expedited:{outcome.finding_id}:0",
+                        app_state=app_state,
+                        finding_id=outcome.finding_id,
+                        revision=0,
+                    )
     except Exception as exc:
         _log.error(
             "triage.after_index.failed",

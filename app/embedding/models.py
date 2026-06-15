@@ -115,6 +115,12 @@ class IndexBuildRun(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     client_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("clients.id"), nullable=False)
+    # NULL = client-wide manual build; non-NULL = watchlist-scoped cadence build (spec 11 D7)
+    watchlist_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("watchlists.id", ondelete="CASCADE", name="fk_index_runs_watchlist"),
+        nullable=True,
+    )
     triggered_by_user_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -133,13 +139,15 @@ class IndexBuildRun(Base):
     documents_errored: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     __table_args__ = (
-        # One in-flight build per client; concurrent trigger detects and returns existing run
+        # Per-(client,watchlist) in-flight guard; NULL watchlist_id = client-wide manual slot
         Index(
-            "uq_index_build_runs_client_running",
+            "uq_index_build_runs_client_wl_running",
             "client_id",
+            "watchlist_id",
             unique=True,
             postgresql_where="status = 'running'",
         ),
         Index("ix_index_build_runs_client_id", "client_id"),
         Index("ix_index_build_runs_status", "status"),
+        Index("ix_index_build_runs_watchlist_id", "watchlist_id"),
     )

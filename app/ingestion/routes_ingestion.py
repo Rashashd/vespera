@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_acting_client, get_acting_client_read, require_admin
@@ -13,8 +13,8 @@ from app.clients.models import Client
 from app.core.dependencies import get_session
 from app.domain.events import IngestionRunTriggered
 from app.ingestion import service as ingest_service
-from app.ingestion.runner import run_ingestion
 from app.ingestion.schemas import IngestionRunOut
+from app.jobs.enqueue import enqueue
 
 router = APIRouter(prefix="/clients/{client_id}", tags=["ingestion"])
 _log = structlog.get_logger(__name__)
@@ -28,19 +28,11 @@ _log = structlog.get_logger(__name__)
 async def trigger_ingestion(
     watchlist_id: int,
     request: Request,
-    background_tasks: BackgroundTasks,
     target: Client = Depends(get_acting_client),
     admin: User = Depends(require_admin),
 ) -> IngestionRunOut:
-    """Trigger an ingestion run for an active, non-empty watchlist (admin-only, FR-008, FR-006).
-
-    Session is managed explicitly here (not via get_session dependency) so the transaction
-    commits before BackgroundTasks runs — FastAPI runs background tasks after the response is
-    sent but before generator-dependency cleanup, which would otherwise leave run_id uncommitted
-    when the runner opens its own session.
-    """
+    """Trigger an ingestion run for an active, non-empty watchlist (admin-only, FR-008, FR-006)."""
     session_factory = request.app.state.session_factory
-    settings = request.app.state.settings
     dispatcher = request.app.state.dispatcher
 
     async with session_factory() as session:
@@ -75,21 +67,17 @@ async def trigger_ingestion(
                 ),
                 session,
             )
-            # Snapshot items before the session closes.
-            items_snapshot = list(watchlist.items)
             run_id = run.id
             run_out = IngestionRunOut.from_orm(run)
-        # Transaction commits here — run_id is now visible to the runner's sessions.
+        # Transaction commits here — run_id visible to worker.
 
-    background_tasks.add_task(
-        run_ingestion,
+    await enqueue(
+        "task_run_ingestion",
+        job_id=f"ingest:{run_id}",
+        app_state=request.app.state,
         run_id=run_id,
         client_id=target.id,
         watchlist_id=watchlist_id,
-        watchlist_items=items_snapshot,
-        session_factory=session_factory,
-        initial_lookback_days=settings.ingestion_initial_lookback_days,
-        per_source_cap=settings.ingestion_per_source_cap,
     )
 
     _log.info(

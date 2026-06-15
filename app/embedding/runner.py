@@ -25,6 +25,7 @@ _log = structlog.get_logger(__name__)
 async def index_build_runner(
     session_factory: Callable[[], AsyncSession],
     client_id: int,
+    watchlist_id: int | None = None,
     modelserver_client: ModelserverClient | None = None,
     triggered_by_user_id: int | None = None,
     dispatcher: Any = None,
@@ -48,7 +49,9 @@ async def index_build_runner(
     # instead of leaving a stuck 'running' row that blocks all future builds for this client.
     async with session_factory() as session:
         async with session.begin():
-            run, _ = await IndexBuildService.create_run(session, client_id, triggered_by_user_id)
+            run, _ = await IndexBuildService.create_run(
+                session, client_id, triggered_by_user_id, watchlist_id=watchlist_id
+            )
             run_id = run.id
 
     _log.info("index build run started", client_id=client_id, run_id=run_id)
@@ -78,9 +81,11 @@ async def index_build_runner(
                         )
                 return run
 
-        # Get documents to index (not_indexed/errored_transient + active watchlist)
+        # Get documents to index (watchlist-scoped for cycles, client-wide for manual)
         async with session_factory() as session:
-            documents = await IndexBuildService.get_documents_to_index(session, client_id)
+            documents = await IndexBuildService.get_documents_to_index(
+                session, client_id, watchlist_id=watchlist_id
+            )
 
         _log.info(
             "documents to index",

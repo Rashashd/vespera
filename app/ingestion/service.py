@@ -34,7 +34,7 @@ async def create_run(
     *,
     client_id: int,
     watchlist_id: int,
-    triggered_by_user_id: int,
+    triggered_by_user_id: int | None,
 ) -> IngestionRun:
     """Insert a new ingestion run in `running` status."""
     run = IngestionRun(
@@ -135,12 +135,26 @@ async def create_source_record(
 # ---------------------------------------------------------------------------
 
 
-async def reconcile_interrupted_runs(session: AsyncSession) -> int:
-    """Flip any lingering `running` runs → `failed` (FR-024, D8). Returns count updated."""
+async def reconcile_interrupted_runs(session: AsyncSession, grace_seconds: int = 0) -> int:
+    """Flip lingering `running` runs → `failed` (FR-024, D8, G3).
+
+    Under ARQ a run may be in `running` state because the worker is actively retrying it.
+    grace_seconds (default 0 for backward-compat) skips runs started within that window so
+    ARQ retries are not prematurely failed. Pass settings.worker_job_timeout to enable.
+    Returns count updated.
+    """
+    from datetime import timedelta
+
+    from sqlalchemy import and_
+
     now = datetime.now(UTC)
+    where = IngestionRun.status == IngestionRunStatus.RUNNING.value
+    if grace_seconds > 0:
+        cutoff = now - timedelta(seconds=grace_seconds)
+        where = and_(where, IngestionRun.started_at < cutoff)
     result = await session.execute(
         update(IngestionRun)
-        .where(IngestionRun.status == IngestionRunStatus.RUNNING.value)
+        .where(where)
         .values(status=IngestionRunStatus.FAILED.value, finished_at=now)
     )
     await session.flush()
