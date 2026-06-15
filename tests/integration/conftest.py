@@ -365,3 +365,21 @@ async def login_token(client: AsyncClient, email: str, password: str = "Abcdef1!
     resp = await client.post("/auth/jwt/login", data={"username": email, "password": password})
     resp.raise_for_status()
     return resp.json()["access_token"]
+
+
+@pytest_asyncio.fixture
+async def authed_reviewer_client(client, make_staff_user):
+    """An ASGI client pre-authenticated as a reviewer (staff). Used by the spec-10 route tests."""
+    user = await make_staff_user(role="reviewer")
+    token = await login_token(client, user.email)
+    client.headers["Authorization"] = f"Bearer {token}"
+    return client
+
+
+@pytest_asyncio.fixture
+async def authed_admin_client(client, make_staff_user):
+    """An ASGI client pre-authenticated as an admin (staff) — for require_admin routes."""
+    user = await make_staff_user(role="admin")
+    token = await login_token(client, user.email)
+    client.headers["Authorization"] = f"Bearer {token}"
+    return client

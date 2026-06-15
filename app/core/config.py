@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     sentry_dsn: str = ""  # non-secret DSN; empty disables Sentry
     auth_token_ttl_seconds: int = 28800  # access-token lifetime ~8h (spec 4b FR-019)
+    # Browser origins allowed to call the API (the SPA, spec 10). The SPA and API are
+    # separate origins, so CORS is required for any browser request to succeed. Override
+    # per environment (JSON list in env CORS_ALLOW_ORIGINS) with the real SPA origin(s).
+    cors_allow_origins: list[str] = ["http://localhost:5173"]
 
     # --- Secret fields: initialized empty, populated from Vault at startup ---
     database_url: str = ""
@@ -71,6 +75,27 @@ class Settings(BaseSettings):
     agent_llm_max_tokens: int = 2048
     report_redraft_cap: int = 3
     expedited_sla_hours: int = 24
+
+    # --- LangSmith tracing (spec 10 FR-032/035) — optional; empty disables tracing ---
+    # NOT in _REQUIRED_SECRETS: app boots normally when empty.
+    langsmith_api_key: str = ""
+    langsmith_project: str = "pantera"
+    # Master switch: tracing requires BOTH this True AND a key. Default False. Traces carry
+    # unredacted clinical text on the agent path — keep OFF in production until Presidio (spec 12).
+    tracing_enabled: bool = False
+
+    # Per-1K-token prices in USD, keyed by pinned model id.
+    # Units: USD per 1,000 tokens (input or output). Currency: USD.
+    # anthropic claude-3-5-sonnet-20241022: $3/$15 per M tokens = $0.003/$0.015 per 1K
+    # openai gpt-4o-2024-08-06: $2.50/$10 per M tokens = $0.0025/$0.010 per 1K
+    llm_price_per_1k_input_usd: dict = {
+        "claude-3-5-sonnet-20241022": 0.003,
+        "gpt-4o-2024-08-06": 0.0025,
+    }
+    llm_price_per_1k_output_usd: dict = {
+        "claude-3-5-sonnet-20241022": 0.015,
+        "gpt-4o-2024-08-06": 0.010,
+    }
 
 
 @lru_cache

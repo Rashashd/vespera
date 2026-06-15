@@ -98,6 +98,30 @@ class _PasswordUpdate(BaseModel):
     password: str
 
 
+class _MeResponse(BaseModel):
+    """Current-user identity the SPA needs to route by role (spec 10)."""
+
+    id: int
+    email: str
+    role: str | None
+    user_type: str
+    client_id: int | None
+    is_active: bool
+
+
+@_users_me_router.get("/me", response_model=_MeResponse)
+async def get_me(user: User = Depends(current_active_user)) -> _MeResponse:
+    """Return the authenticated user's identity (drives SPA role routing, FR-002)."""
+    return _MeResponse(
+        id=user.id,
+        email=user.email,
+        role=user.role,
+        user_type=user.user_type,
+        client_id=user.client_id,
+        is_active=user.is_active,
+    )
+
+
 @_users_me_router.patch("/me", status_code=status.HTTP_200_OK)
 async def update_me(
     body: _PasswordUpdate,

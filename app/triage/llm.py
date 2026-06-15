@@ -13,6 +13,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from app.core.config import Settings
 from app.infra.llm_adapter import LLMClient, build_llm_client
+from app.observability.tracing import traced_llm_call
 
 _log = structlog.get_logger(__name__)
 _PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
@@ -37,13 +38,23 @@ def _should_retry(exc: BaseException) -> bool:
     return isinstance(exc, (httpx.TimeoutException, httpx.NetworkError))
 
 
+@traced_llm_call  # FR-032: trace the triage call site (inputs/outputs redacted to non-PII metadata)
 @retry(
     retry=retry_if_exception_type((httpx.TimeoutException, httpx.NetworkError)),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=8),
     reraise=True,
 )
-async def _call_llm(llm: LLMClient, system_prompt: str, user_content: str, max_tokens: int) -> str:
+async def _call_llm(
+    llm: LLMClient,
+    system_prompt: str,
+    user_content: str,
+    max_tokens: int,
+    *,
+    session: object | None = None,
+    settings: Settings | None = None,
+    client_id: int | None = None,
+) -> str:
     """Make the raw LLM HTTP call; retries on timeout/network, never on 4xx."""
     async with httpx.AsyncClient(timeout=30.0) as client:
         if llm.provider == "anthropic":
@@ -62,7 +73,10 @@ async def _call_llm(llm: LLMClient, system_prompt: str, user_content: str, max_t
                 },
             )
             resp.raise_for_status()
-            return resp.json()["content"][0]["text"]
+            body = resp.json()
+            in_tok = body.get("usage", {}).get("input_tokens", 0)
+            out_tok = body.get("usage", {}).get("output_tokens", 0)
+            text = body["content"][0]["text"]
         else:
             resp = await client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -81,7 +95,33 @@ async def _call_llm(llm: LLMClient, system_prompt: str, user_content: str, max_t
                 },
             )
             resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+            body = resp.json()
+            in_tok = body.get("usage", {}).get("prompt_tokens", 0)
+            out_tok = body.get("usage", {}).get("completion_tokens", 0)
+            text = body["choices"][0]["message"]["content"]
+
+    # Best-effort usage capture (FR-033); never re-raises
+    if session is not None and settings is not None and client_id is not None:
+        try:
+            from sqlalchemy.ext.asyncio import AsyncSession as _AS
+
+            from app.observability.usage import record_usage as _rec
+
+            if isinstance(session, _AS):
+                await _rec(
+                    session=session,
+                    settings=settings,
+                    call_site="triage",
+                    model=llm.model,
+                    client_id=client_id,
+                    input_tokens=in_tok,
+                    output_tokens=out_tok,
+                    finding_id=None,
+                )
+        except Exception:
+            pass
+
+    return text
 
 
 async def resolve_yes_no(
@@ -90,6 +130,7 @@ async def resolve_yes_no(
     settings: Settings,
     client_id: int,
     document_id: int,
+    session: object | None = None,
 ) -> bool:
     """Ask the LLM: is this document an adverse drug reaction? Returns True=YES.
 
@@ -100,7 +141,15 @@ async def resolve_yes_no(
     system_prompt = prompt_template.split("<document>")[0].strip()
     user_content = text
 
-    raw = await _call_llm(llm, system_prompt, user_content, settings.triage_llm_max_tokens)
+    raw = await _call_llm(
+        llm,
+        system_prompt,
+        user_content,
+        settings.triage_llm_max_tokens,
+        session=session,
+        settings=settings,
+        client_id=client_id,
+    )
     result = _AdverseResult.model_validate(json.loads(raw))
     return result.adverse
 
@@ -111,6 +160,7 @@ async def assess_valence(
     settings: Settings,
     client_id: int,
     document_id: int,
+    session: object | None = None,
 ) -> str:
     """Ask the LLM for valence of a NO-classified finding. Returns 'positive' or 'irrelevant'.
 
@@ -127,7 +177,15 @@ async def assess_valence(
         )
         user_content = text
 
-        raw = await _call_llm(llm, system_prompt, user_content, settings.triage_llm_max_tokens)
+        raw = await _call_llm(
+            llm,
+            system_prompt,
+            user_content,
+            settings.triage_llm_max_tokens,
+            session=session,
+            settings=settings,
+            client_id=client_id,
+        )
         result = _ValenceResult.model_validate(json.loads(raw))
         if result.valence not in ("positive", "irrelevant"):
             raise ValueError(f"unexpected valence: {result.valence!r}")

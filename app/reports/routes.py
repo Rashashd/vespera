@@ -64,7 +64,9 @@ async def list_reports(
         .limit(limit)
         .offset(offset)
     )
-    if status:
+    if status == "all":
+        pass  # no filter — return every status (FR-006a all-reports view)
+    elif status:
         q = q.where(Report.status == status)
     else:
         q = q.where(Report.status.in_([s.value for s in _REVIEW_STATUSES]))

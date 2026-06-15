@@ -54,6 +54,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 1. Secrets MUST be loaded before any resource is constructed.
     await load_secrets_from_vault(settings)
 
+    # 1a. Optional LangSmith tracing — configured after secrets load (FR-032).
+    from app.observability.tracing import configure_tracing
+
+    configure_tracing(settings)
+
     # 2. Build shared singletons exactly once.
     engine = create_engine(settings.database_url)
     redis = await create_redis(settings.redis_url)

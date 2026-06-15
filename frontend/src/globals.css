@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 211 80% 40%;
+    --primary: 211 80% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 173 58% 39%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 173 58% 39%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 7%;
+    --foreground: 210 40% 96%;
+    --card: 222 40% 11%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 40% 11%;
+    --popover-foreground: 210 40% 96%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 211 90% 60%;
+    --primary: 211 90% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 173 58% 45%;
+    --secondary-foreground: 222 47% 11%;
+    --accent: 173 58% 45%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 100%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Keyboard focus rings — visible in both themes (FR-028) */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  /* Sidebar rail width when collapsed */
+  .sidebar-rail {
+    width: 56px;
+  }
+
+  /* Severity left bars */
+  .severity-bar-emergency {
+    @apply border-l-4 border-red-600 dark:border-red-500;
+  }
+  .severity-bar-urgent {
+    @apply border-l-4 border-amber-600 dark:border-amber-500;
+  }
+  .severity-bar-minor {
+    @apply border-l-4 border-slate-400;
+  }
+  .severity-bar-positive {
+    @apply border-l-4 border-emerald-600 dark:border-emerald-500;
+  }
+}

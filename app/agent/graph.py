@@ -42,7 +42,29 @@ def _build_compiled_graph(
     async def agent_node(state: DraftingState) -> dict:
         response = await chat_model.ainvoke(state["messages"])
         usage = getattr(response, "usage_metadata", None) or {}
+        in_tok = usage.get("input_tokens", 0) if isinstance(usage, dict) else 0
+        out_tok = usage.get("output_tokens", 0) if isinstance(usage, dict) else 0
         tokens_delta = usage.get("total_tokens", 0) if isinstance(usage, dict) else 0
+        # Best-effort cost capture (FR-033); swallowed on failure
+        try:
+            from app.observability.usage import record_usage as _rec
+
+            await _rec(
+                session=session,
+                settings=settings,
+                call_site="agent",
+                model=(
+                    settings.anthropic_model
+                    if settings.preferred_provider == "anthropic"
+                    else settings.openai_model
+                ),
+                client_id=client.id,
+                input_tokens=in_tok,
+                output_tokens=out_tok,
+                finding_id=finding.id,
+            )
+        except Exception:
+            pass
         return {
             "messages": [response],
             "iterations_used": state["iterations_used"] + 1,

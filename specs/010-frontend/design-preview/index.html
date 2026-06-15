@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en" class="">
+<!--
+  Pantera SPA — static design preview (Spec 010). THROWAWAY mockup to visualize the design system.
+  The real build is React + Vite + shadcn/ui; this single file uses Tailwind Play CDN only to SEE
+  the look (palette, layout C, chips, drawer, dark mode). Open directly in a browser.
+-->
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pantera — design preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "system-ui", "sans-serif"], mono: ["JetBrains Mono", "ui-monospace", "monospace"] },
+          colors: {
+            brand: { DEFAULT: "#1668B8", fg: "#ffffff", 600: "#1257a0", 700: "#0e4783" },
+            teal:  { DEFAULT: "#1E9E8A" },
+          },
+          borderRadius: { sm: "6px", md: "8px", lg: "12px" },
+        },
+      },
+    };
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style type="text/tailwindcss">
+    @layer components {
+      .chip { @apply inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium ring-1 ring-inset; }
+      .chip-emergency { @apply bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900; }
+      .chip-urgent    { @apply bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900; }
+      .chip-minor     { @apply bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700; }
+      .chip-positive  { @apply bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900; }
+      .chip-info      { @apply bg-blue-50 text-brand ring-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-900; }
+      .chip-neutral   { @apply bg-slate-100 text-slate-500 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700; }
+      .chip-grounded  { @apply bg-blue-50 text-brand ring-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-900; }
+      .chip-attested  { @apply bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:ring-teal-900; }
+      .chip-aggregated{ @apply bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700; }
+      .btn      { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 h-9 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1 dark:ring-offset-slate-900; }
+      .btn-primary { @apply btn bg-brand text-white hover:bg-brand-600; }
+      .btn-outline { @apply btn ring-1 ring-inset ring-slate-300 text-slate-700 hover:bg-slate-50 dark:ring-slate-600 dark:text-slate-200 dark:hover:bg-slate-800; }
+      .btn-danger  { @apply btn ring-1 ring-inset ring-red-300 text-red-700 hover:bg-red-50 dark:ring-red-800 dark:text-red-300 dark:hover:bg-red-950/40; }
+      .btn-ghost   { @apply btn text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800; }
+      .card { @apply rounded-md border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900; }
+      .navitem { @apply flex items-center gap-3 rounded-md px-3 h-10 text-sm text-slate-300 hover:bg-white/10 hover:text-white cursor-pointer transition; }
+      .navitem-active { @apply bg-white/10 text-white font-medium shadow-[inset_3px_0_0_0_#2BB3A0]; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans text-sm">
+
+  <div class="flex h-screen overflow-hidden">
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="w-60 shrink-0 flex flex-col transition-all text-slate-200 border-r border-black/20 bg-gradient-to-b from-[#0C2B47] to-[#0A2236] dark:from-[#0A1F35] dark:to-[#081A2C]">
+      <div class="h-14 flex items-center gap-2 px-4 border-b border-white/10">
+        <button onclick="toggleSidebar()" class="h-8 w-8 grid place-items-center rounded-md text-slate-300 hover:bg-white/10 hover:text-white transition"><i data-lucide="panel-left"></i></button>
+        <span class="font-bold tracking-tight text-white sidebar-label">PAN<span class="text-[#3BC9B6]">TERA</span></span>
+      </div>
+      <nav class="p-2 space-y-1 flex-1">
+        <div class="navitem navitem-active" onclick="showScreen('queue', this)"><i data-lucide="inbox"></i><span class="sidebar-label">Queue</span></div>
+        <div class="navitem" onclick="showScreen('reports', this)"><i data-lucide="list"></i><span class="sidebar-label">All reports</span></div>
+        <div class="navitem" onclick="showScreen('admin', this)"><i data-lucide="settings"></i><span class="sidebar-label">Admin</span></div>
+        <div class="navitem" onclick="showScreen('dashboard', this)"><i data-lucide="bar-chart-3"></i><span class="sidebar-label">Dashboard</span></div>
+        <div class="navitem" onclick="showScreen('portal', this)"><i data-lucide="building-2"></i><span class="sidebar-label">Portal (client view)</span></div>
+        <div class="navitem" onclick="showScreen('login', this)"><i data-lucide="log-in"></i><span class="sidebar-label">Login screen</span></div>
+      </nav>
+      <div class="p-2 border-t border-white/10">
+        <div class="navitem"><i data-lucide="log-out"></i><span class="sidebar-label">Logout</span></div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- TOP BAR -->
+      <header class="h-14 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 flex items-center justify-between px-4">
+        <nav class="flex items-center gap-1 text-slate-500" id="breadcrumbs">
+          <span>Home</span><i data-lucide="chevron-right" class="w-4 h-4"></i><span class="text-slate-900 dark:text-slate-100 font-medium">Approval queue</span>
+        </nav>
+        <div class="flex items-center gap-2">
+          <button onclick="alert('Command palette (⌘K): jump to a report, switch client, or navigate.')" class="btn-outline gap-2 text-slate-400"><i data-lucide="search" class="w-4 h-4"></i> <span class="text-xs font-mono">⌘K</span></button>
+          <button class="btn-outline gap-2"><i data-lucide="building" class="w-4 h-4"></i> Acme Pharma <i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+          <button onclick="toggleTheme()" class="btn-ghost h-9 w-9 !px-0" title="Toggle theme"><i data-lucide="moon" id="theme-icon"></i></button>
+          <button class="btn-ghost gap-2"><span class="grid place-items-center w-7 h-7 rounded-full bg-brand text-white text-xs font-semibold">RC</span><i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+        </div>
+      </header>
+
+      <main class="flex-1 overflow-auto">
+
+        <!-- ===== LOGIN ===== -->
+        <section data-screen="login" class="hidden h-full grid place-items-center p-6">
+          <div class="card w-[380px] p-6">
+            <div class="flex items-center gap-2 mb-1"><span class="font-bold text-brand text-lg">PANTERA</span></div>
+            <p class="text-slate-500 mb-5">Sign in to the pharmacovigilance console.</p>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Email</label>
+            <input class="w-full h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 mb-3" placeholder="reviewer@agency.com" />
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Password</label>
+            <input type="password" class="w-full h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 mb-4" placeholder="••••••••" />
+            <button class="btn-primary w-full">Sign in</button>
+            <p class="text-xs text-slate-400 mt-4 text-center">Pantera · v0.10</p>
+          </div>
+        </section>
+
+        <!-- ===== QUEUE ===== -->
+        <section data-screen="queue" class="p-6 space-y-5">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold tracking-tight">Approval queue</h1>
+              <p class="text-slate-500">5 reports awaiting your decision.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 rounded-md bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-3 py-2 text-sm ring-1 ring-inset ring-red-200 dark:ring-red-900">
+            <i data-lucide="alarm-clock" class="w-4 h-4"></i><span><b>1 expedited report is overdue.</b> Prioritize it before its SLA breach is reported.</span>
+          </div>
+          <div class="flex items-start gap-2 rounded-md bg-blue-50 dark:bg-blue-950/30 text-brand dark:text-blue-300 px-3 py-2 text-sm ring-1 ring-inset ring-blue-200 dark:ring-blue-900">
+            <i data-lucide="info" class="w-4 h-4 mt-0.5"></i><span>Expedited reports are shown first. Open and verify every citation before approving.</span>
+          </div>
+
+          <div>
+            <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Expedited · 2</h2>
+            <div class="card overflow-hidden">
+              <table class="w-full">
+                <thead class="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-800">
+                  <tr class="text-left [&>th]:font-medium [&>th]:px-4 [&>th]:py-2">
+                    <th>Type</th><th>Severity</th><th>Drug → Reaction</th><th>Corrob.</th><th>SLA</th><th>Updated</th>
+                  </tr>
+                </thead>
+                <tbody class="[&>tr]:border-b [&>tr]:border-slate-100 dark:[&>tr]:border-slate-800 [&>tr:last-child]:border-0">
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer" onclick="showScreen('detail')">
+                    <td class="px-4 py-3" style="box-shadow: inset 4px 0 0 #d97706"><span class="chip chip-info">expedited</span></td>
+                    <td class="px-4 py-3"><span class="chip chip-urgent">urgent</span></td>
+                    <td class="px-4 py-3 font-medium">atorvastatin → rhabdomyolysis</td>
+                    <td class="px-4 py-3 font-mono">3</td>
+                    <td class="px-4 py-3"><span class="chip chip-urgent"><i data-lucide="clock" class="w-3 h-3"></i> 03:58</span></td>
+                    <td class="px-4 py-3 text-slate-500">2m ago</td>
+                  </tr>
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer" onclick="showScreen('detail')">
+                    <td class="px-4 py-3" style="box-shadow: inset 4px 0 0 #dc2626"><span class="chip chip-info">expedited</span></td>
+                    <td class="px-4 py-3"><span class="chip chip-emergency">emergency</span></td>
+                    <td class="px-4 py-3 font-medium">infliximab → anaphylaxis</td>
+                    <td class="px-4 py-3 font-mono">5</td>
+                    <td class="px-4 py-3"><span class="chip chip-emergency"><i data-lucide="clock" class="w-3 h-3"></i> overdue 1h</span></td>
+                    <td class="px-4 py-3 text-slate-500">22m ago</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Batch · 3</h2>
+            <div class="card overflow-hidden">
+              <table class="w-full">
+                <tbody class="[&>tr]:border-b [&>tr]:border-slate-100 dark:[&>tr]:border-slate-800 [&>tr:last-child]:border-0">
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer" onclick="showScreen('detail')">
+                    <td class="px-4 py-3 w-32" style="box-shadow: inset 4px 0 0 #64748b"><span class="chip chip-neutral">batch</span></td>
+                    <td class="px-4 py-3"><span class="chip chip-minor">minor</span></td>
+                    <td class="px-4 py-3 font-medium">Cycle Jun 1–14 · 6 findings</td>
+                    <td class="px-4 py-3 font-mono">—</td>
+                    <td class="px-4 py-3 text-slate-400">—</td>
+                    <td class="px-4 py-3 text-slate-500">1h ago</td>
+                  </tr>
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                    <td class="px-4 py-3" style="box-shadow: inset 4px 0 0 #059669"><span class="chip chip-neutral">batch</span></td>
+                    <td class="px-4 py-3"><span class="chip chip-positive">positive</span></td>
+                    <td class="px-4 py-3 font-medium">Cycle Jun 1–14 · 2 findings</td>
+                    <td class="px-4 py-3 font-mono">—</td>
+                    <td class="px-4 py-3 text-slate-400">—</td>
+                    <td class="px-4 py-3 text-slate-500">1h ago</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== REPORT DETAIL (layout C) ===== -->
+        <section data-screen="detail" class="hidden h-full flex flex-col">
+          <!-- detail header -->
+          <div class="shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button class="btn-ghost h-8 !px-2" onclick="showScreen('queue')"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+              <span class="font-mono text-slate-500">#1042</span>
+              <span class="chip chip-info">expedited</span>
+              <span class="chip chip-urgent">urgent</span>
+              <span class="chip chip-urgent"><i data-lucide="clock" class="w-3 h-3"></i> 03:58</span>
+              <span class="chip chip-neutral">Approved · pending delivery</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400 mr-1">Drafted 3h ago · last actioned —</span>
+              <button class="btn-outline gap-2" title="Available once the delivery layer ships (spec 13)" disabled style="opacity:.5;cursor:not-allowed"><i data-lucide="download" class="w-4 h-4"></i> Download</button>
+              <button class="btn-ghost h-9 w-9 !px-0" title="More"><i data-lucide="more-vertical"></i></button>
+            </div>
+          </div>
+
+          <div class="flex-1 flex min-h-0">
+            <!-- findings rail (batch only — shown here to illustrate) -->
+            <div class="w-56 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
+              <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Findings · 6</div>
+                <div class="mt-1 text-[11px] text-slate-400">4 included · 1 dropped · <span class="text-amber-600">1 needs attention</span></div>
+              </div>
+              <div class="flex-1 overflow-auto p-2 space-y-1 text-sm">
+                <div class="flex items-center justify-between rounded-md px-3 py-2 bg-blue-50 dark:bg-blue-950/40 text-brand dark:text-blue-300 font-medium">atorvastatin <i data-lucide="check" class="w-3.5 h-3.5"></i></div>
+                <div class="flex items-center justify-between rounded-md px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800">metformin <i data-lucide="check" class="w-3.5 h-3.5 text-slate-400"></i></div>
+                <div class="flex items-center justify-between rounded-md px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800">lisinopril <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-500"></i></div>
+                <div class="flex items-center justify-between rounded-md px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800">warfarin <i data-lucide="check" class="w-3.5 h-3.5 text-slate-400"></i></div>
+                <div class="flex items-center justify-between rounded-md px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800">ibuprofen <i data-lucide="check" class="w-3.5 h-3.5 text-slate-400"></i></div>
+                <div class="flex items-center justify-between rounded-md px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800">aspirin <i data-lucide="check" class="w-3.5 h-3.5 text-slate-400"></i></div>
+              </div>
+              <div class="p-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                <div class="text-[11px] text-slate-400 px-1">Selected finding</div>
+                <div class="flex gap-1">
+                  <button class="btn-outline flex-1 h-8 text-xs">Drop</button>
+                  <button class="btn-danger flex-1 h-8 text-xs">Discard</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- center -->
+            <div class="flex-1 overflow-auto p-6 min-w-0">
+              <h2 class="text-lg font-semibold mb-4">atorvastatin → rhabdomyolysis</h2>
+              <div class="space-y-2.5 mb-6">
+                <div class="flex items-center gap-3"><span class="w-28 text-slate-500">Drug</span><span class="font-medium">atorvastatin</span><span class="chip chip-grounded" onclick="openDrawer()"><i data-lucide="link" class="w-3 h-3"></i> grounded · #123</span></div>
+                <div class="flex items-center gap-3"><span class="w-28 text-slate-500">Reaction</span><span class="font-medium">rhabdomyolysis</span><span class="chip chip-grounded" onclick="openDrawer()"><i data-lucide="link" class="w-3 h-3"></i> grounded · #128</span></div>
+                <div class="flex items-center gap-3"><span class="w-28 text-slate-500">Population</span><span class="font-medium">67-y/o male</span><span class="chip chip-grounded" onclick="openDrawer()"><i data-lucide="link" class="w-3 h-3"></i> grounded · #123</span></div>
+                <div class="flex items-center gap-3"><span class="w-28 text-slate-500">Causality</span><span class="font-medium">probable</span><span class="chip chip-attested border border-dashed border-teal-400 dark:border-teal-700"><i data-lucide="pencil" class="w-3 h-3"></i> reviewer-added</span></div>
+                <div class="flex items-center gap-3"><span class="w-28 text-slate-500">Recommendation</span><span class="font-medium">Expedite to safety lead</span><span class="chip chip-attested border border-dashed border-teal-400 dark:border-teal-700"><i data-lucide="pencil" class="w-3 h-3"></i> reviewer-added</span></div>
+              </div>
+
+              <div class="card p-3 mb-6 !bg-amber-50/50 dark:!bg-amber-950/10 !border-amber-200 dark:!border-amber-900/50">
+                <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-2"><i data-lucide="history" class="w-3.5 h-3.5"></i> Revision history · round 2 of 3</div>
+                <div class="text-sm flex gap-2"><span class="chip chip-urgent shrink-0">Round 1</span><span class="text-slate-600 dark:text-slate-300">Rejected — "Tighten the causality statement; cite the dechallenge." <span class="text-slate-400">· R. Chen · 2h ago</span></span></div>
+              </div>
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Narrative</h3>
+              <p class="leading-relaxed text-slate-700 dark:text-slate-300 mb-6 max-w-3xl">A 67-year-old male on atorvastatin 80 mg presented with progressive myalgia and markedly elevated creatine kinase consistent with rhabdomyolysis after six weeks of therapy. Symptoms improved on discontinuation. The temporal association and dechallenge support a probable causal relationship.</p>
+
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Corroboration · 3 sources</h3>
+                <span class="text-xs"><span id="verifyCount" class="font-medium text-amber-600">1</span><span class="text-slate-400"> of 3 sources reviewed</span></span>
+              </div>
+              <div class="card divide-y divide-slate-100 dark:divide-slate-800 mb-6">
+                <div class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <div class="flex items-center gap-3">
+                    <button onclick="toggleVerify(this)" data-verified="1" class="text-emerald-600" title="Mark reviewed"><i data-lucide="check-circle-2" class="w-4 h-4"></i></button>
+                    <span class="flex items-center gap-3 cursor-pointer" onclick="openDrawer()"><i data-lucide="link" class="w-4 h-4 text-brand"></i><span class="font-mono text-sm">#123</span><span>PMID:39999999</span></span>
+                  </div>
+                  <div class="flex items-center gap-3 cursor-pointer" onclick="openDrawer()"><span class="chip chip-positive">high</span><i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i></div>
+                </div>
+                <div class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <div class="flex items-center gap-3">
+                    <button onclick="toggleVerify(this)" data-verified="0" class="text-slate-300 dark:text-slate-600" title="Mark reviewed"><i data-lucide="circle" class="w-4 h-4"></i></button>
+                    <span class="flex items-center gap-3 cursor-pointer" onclick="openDrawer()"><i data-lucide="link" class="w-4 h-4 text-brand"></i><span class="font-mono text-sm">#441</span><span>EMA-2024-0188</span></span>
+                  </div>
+                  <div class="flex items-center gap-3 cursor-pointer" onclick="openDrawer()"><span class="chip chip-minor">medium</span><i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i></div>
+                </div>
+                <div class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <div class="flex items-center gap-3">
+                    <button onclick="toggleVerify(this)" data-verified="0" class="text-slate-300 dark:text-slate-600" title="Mark reviewed"><i data-lucide="circle" class="w-4 h-4"></i></button>
+                    <span class="flex items-center gap-3 cursor-pointer" onclick="openDrawer()"><i data-lucide="link" class="w-4 h-4 text-brand"></i><span class="font-mono text-sm">#502</span><span>FAERS-7781204</span></span>
+                  </div>
+                  <div class="flex items-center gap-3 cursor-pointer" onclick="openDrawer()"><span class="chip chip-urgent">low</span><i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i></div>
+                </div>
+              </div>
+
+              <div class="sticky bottom-0 -mx-6 px-6 py-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+                <span class="text-xs text-slate-400 flex items-center gap-1.5"><i data-lucide="shield-check" class="w-4 h-4"></i> <span id="verifyHint">1 of 3 sources reviewed — Approve will ask you to confirm.</span></span>
+                <div class="flex items-center gap-2">
+                  <button class="btn-danger">Discard</button>
+                  <button class="btn-danger">Reject…</button>
+                  <button class="btn-outline gap-1.5"><i data-lucide="pencil" class="w-4 h-4"></i> Edit</button>
+                  <button class="btn-primary gap-2" onclick="approveAttempt()"><i data-lucide="check" class="w-4 h-4"></i> Approve</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- passage drawer -->
+            <div id="drawer" class="hidden w-[420px] shrink-0 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <div class="flex items-center gap-2"><span class="font-mono text-sm">PMID:39999999</span><span class="chip chip-positive">high</span></div>
+                <button class="btn-ghost h-8 w-8 !px-0" onclick="closeDrawer()"><i data-lucide="x"></i></button>
+              </div>
+              <div class="flex-1 overflow-auto p-4">
+                <div class="text-xs text-slate-400 mb-2">§ Adverse Reactions</div>
+                <p class="leading-relaxed text-slate-700 dark:text-slate-300">"A 67-year-old male on atorvastatin presented with rhabdomyolysis after 6 weeks of therapy. Creatine kinase peaked at 42,000 U/L. The statin was discontinued and the patient recovered over 10 days…"</p>
+              </div>
+              <div class="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-800 text-sm text-slate-500">
+                <button class="btn-ghost h-8 !px-2">‹ prev</button><span>1 of 3</span><button class="btn-ghost h-8 !px-2">next ›</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== DASHBOARD ===== -->
+        <section data-screen="dashboard" class="hidden p-6 space-y-5">
+          <h1 class="text-2xl font-bold tracking-tight">Manager dashboard · Acme Pharma</h1>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="card p-5">
+              <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Pipeline</div>
+              <ul class="space-y-1.5 text-sm">
+                <li class="flex justify-between"><span class="text-slate-500">drafted</span><span class="font-mono">12</span></li>
+                <li class="flex justify-between"><span class="text-slate-500">under review</span><span class="font-mono">4</span></li>
+                <li class="flex justify-between"><span class="text-slate-500">approved</span><span class="font-mono text-emerald-600">140</span></li>
+                <li class="flex justify-between"><span class="text-slate-500">rejected</span><span class="font-mono">6</span></li>
+                <li class="flex justify-between"><span class="text-slate-500">discarded</span><span class="font-mono">9</span></li>
+                <li class="flex justify-between"><span class="text-slate-500">needs revision</span><span class="font-mono text-amber-600">3</span></li>
+              </ul>
+            </div>
+            <div class="card p-5">
+              <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">SLA health</div>
+              <div class="text-3xl font-bold tabular-nums mb-1">95%<span class="text-base font-normal text-slate-400"> met</span></div>
+              <div class="flex gap-3 text-sm mt-3"><span class="chip chip-emergency">overdue 2</span><span class="chip chip-urgent">due soon 3</span></div>
+            </div>
+            <div class="card p-5">
+              <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Cost (USD · this cycle)</div>
+              <div class="text-3xl font-bold tabular-nums mb-2">$0.41</div>
+              <ul class="space-y-1 text-sm"><li class="flex justify-between"><span class="text-slate-500">triage</span><span class="font-mono">$0.10</span></li><li class="flex justify-between"><span class="text-slate-500">agent</span><span class="font-mono">$0.31</span></li></ul>
+            </div>
+            <div class="card p-5">
+              <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Queue load</div>
+              <div class="text-3xl font-bold tabular-nums mb-1">18 <span class="text-base font-normal text-slate-400">pending</span></div>
+              <div class="flex gap-3 text-sm mt-3"><span class="chip chip-info">expedited 5</span><span class="chip chip-neutral">batch 13</span></div>
+            </div>
+            <div class="card p-5">
+              <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Redraft health</div>
+              <div class="text-3xl font-bold tabular-nums mb-1">0.6 <span class="text-base font-normal text-slate-400">avg</span></div>
+              <div class="text-sm text-slate-500 mt-3">3 reports hit the redraft cap</div>
+            </div>
+            <div class="card p-5 opacity-70">
+              <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3 flex items-center gap-1"><i data-lucide="truck" class="w-3.5 h-3.5"></i> Delivery</div>
+              <div class="grid place-items-center h-20 text-center text-slate-400 text-sm">Pending delivery layer<br/><span class="text-xs">(spec 13)</span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== PORTAL ===== -->
+        <section data-screen="portal" class="hidden p-6 space-y-5">
+          <h1 class="text-2xl font-bold tracking-tight">Your reports</h1>
+          <p class="text-slate-500">Approved &amp; sent safety reports, organized by watchlist.</p>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="card p-5 hover:border-brand cursor-pointer transition">
+              <div class="flex items-center gap-2 mb-2"><i data-lucide="folder" class="w-4 h-4 text-brand"></i><span class="font-semibold">Statins watchlist</span></div>
+              <div class="text-3xl font-bold tabular-nums">8</div><div class="text-sm text-slate-500">reports available</div>
+            </div>
+            <div class="card p-5 hover:border-brand cursor-pointer transition">
+              <div class="flex items-center gap-2 mb-2"><i data-lucide="folder" class="w-4 h-4 text-brand"></i><span class="font-semibold">Biologics watchlist</span></div>
+              <div class="text-3xl font-bold tabular-nums">3</div><div class="text-sm text-slate-500">reports available</div>
+            </div>
+            <div class="card p-5 hover:border-brand cursor-pointer transition">
+              <div class="flex items-center gap-2 mb-2"><i data-lucide="folder" class="w-4 h-4 text-brand"></i><span class="font-semibold">Anticoagulants</span></div>
+              <div class="text-3xl font-bold tabular-nums text-slate-400">0</div><div class="text-sm text-slate-500">No reports available yet</div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- toast demo -->
+  <div class="fixed bottom-4 right-4 card px-4 py-3 flex items-center gap-2 shadow-lg">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i><span>Report #1041 approved.</span>
+  </div>
+
+  <script>
+    function showScreen(name, el) {
+      document.querySelectorAll("[data-screen]").forEach(s => s.classList.toggle("hidden", s.dataset.screen !== name));
+      document.querySelectorAll(".navitem").forEach(n => n.classList.remove("navitem-active"));
+      if (el) el.classList.add("navitem-active");
+      // auto-collapse sidebar on the detail screen (layout C)
+      setSidebar(name === "detail" ? false : true);
+      closeDrawer();
+      lucide.createIcons();
+    }
+    let sidebarOpen = true;
+    function setSidebar(open) {
+      sidebarOpen = open;
+      const sb = document.getElementById("sidebar");
+      sb.classList.toggle("w-60", open);
+      sb.classList.toggle("w-14", !open);
+      document.querySelectorAll(".sidebar-label").forEach(l => l.classList.toggle("hidden", !open));
+    }
+    function toggleSidebar() { setSidebar(!sidebarOpen); }
+    function openDrawer() { document.getElementById("drawer").classList.remove("hidden"); lucide.createIcons(); }
+    function closeDrawer() { const d = document.getElementById("drawer"); if (d) d.classList.add("hidden"); }
+    function toggleVerify(btn) {
+      const now = btn.dataset.verified === "1" ? "0" : "1";
+      btn.dataset.verified = now;
+      btn.classList.toggle("text-emerald-600", now === "1");
+      btn.classList.toggle("text-slate-300", now === "0");
+      btn.classList.toggle("dark:text-slate-600", now === "0");
+      btn.querySelector("i").setAttribute("data-lucide", now === "1" ? "check-circle-2" : "circle");
+      lucide.createIcons();
+      const total = document.querySelectorAll("[data-verified]").length;
+      const done = document.querySelectorAll('[data-verified="1"]').length;
+      document.getElementById("verifyCount").textContent = done;
+      document.getElementById("verifyHint").textContent = done === total
+        ? "All sources reviewed — ready to approve."
+        : done + " of " + total + " sources reviewed — Approve will ask you to confirm.";
+    }
+    function approveAttempt() {
+      const total = document.querySelectorAll("[data-verified]").length;
+      const done = document.querySelectorAll('[data-verified="1"]').length;
+      if (done < total && !confirm("You haven't reviewed all " + total + " sources (" + done + " of " + total + "). Approve anyway? Your decision is final.")) return;
+      alert("Report #1042 approved. (mockup)");
+    }
+    function toggleTheme() {
+      const dark = document.documentElement.classList.toggle("dark");
+      document.getElementById("theme-icon").setAttribute("data-lucide", dark ? "sun" : "moon");
+      lucide.createIcons();
+    }
+    lucide.createIcons();
+  </script>
+</body>
+</html>

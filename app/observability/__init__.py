@@ -1,1 +1,1 @@
-"""Observability: structured logging now; Sentry, headers, and tracing land here next."""
+"""Observability: LLM usage capture, cost computation, LangSmith tracing, and security headers."""

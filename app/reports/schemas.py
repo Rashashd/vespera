@@ -115,3 +115,57 @@ class ConsolidateResponse(BaseModel):
     report_id: int
     status: ReportStatus
     finding_count: int
+
+
+class PassageResponse(BaseModel):
+    """Exact passage text for a chunk (FR-029)."""
+
+    chunk_id: int
+    text: str
+    section: str | None
+    source_reliability: str
+    date: datetime | None
+    document_id: int
+    title: str | None
+    external_id: str | None
+
+
+class ReportFindingDetail(BaseModel):
+    """Per-finding detail for batch report UI and client portal (FR-031)."""
+
+    id: int
+    report_id: int
+    finding_id: int
+    drug: str
+    reaction: str
+    bucket: str
+    state: FindingReportState
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PortalReportSummary(BaseModel):
+    """Portal-safe report summary (omits reviewer-internal fields — FR-030)."""
+
+    id: int
+    report_type: ReportType
+    status: ReportStatus
+    delivery_status: str
+    watchlist_id: int | None
+    corroboration_count: int
+    sla_deadline: datetime | None
+    cycle_period_start: datetime | None
+    cycle_period_end: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PortalReportDetail(PortalReportSummary):
+    """Full portal report including claims, body, sources, and per-finding status (FR-030)."""
+
+    structured_fields: list[Claim]
+    draft_body: str | None
+    corroboration_sources: list[dict] | None

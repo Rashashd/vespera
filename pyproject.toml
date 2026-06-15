@@ -29,6 +29,7 @@ dependencies = [
     "langgraph>=0.2",
     "langchain-anthropic>=0.3",
     "langchain-openai>=0.2",
+    "langsmith>=0.1",
 ]
 
 [dependency-groups]
@@ -81,6 +82,9 @@ training = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "integration: marks tests that require live services (DB/Redis/Vault); run with PANTERA_INTEGRATION=1",
+]
 # Safety net: no single test may block the run forever (a stalled external call once hung
 # CI for an hour). On Linux/CI this uses SIGALRM and fails just the offending test (named,
 # with a traceback) while the rest continue. Generous so legit slow boots aren't flaky.
