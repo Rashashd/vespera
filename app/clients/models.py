@@ -70,6 +70,9 @@ class Watchlist(Base):
         String(20), nullable=False, server_default="serious"
     )
     budget_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 4), nullable=True)
+    budget_exceeded_policy: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="continue"
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -93,6 +96,10 @@ class Watchlist(Base):
             name="ck_watchlists_severity",
         ),
         CheckConstraint("budget_amount >= 0", name="ck_watchlists_budget_nonneg"),
+        CheckConstraint(
+            "budget_exceeded_policy IN ('continue','critical_only','pause')",
+            name="ck_watchlists_budget_policy",
+        ),
         Index("ix_watchlists_client_id", "client_id"),
         # Name unique per client, case-insensitive (FR-003).
         Index("ux_watchlists_client_lower_name", "client_id", func.lower(name), unique=True),

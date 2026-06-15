@@ -58,3 +58,4 @@ class OpsDashboard(BaseModel):
     redraft: RedraftMetrics
     delivery: None
     window: dict
+    failed_jobs: int = 0  # unresolved dead-letter count for this client (spec 11 T038)

@@ -55,6 +55,7 @@ async def create_watchlist(
             cadence=payload.cadence.value,
             severity_threshold=payload.severity_threshold.value,
             budget_amount=payload.budget_amount,
+            budget_exceeded_policy=payload.budget_exceeded_policy,
             items=[(i.item_type.value, i.value) for i in payload.items],
         )
     except service.WatchlistEmpty as exc:
@@ -144,6 +145,19 @@ async def update_watchlist(
         changes["budget_amount"] = (
             str(payload.budget_amount) if payload.budget_amount is not None else None
         )
+
+    if (
+        "budget_exceeded_policy" in fields
+        and payload.budget_exceeded_policy is not None
+        and payload.budget_exceeded_policy != watchlist.budget_exceeded_policy
+    ):
+        if payload.budget_exceeded_policy not in ("continue", "critical_only", "pause"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="INVALID_BUDGET_POLICY",
+            )
+        watchlist.budget_exceeded_policy = payload.budget_exceeded_policy
+        changes["budget_exceeded_policy"] = watchlist.budget_exceeded_policy
 
     if "is_active" in fields and payload.is_active != watchlist.is_active:
         try:

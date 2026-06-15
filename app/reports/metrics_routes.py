@@ -78,6 +78,20 @@ async def get_ops_metrics(
     avg_rev = sum(all_revisions) / len(all_revisions) if all_revisions else 0.0
     hit_cap = sum(1 for r in reports if r.status == ReportStatus.NEEDS_MANUAL_REVISION.value)
 
+    # dead-letter count for this client (spec 11 T038)
+    from sqlalchemy import func
+
+    from app.scheduling.models import DeadLetter
+
+    failed_jobs_count = (
+        await session.scalar(
+            select(func.count(DeadLetter.id)).where(
+                DeadLetter.client_id == client.id,
+                DeadLetter.resolved_at.is_(None),
+            )
+        )
+    ) or 0
+
     return OpsDashboard(
         client_id=client.id,
         by_status=by_status,
@@ -86,4 +100,5 @@ async def get_ops_metrics(
         redraft=RedraftMetrics(avg_revisions=round(avg_rev, 2), hit_cap=hit_cap),
         delivery=None,
         window={"from": from_.isoformat() if from_ else None, "to": to.isoformat() if to else None},
+        failed_jobs=failed_jobs_count,
     )

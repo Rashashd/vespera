@@ -3,6 +3,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from arq.connections import RedisSettings, create_pool
 from fastapi import FastAPI
 
 from app.audit.handler import register_audit_handlers
@@ -20,7 +21,7 @@ from app.observability.sentry import init_sentry
 _log = get_logger(__name__)
 
 
-async def _run_ingestion_startup(session_factory) -> None:  # type: ignore[type-arg]
+async def _run_ingestion_startup(session_factory, grace_seconds: int = 0) -> None:  # type: ignore[type-arg]
     """Verify the bundled MeSH artifact and reconcile interrupted ingestion runs (D8, D11)."""
     # MeSH artifact check (non-fatal).
     try:
@@ -37,7 +38,8 @@ async def _run_ingestion_startup(session_factory) -> None:  # type: ignore[type-
 
         async with session_factory() as session:
             async with session.begin():
-                count = await reconcile_interrupted_runs(session)
+                # Pass job_timeout as grace so ARQ-retrying runs are not prematurely failed (G3).
+                count = await reconcile_interrupted_runs(session, grace_seconds=grace_seconds)
         if count:
             _log.warning("ingestion.reconciled_stale_runs", count=count)
     except Exception as exc:  # noqa: BLE001
@@ -72,10 +74,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await run_startup_checks(engine, redis, settings)
 
     session_factory = create_session_factory(engine)
+
+    # ARQ enqueue pool (distinct from the app's aioredis client — needs ArqRedis for enqueue_job).
+    arq_redis_settings = (
+        RedisSettings.from_dsn(settings.redis_url)
+        if settings.redis_url
+        else RedisSettings(host="redis", port=6379)
+    )
+    arq = await create_pool(arq_redis_settings)
+
+    # Prod guard: jobs_inline must be False in production (SC-008). Requires an explicit
+    # dev/test acknowledgement (settings.dev_inline_ack, env DEV_INLINE_ACK) so inline mode
+    # can never be enabled by accident in production.
+    if settings.jobs_inline and not settings.dev_inline_ack:
+        raise RuntimeError(
+            "jobs_inline=True is not allowed in production; "
+            "set DEV_INLINE_ACK=1 to enable in dev/test"
+        )
+
     app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = session_factory
     app.state.redis = redis
+    app.state.arq = arq
     app.state.llm = llm
     app.state.dispatcher = dispatcher
     app.state.limiter = limiter
@@ -91,7 +112,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         _log.warning("bootstrap.manager_failed", error=str(exc))
 
     # 5. Ingestion startup: MeSH check + stale-run reconciliation (non-fatal).
-    await _run_ingestion_startup(session_factory)
+    await _run_ingestion_startup(session_factory, grace_seconds=settings.worker_job_timeout)
 
     _log.info("startup.complete", provider=llm.provider, model=llm.model)
 
@@ -100,4 +121,5 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         await engine.dispose()
         await redis.aclose()
+        await arq.aclose()
         _log.info("shutdown.complete")

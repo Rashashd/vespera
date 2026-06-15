@@ -11,3 +11,10 @@ triage:
 agent:
   tool_selection_accuracy_min: 0.85
   report_grounding_min: 0.90
+scheduling:
+  due_selection_precision_min: 1.0
+  due_selection_recall_min: 1.0
+  duplicate_rate_max: 0
+  loss_rate_max: 0
+  transient_retry_recovery_min: 1.0
+  inline_vs_durable_parity_min: 1.0

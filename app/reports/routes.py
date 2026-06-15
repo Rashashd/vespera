@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,12 +12,11 @@ from app.auth.dependencies import acting_client, require_reviewer, require_staff
 from app.auth.models import User
 from app.clients.models import Client
 from app.core.dependencies import get_session
+from app.jobs.enqueue import enqueue
 from app.reports import service as svc
-from app.reports.consolidation import consolidate_batch
 from app.reports.enums import ReportStatus
-from app.reports.models import Report, ReportFinding
+from app.reports.models import Report
 from app.reports.schemas import (
-    ConsolidateResponse,
     DiscardRequest,
     EditApproveRequest,
     FindingDiscardRequest,
@@ -141,7 +140,6 @@ async def reject_report(
     request: Request,
     report_id: int,
     body: RejectRequest,
-    background_tasks: BackgroundTasks,
     reviewer: User = Depends(require_reviewer),
     client: Client = Depends(_get_client),
     session: AsyncSession = Depends(get_session),
@@ -159,15 +157,14 @@ async def reject_report(
             dispatcher=request.app.state.dispatcher,
         )
 
-    # Trigger redraft after commit if not at cap
     if ReportStatus(report.status) == ReportStatus.DRAFTED:
-        from app.reports.runner import redraft_report
-
-        background_tasks.add_task(
-            redraft_report,
-            report_id=report_id,
-            comment=body.comment,
+        await enqueue(
+            "task_redraft",
+            job_id=f"redraft:{report_id}:{report.revision_count}",
             app_state=request.app.state,
+            report_id=report_id,
+            revision=report.revision_count,
+            comment=body.comment,
         )
 
     return ReportSummary.model_validate(report)
@@ -243,7 +240,7 @@ async def discard_finding(
 # ── Batch consolidation ───────────────────────────────────────────────────────
 
 
-@router.post("/watchlists/{watchlist_id}/consolidate-batch")
+@router.post("/watchlists/{watchlist_id}/consolidate-batch", status_code=status.HTTP_202_ACCEPTED)
 async def consolidate_batch_route(
     request: Request,
     watchlist_id: int,
@@ -251,42 +248,27 @@ async def consolidate_batch_route(
     cycle_end: datetime = Query(..., description="Cycle period end (ISO-8601)"),
     staff: User = Depends(require_staff),
     client: Client = Depends(_get_client),
-    session: AsyncSession = Depends(get_session),
-) -> ConsolidateResponse | None:
-    """Consolidate pending_batch findings for a watchlist cycle into one batch report."""
-    # Capture all primitives inside the transaction (avoid post-commit attribute expiry).
-    async with session.begin():
-        report = await consolidate_batch(
-            watchlist_id=watchlist_id,
-            client_id=client.id,
-            cycle_period_start=cycle_start,
-            cycle_period_end=cycle_end,
-            session=session,
-            dispatcher=request.app.state.dispatcher,
-        )
-        if report is None:
-            result = None
-        else:
-            included = (
-                (
-                    await session.execute(
-                        select(ReportFinding).where(ReportFinding.report_id == report.id)
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            result = ConsolidateResponse(
-                report_id=report.id,
-                status=ReportStatus(report.status),
-                finding_count=len(included),
-            )
+) -> dict:
+    """Enqueue batch consolidation for a watchlist cycle (202 — FR-001/G1).
 
-    if result is None:
-        from fastapi.responses import Response
+    Note: API contract changed from sync (returns Report) to async (202 enqueue).
+    Forward dependency: spec-10 admin console consolidate trigger must account for this.
+    """
+    period_start_iso = cycle_start.isoformat()
+    period_end_iso = cycle_end.isoformat()
+    job_id = f"consolidate:manual:{watchlist_id}:{period_start_iso}"
 
-        return Response(status_code=status.HTTP_204_NO_CONTENT)  # type: ignore[return-value]
-    return result
+    await enqueue(
+        "task_consolidate",
+        job_id=job_id,
+        app_state=request.app.state,
+        watchlist_id=watchlist_id,
+        client_id=client.id,
+        cycle_period_start=period_start_iso,
+        cycle_period_end=period_end_iso,
+        cycle_id=None,
+    )
+    return {"status": "accepted", "job_id": job_id}
 
 
 # ── Admin re-trigger for expedited draft ─────────────────────────────────────
@@ -296,7 +278,6 @@ async def consolidate_batch_route(
 async def retrigger_expedited_draft(
     request: Request,
     finding_id: int,
-    background_tasks: BackgroundTasks,
     staff: User = Depends(require_staff),
     client: Client = Depends(_get_client),
     session: AsyncSession = Depends(get_session),
@@ -317,7 +298,6 @@ async def retrigger_expedited_draft(
     if finding.status == "discarded":
         raise HTTPException(status.HTTP_409_CONFLICT, detail="terminal_finding")
 
-    # Check for existing active expedited report
     from app.reports.models import ReportFinding as RF
 
     existing_rf = (
@@ -337,8 +317,11 @@ async def retrigger_expedited_draft(
         report = await session.get(Report, existing_rf.report_id)
         return ReportSummary.model_validate(report)
 
-    # Schedule a fresh draft
-    from app.reports.runner import draft_expedited
-
-    background_tasks.add_task(draft_expedited, finding_id, request.app.state)
+    await enqueue(
+        "task_expedited",
+        job_id=f"expedited:{finding_id}:0",
+        app_state=request.app.state,
+        finding_id=finding_id,
+        revision=0,
+    )
     raise HTTPException(status.HTTP_202_ACCEPTED, detail="draft_scheduled")

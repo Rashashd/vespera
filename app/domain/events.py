@@ -274,3 +274,24 @@ class BatchConsolidated(DomainEvent):
 
     watchlist_id: int = 0
     report_id: int = 0
+
+
+# --- Scheduling events (spec 11); system actor (actor_id=0, actor_type="system"). ---
+
+
+@dataclass(frozen=True, slots=True)
+class JobDeadLettered(DomainEvent):
+    """A job exhausted retries and was dead-lettered (system actor → audit)."""
+
+    job_name: str = ""
+    job_key: str = ""
+    attempts: int = 0
+    error_class: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class WatchlistBudgetThresholdReached(DomainEvent):
+    """Budget warning/exceeded threshold crossed for a watchlist (FR-019c)."""
+
+    watchlist_id: int = 0
+    state: str = ""  # "warning" | "exceeded"

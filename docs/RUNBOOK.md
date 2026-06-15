@@ -116,6 +116,46 @@ This is idempotent and safe for re-runs.
 - At startup: MeSH artifact check (non-fatal warning if missing) and stale-run reconciliation.
 - The worker uses the same bootstrap; jobs/cron arrive in the scheduling feature.
 
+## ARQ Worker (spec 11)
+
+The worker processes all pipeline jobs durably: ingestion, index/embed, triage, expedited
+drafting, redrafts, batch consolidation, and the hourly scheduling tick.
+
+### Start the worker (local)
+
+```sh
+docker compose up -d worker
+# OR run directly:
+arq worker.worker.WorkerSettings
+```
+
+### Scheduler cron
+
+`scheduler_tick` runs at `Settings.scheduler_tick_cron_minute` (default 0 = top of every
+hour). It queries due watchlists and enqueues `task_cycle_start` for each one.
+
+### Dead-letter admin
+
+Failed jobs that exhaust retries appear in `GET /admin/dead-letters` (staff-only). Operators
+can acknowledge with `POST /admin/dead-letters/{id}/resolve`. The dead-letter count also
+surfaces on the per-client ops dashboard (`GET /clients/{id}/metrics`).
+
+### Dev/test inline mode
+
+Set `PANTERA_DEV_INLINE=1` and `JOBS_INLINE=true` (or set `Settings.jobs_inline=True`) to
+run jobs synchronously in-process — no worker process needed. **Never do this in production.**
+
+### Worker settings (all from Vault or env via Settings)
+
+| Key | Default | Notes |
+|-----|---------|-------|
+| `jobs_inline` | `false` | Dev/test only |
+| `worker_max_jobs` | `10` | Concurrent job limit |
+| `worker_job_timeout` | `600` | Seconds before job times out |
+| `worker_shutdown_grace_seconds` | `600` | SIGTERM drain window |
+| `scheduler_tick_cron_minute` | `0` | Minute the hourly tick fires |
+| `dead_letter_retention_days` | `90` | Days before dead-letters are purged |
+
 ## Tests
 
 - `uv run pytest` — runs unit + stack-free tests.
