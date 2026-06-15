@@ -113,6 +113,8 @@ jobs:
         run: PYTHONPATH=. uv run pytest tests/integration/test_agent_tool_selection.py -v
       - name: Report grounding eval gate (grounding>=0.90, SC-001/SC-010)
         run: PYTHONPATH=. uv run pytest tests/integration/test_report_grounding.py -v
+      - name: Scheduling due-selection eval gate (precision=recall=1.0, SC-011)
+        run: PYTHONPATH=. uv run python eval/scheduling/run_due_selection_eval.py
 
   # Frontend build smoke test — fresh-clone npm ci + vite build must succeed (SC-009).
   frontend-build:
