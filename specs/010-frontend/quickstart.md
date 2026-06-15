@@ -59,8 +59,11 @@ approved+ reports and 404s on another client; (6) per-client totals reconcile wi
 psql … -c "select call_site, model, input_tokens, output_tokens, cost_usd, finding_id from llm_usage where client_id=1 order by id desc limit 5;"
 ```
 **Expected:** one row per external LLM call — `call_site` triage/agent, agent rows carry `finding_id`.
-With `langsmith_api_key` set, the same calls appear as traces in the LangSmith `pantera` project,
-tagged `client_id`/`finding_id`. With it empty, no traces, but rows + dashboard still work.
+Cost/usage rows contain **no PII** and always work. LangSmith tracing is **OFF by default**: it
+requires BOTH `tracing_enabled=true` AND a `langsmith_api_key`. When on, the triage call is traced
+with inputs/outputs **redacted to non-PII metadata**; the drafting-agent path traces full content, so
+tracing MUST stay disabled in production until the Presidio redaction sweep (spec 12) exists — enabling
+it logs a warning to that effect.
 
 ## Frontend: run & validate
 
@@ -72,6 +75,65 @@ npm run test           # Vitest component/integration (mocked API)
 npm run test:e2e       # Playwright reviewer approve/reject happy path (needs the live stack)
 npm run build          # production build (fresh-clone smoke)
 ```
+
+## Full e2e against a live backend (verified 2026-06-15 on this Windows host)
+
+The Playwright e2e (`frontend/e2e/`) hits the **real** stack (SPA at :5173 + API at :8000). Running it
+end-to-end surfaced three integration bugs that mocked unit tests cannot (CORS, missing `GET
+/auth/users/me`, login token-attach) — so this path is worth doing before shipping. Exact steps:
+
+```bash
+# 1. Infra only (avoids the slow API image build — run the API locally via uv instead).
+docker compose up -d vault postgres redis
+#    HOST GOTCHA: a host-installed Postgres may squat on :5432, shadowing the container. The
+#    gitignored docker-compose.override.yml maps the containers to 5433/6380 — use those locally.
+#    (If a stale pgdata volume has old creds: `docker compose down -v` then up again.)
+
+# 2. Write Vault secrets pointing at the OVERRIDE ports. write_secrets.py demands an LLM key even
+#    though login needs none — pass a dummy.
+export VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
+  DATABASE_URL="postgresql+asyncpg://pantera:pantera@localhost:5433/pantera" \
+  REDIS_URL="redis://localhost:6380/0" ANTHROPIC_API_KEY="sk-dummy"
+uv run python scripts/write_secrets.py
+
+# 3. Migrate (alembic reads the URL from Vault).
+uv run alembic upgrade head            # expect: 0009 (head)
+
+# 4. Seed a reviewer (no seed script exists; insert directly, bypassing the password policy so the
+#    e2e's default creds work). role='reviewer', user_type='staff', client_id=NULL.
+uv run python - <<'PY'
+import asyncio
+from sqlalchemy import select
+import app.audit.models, app.auth.models, app.clients.models, app.embedding.models, app.reports.models, app.triage.models, app.ingestion.models  # noqa: register tables
+from app.auth.backend import password_helper
+from app.auth.models import User
+from app.core.config import get_settings
+from app.core.startup import load_secrets_from_vault
+from app.db.base import create_engine, create_session_factory
+async def main():
+    s = get_settings(); await load_secrets_from_vault(s)
+    e = create_engine(s.database_url); f = create_session_factory(e)
+    async with f() as session:
+        if await session.scalar(select(User).where(User.email=='reviewer@example.com')):
+            print('exists'); await e.dispose(); return
+        session.add(User(email='reviewer@example.com', hashed_password=password_helper.hash('password'),
+                         role='reviewer', user_type='staff', client_id=None,
+                         is_active=True, is_superuser=False, is_verified=True))
+        await session.commit(); print('reviewer created')
+    await e.dispose()
+asyncio.run(main())
+PY
+
+# 5. Run the API locally (uses Vault secrets → 5433/6380). CORS for :5173 is on by default
+#    (Settings.cors_allow_origins).
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 &   # wait for GET /health = 200
+
+# 6. Serve the built SPA and run the e2e (default creds reviewer@example.com / password).
+cd frontend && npm run build && (npx vite preview --port 5173 &)
+PLAYWRIGHT_BASE_URL=http://localhost:5173 npx playwright install chromium
+PLAYWRIGHT_BASE_URL=http://localhost:5173 npx playwright test     # expect: 2 passed
+```
+Teardown: `npx kill-port 8000 5173 && docker compose down -v`.
 
 ### Manual smoke per role
 - **Reviewer** → lands on `/queue`: drafts-only, expedited-first with SLA countdown; open a report →

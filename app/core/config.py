@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     # NOT in _REQUIRED_SECRETS: app boots normally when empty.
     langsmith_api_key: str = ""
     langsmith_project: str = "pantera"
+    # Master switch: tracing requires BOTH this True AND a key. Default False. Traces carry
+    # unredacted clinical text on the agent path — keep OFF in production until Presidio (spec 12).
+    tracing_enabled: bool = False
 
     # Per-1K-token prices in USD, keyed by pinned model id.
     # Units: USD per 1,000 tokens (input or output). Currency: USD.

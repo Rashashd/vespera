@@ -13,6 +13,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from app.core.config import Settings
 from app.infra.llm_adapter import LLMClient, build_llm_client
+from app.observability.tracing import traced_llm_call
 
 _log = structlog.get_logger(__name__)
 _PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
@@ -37,6 +38,7 @@ def _should_retry(exc: BaseException) -> bool:
     return isinstance(exc, (httpx.TimeoutException, httpx.NetworkError))
 
 
+@traced_llm_call  # FR-032: trace the triage call site (inputs/outputs redacted to non-PII metadata)
 @retry(
     retry=retry_if_exception_type((httpx.TimeoutException, httpx.NetworkError)),
     stop=stop_after_attempt(3),
