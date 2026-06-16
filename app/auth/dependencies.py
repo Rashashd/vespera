@@ -10,6 +10,7 @@ from app.auth.models import User
 from app.auth.schemas import Role, UserType
 from app.clients.models import Client
 from app.core.dependencies import get_session
+from app.db.rls import set_rls_context
 
 __all__ = [
     "current_active_user",
@@ -30,12 +31,24 @@ async def current_active_principal(
 
     Freshness: authorization is computed from the current stored row, not token claims (FR-019).
     """
-    # Re-read so demotion/deactivation is effective on the next request.
+    # Re-read so demotion/deactivation is effective on the next request. users is RLS-exempt,
+    # so this read runs correctly before any RLS context is set.
     fresh = await session.get(User, user.id)
     if fresh is None or not fresh.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="NOT_AUTHENTICATED")
 
+    # Set the per-request RLS context BEFORE any policied query (clients is policied). Staff act
+    # across clients (is_staff=True); client-users are scoped to their own client. Staff
+    # cross-client attribution stays at the app layer (acting_client + audit).
+    is_staff = fresh.user_type == UserType.STAFF.value
+    await set_rls_context(
+        session,
+        client_id=None if is_staff else fresh.client_id,
+        is_staff=is_staff,
+    )
+
     if fresh.user_type == UserType.CLIENT.value and fresh.client_id is not None:
+        # clients is policied; with context set above, a client-user can read their own row.
         client = await session.get(Client, fresh.client_id)
         if client is None or client.status != "active":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CLIENT_SUSPENDED")

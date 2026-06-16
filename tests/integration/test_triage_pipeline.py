@@ -98,10 +98,10 @@ async def test_five_bucket_routing(
     from app.triage.models import Finding
     from app.triage.runner import triage_document_runner
 
-    async def fake_resolve(text, reliability, settings, client_id, document_id):
+    async def fake_resolve(text, reliability, settings, client_id, document_id, **kwargs):
         return False
 
-    async def fake_valence(text, reliability, settings, client_id, document_id):
+    async def fake_valence(text, reliability, settings, client_id, document_id, **kwargs):
         if "improved outcomes" in text.lower():
             return "positive"
         return "irrelevant"

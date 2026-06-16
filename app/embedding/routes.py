@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.auth.dependencies import get_acting_client, get_acting_client_read, require_admin
 from app.auth.models import User
 from app.clients.models import Client
+from app.db.rls import set_rls_context
 from app.domain.events import IndexBuildTriggered
 from app.embedding import service as embedding_service
 from app.embedding.models import DocumentIndexState
@@ -38,6 +39,7 @@ async def trigger_index_build(
 
     async with session_factory() as session:
         async with session.begin():
+            await set_rls_context(session, client_id=target.id, is_staff=False)
             run, is_new_run = await embedding_service.IndexBuildService.create_run(
                 session,
                 client_id=target.id,
@@ -79,6 +81,7 @@ async def list_index_runs(
     session_factory = request.app.state.session_factory
 
     async with session_factory() as session:
+        await set_rls_context(session, client_id=target.id, is_staff=False)
         runs = await embedding_service.IndexBuildService.list_runs(
             session, client_id=target.id, limit=limit
         )
@@ -98,6 +101,7 @@ async def get_index_run(
     session_factory = request.app.state.session_factory
 
     async with session_factory() as session:
+        await set_rls_context(session, client_id=target.id, is_staff=False)
         run = await embedding_service.IndexBuildService.get_run(session, run_id)
         if run is None or run.client_id != target.id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="RUN_NOT_FOUND")
@@ -119,6 +123,7 @@ async def list_document_index_state(
     session_factory = request.app.state.session_factory
 
     async with session_factory() as session:
+        await set_rls_context(session, client_id=target.id, is_staff=False)
         query = select(DocumentIndexState).where(DocumentIndexState.client_id == target.id)
 
         if status_filter:

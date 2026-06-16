@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.core.dispatcher import EventDispatcher
 from app.core.startup import load_secrets_from_vault, run_startup_checks
 from app.db.base import create_engine, create_session_factory
+from app.db.rls import install_system_rls
 from app.infra.llm_adapter import build_llm_client
 from app.infra.redis import create_redis
 from app.observability.logging import configure_logging, get_logger
@@ -21,7 +22,8 @@ async def startup(ctx: dict) -> None:
     await load_secrets_from_vault(settings)
     ctx["settings"] = settings
 
-    engine = create_engine(settings.database_url)
+    engine = create_engine(settings.app_database_url)  # least-priv runtime role (RLS-enforced)
+    install_system_rls(engine)  # all worker sessions run as system (is_staff) — covers the pipeline
     ctx["engine"] = engine
     ctx["redis"] = await create_redis(settings.redis_url)
     ctx["llm"] = build_llm_client(settings)

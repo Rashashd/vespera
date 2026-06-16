@@ -80,6 +80,8 @@ jobs:
           )
           print("secrets written")
           PY
+      - name: Create least-privilege pantera_app role (spec 12; bootstrap, not a migration)
+        run: docker compose exec -T postgres psql -U pantera -d pantera -f - < scripts/db/init-pantera-app-role.sql
       - name: Apply migrations
         run: uv run alembic upgrade head
       - name: Tests with coverage (80% overall gate)

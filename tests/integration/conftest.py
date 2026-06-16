@@ -15,10 +15,17 @@ _INTEGRATION = bool(os.getenv("PANTERA_INTEGRATION"))
 async def auth_app():
     """Create the app and run its ordered lifespan (secrets, engine, redis, limiter)."""
     from app.auth.rate_limit import login_limiter
+    from app.db.rls import install_system_rls
     from app.main import create_app
 
     app = create_app()
     async with app.router.lifespan_context(app):
+        # Spec 12: the runtime engine now enforces RLS (pantera_app role). Many tests open
+        # sessions directly via state.session_factory to set up data WITHOUT a request principal;
+        # default those to system context so setup writes succeed. Request-path sessions still
+        # override per-principal in current_active_principal, so isolation tests stay valid (the
+        # dedicated test_rls_isolation builds its own listener-free engine to assert default-deny).
+        install_system_rls(app.state.engine)
         # Clear the per-IP login counter so tests don't exhaust each other's 5/min budget.
         login_limiter.reset()
         yield app
@@ -32,6 +39,24 @@ async def client(auth_app):
         yield c
 
 
+@pytest_asyncio.fixture
+async def priv_factory(auth_app):
+    """Privileged (RLS-bypassing) session factory for test data setup/teardown.
+
+    The app's own session_factory now connects as the least-privilege pantera_app role (RLS
+    enforced), so direct fixture INSERT/DELETE need the privileged role — mirroring how seed
+    scripts run (spec 12). Request-path behaviour is still exercised through the ASGI `client`,
+    which uses the RLS-enforced engine.
+    """
+    from app.db.base import create_engine, create_session_factory
+
+    engine = create_engine(auth_app.state.settings.database_url)
+    try:
+        yield create_session_factory(engine)
+    finally:
+        await engine.dispose()
+
+
 async def _ensure_client(session, client_id: int) -> None:
     """Ensure a clients row exists for the FK users.client_id → clients.id."""
     from app.clients.models import Client
@@ -42,7 +67,7 @@ async def _ensure_client(session, client_id: int) -> None:
 
 
 @pytest_asyncio.fixture
-async def make_user(auth_app):
+async def make_user(auth_app, priv_factory):
     """Factory that inserts a user directly in the DB; cleans up users + their audit rows.
 
     user_type inference: if client_id is not None → 'client' (for legacy spec-3/4 tests that
@@ -53,7 +78,7 @@ async def make_user(auth_app):
     from app.auth.backend import password_helper
     from app.auth.models import User
 
-    factory = auth_app.state.session_factory
+    factory = priv_factory
     created_ids: list[int] = []
 
     async def _make(
@@ -97,13 +122,13 @@ async def make_user(auth_app):
 
 
 @pytest_asyncio.fixture
-async def make_staff_user(auth_app):
+async def make_staff_user(auth_app, priv_factory):
     """Factory for staff users (user_type='staff', client_id=None); convenience wrapper."""
     from app.audit.models import AuditLog
     from app.auth.backend import password_helper
     from app.auth.models import User
 
-    factory = auth_app.state.session_factory
+    factory = priv_factory
     created_ids: list[int] = []
 
     async def _make(
@@ -140,7 +165,7 @@ async def make_staff_user(auth_app):
 
 
 @pytest_asyncio.fixture
-async def make_client(auth_app):
+async def make_client(auth_app, priv_factory):
     """Factory that inserts a client row and tears down its watchlists/users/audit on exit."""
     from app.audit.models import AuditLog
     from app.auth.models import User
@@ -151,7 +176,7 @@ async def make_client(auth_app):
         WatchlistItem,
     )
 
-    factory = auth_app.state.session_factory
+    factory = priv_factory
     created_ids: list[int] = []
 
     async def _make(name: str | None = None, status: str = "active") -> Client:
@@ -190,11 +215,11 @@ async def make_client(auth_app):
 
 
 @pytest_asyncio.fixture
-async def make_watchlist(auth_app):
+async def make_watchlist(auth_app, priv_factory):
     """Factory that inserts a watchlist row for a client."""
     from app.clients.models import Watchlist
 
-    factory = auth_app.state.session_factory
+    factory = priv_factory
     created_ids: list[int] = []
 
     async def _make(
@@ -236,13 +261,13 @@ async def make_watchlist(auth_app):
 
 
 @pytest_asyncio.fixture
-async def make_document(auth_app):
+async def make_document(auth_app, priv_factory):
     """Factory that inserts a document with a source payload."""
     from datetime import datetime
 
     from app.ingestion.models import Document, DocumentSource, DocumentWatchlist
 
-    factory = auth_app.state.session_factory
+    factory = priv_factory
     created_ids: list[int] = []
 
     async def _make(
@@ -320,9 +345,9 @@ async def make_document(auth_app):
 
 
 @pytest_asyncio.fixture
-async def async_session(auth_app):
+async def async_session(auth_app, priv_factory):
     """Provide a direct async database session for tests."""
-    factory = auth_app.state.session_factory
+    factory = priv_factory
     async with factory() as session:
         yield session
 

@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.dispatcher import EventDispatcher
 from app.core.startup import load_secrets_from_vault, run_startup_checks
 from app.db.base import create_engine, create_session_factory
+from app.db.rls import set_system_context
 from app.infra.llm_adapter import build_llm_client
 from app.infra.redis import create_redis
 from app.observability.headers import build_limiter
@@ -38,6 +39,7 @@ async def _run_ingestion_startup(session_factory, grace_seconds: int = 0) -> Non
 
         async with session_factory() as session:
             async with session.begin():
+                await set_system_context(session)  # startup task: system context (RLS)
                 # Pass job_timeout as grace so ARQ-retrying runs are not prematurely failed (G3).
                 count = await reconcile_interrupted_runs(session, grace_seconds=grace_seconds)
         if count:
@@ -61,8 +63,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     configure_tracing(settings)
 
-    # 2. Build shared singletons exactly once.
-    engine = create_engine(settings.database_url)
+    # 2. Build shared singletons exactly once. Runtime connects as the least-privilege
+    # pantera_app role (RLS-enforced); migrations/seed keep the privileged database_url.
+    engine = create_engine(settings.app_database_url)
     redis = await create_redis(settings.redis_url)
     llm = build_llm_client(settings)
     dispatcher = EventDispatcher()
@@ -107,6 +110,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         async with session_factory() as session:
             async with session.begin():
+                await set_system_context(session)  # startup task: system context (RLS)
                 await ensure_manager(session, settings)
     except Exception as exc:  # noqa: BLE001
         _log.warning("bootstrap.manager_failed", error=str(exc))

@@ -26,6 +26,8 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Spec 12: create the least-priv pantera_app role on a fresh volume (runs once at init).
+      - ./scripts/db/init-pantera-app-role.sql:/docker-entrypoint-initdb.d/10-pantera-app-role.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pantera"]
       interval: 5s

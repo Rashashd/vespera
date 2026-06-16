@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.auth.dependencies import get_acting_client
 from app.clients.models import Client
+from app.db.rls import set_rls_context
 from app.infra.modelserver_client import ModelserverClient, ModelserverError
 from app.rag.query_embed import EmbedderVersionMismatch, query_hash
 from app.rag.schemas import RetrieveRequest, RetrieveResponse
@@ -43,6 +44,7 @@ async def search(
     try:
         async with ModelserverClient.from_settings(settings) as ms_client:
             async with session_factory() as session:
+                await set_rls_context(session, client_id=target.id, is_staff=False)
                 result = await rag_service.retrieve(
                     session=session,
                     redis=redis,

@@ -16,6 +16,14 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
+# Spec 12: the guardrails sidecar is not run in the test/CI environment (the red-team gate
+# imports the rails engine directly). Disable the guardrails boundary for the suite via the
+# test-only kill-switch so triage/agent/intake tests exercise their normal paths rather than the
+# sidecar-unavailable fail-safe. Set BEFORE any get_settings() call. Production refuses this
+# toggle (startup.check_security_boundary). Redaction stays ON (in-process; no sidecar needed).
+# A dedicated test (test_guardrails_failsafe) re-enables guardrails to prove the outage fail-safe.
+os.environ.setdefault("GUARDRAILS_ENABLED", "false")
+
 # ---------------------------------------------------------------------------
 # Fixture artifact helpers
 # ---------------------------------------------------------------------------

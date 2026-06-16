@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.auth.dependencies import get_acting_client
 from app.clients.models import Client
+from app.db.rls import set_rls_context
 from app.triage.models import Finding
 from app.triage.schemas import FindingStateResponse
 
@@ -33,6 +34,7 @@ async def get_finding(
     log = _log.bind(client_id=target.id, finding_id=finding_id)
 
     async with session_factory() as session:
+        await set_rls_context(session, client_id=target.id, is_staff=False)
         result = await session.execute(
             select(Finding).where(
                 Finding.id == finding_id,

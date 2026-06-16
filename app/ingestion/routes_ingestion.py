@@ -11,6 +11,7 @@ from app.auth.models import User
 from app.clients import service as client_service
 from app.clients.models import Client
 from app.core.dependencies import get_session
+from app.db.rls import set_rls_context
 from app.domain.events import IngestionRunTriggered
 from app.ingestion import service as ingest_service
 from app.ingestion.schemas import IngestionRunOut
@@ -37,6 +38,7 @@ async def trigger_ingestion(
 
     async with session_factory() as session:
         async with session.begin():
+            await set_rls_context(session, client_id=target.id, is_staff=False)
             watchlist = await client_service.get_watchlist(session, target.id, watchlist_id)
             if watchlist is None:
                 raise HTTPException(

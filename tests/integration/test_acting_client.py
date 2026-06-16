@@ -44,6 +44,9 @@ async def probed_app():
         return {"client_id": target.id, "status": target.status}
 
     async with app.router.lifespan_context(app):
+        from app.db.rls import install_system_rls
+
+        install_system_rls(app.state.engine)  # spec 12: direct test writes default to system ctx
         login_limiter.reset()
         yield app
 
