@@ -10,7 +10,14 @@ from app.observability.logging import get_logger
 _log = get_logger(__name__)
 
 # Secrets that MUST be present for the foundation to boot (FR-002); auth_jwt_secret added in spec 2.
-_REQUIRED_SECRETS = ("database_url", "redis_url", "auth_jwt_secret")
+# Spec 12: app_database_url (least-priv runtime DSN) + guardrails_token (sidecar credential) added.
+_REQUIRED_SECRETS = (
+    "database_url",
+    "redis_url",
+    "auth_jwt_secret",
+    "app_database_url",
+    "guardrails_token",
+)
 
 
 async def load_secrets_from_vault(settings: Settings) -> None:
@@ -38,6 +45,7 @@ async def load_secrets_from_vault(settings: Settings) -> None:
     settings.openai_api_key = data.get("openai_api_key", "")
     settings.modelserver_token = data.get("modelserver_token", "")
     settings.guardrails_token = data.get("guardrails_token", "")
+    settings.app_database_url = data.get("app_database_url", "")  # spec 12: least-priv runtime DSN
     settings.auth_jwt_secret = data.get("auth_jwt_secret", "")
     # Bootstrap admin credentials are optional at boot (only the seed script needs them).
     settings.bootstrap_admin_email = data.get("bootstrap_admin_email", "")
@@ -68,8 +76,29 @@ def check_model_artifacts(settings: Settings) -> None:
     return None
 
 
+def check_security_boundary(settings: Settings) -> None:
+    """Refuse to boot in production with a mandatory security layer disabled (T002a).
+
+    `guardrails_enabled`/`redaction_enabled` exist ONLY so the test suite can isolate
+    non-guarded / non-redacted behaviour. Honouring a `False` toggle in production would
+    silently bypass the mandatory guardrails boundary or PII redaction (FR-003 / FR-014a;
+    Principle V / Security). Non-prod may disable them for test isolation.
+    """
+    if settings.environment != "production":
+        return
+    disabled = [
+        name for name in ("guardrails_enabled", "redaction_enabled") if not getattr(settings, name)
+    ]
+    if disabled:
+        raise RuntimeError(
+            "Mandatory security boundary cannot be disabled in production: "
+            f"{', '.join(disabled)} is False (set environment != 'production' for tests only)"
+        )
+
+
 async def run_startup_checks(engine: AsyncEngine, redis, settings: Settings) -> None:
     """Run all fail-fast startup checks; any failure aborts boot."""
+    check_security_boundary(settings)
     await check_database(engine)
     await check_redis(redis)
     check_model_artifacts(settings)

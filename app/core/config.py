@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     vault_token: str = "root"  # dev-mode convention; production holds only this token
     vault_secret_path: str = "pantera/secrets"
 
+    # --- Deployment environment (spec 12) ---
+    # Drives production-only safety guards (e.g. the guardrails/redaction kill-switch guard,
+    # T002a). Override with env ENVIRONMENT=production on real deployments. There is no other
+    # production signal in the codebase; key prod-only behaviour off this single field.
+    environment: str = "development"
+
     # --- Non-secret configuration (safe as defaults) ---
     anthropic_model: str = "claude-3-5-sonnet-20241022"  # pinned
     openai_model: str = "gpt-4o-2024-08-06"  # pinned
@@ -62,6 +68,16 @@ class Settings(BaseSettings):
 
     # --- RAG retrieval: query cache configuration (spec 7) ---
     query_embedding_cache_ttl: int = 3600  # Redis TTL for query embedding cache entries (seconds)
+
+    # --- Security hardening (spec 12) ---
+    guardrails_url: str = "http://guardrails:8002"  # sidecar base URL (non-secret config)
+    app_database_url: str = ""  # least-priv pantera_app DSN; from Vault (_REQUIRED_SECRETS)
+    # Kill-switches are NON-PRODUCTION / TEST-ONLY: they let the test suite isolate
+    # non-guarded / non-redacted behaviour. They MUST NEVER bypass the mandatory boundary in
+    # production — startup (T002a) refuses to boot if either is False when environment==production
+    # (FR-003 / FR-014a; Principle V). Default True so the boundary is always on by default.
+    guardrails_enabled: bool = True
+    redaction_enabled: bool = True
 
     # --- Triage (spec 8) ---
     modelserver_url: str = "http://modelserver:8001"

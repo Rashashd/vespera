@@ -18,3 +18,8 @@ scheduling:
   loss_rate_max: 0
   transient_retry_recovery_min: 1.0
   inline_vs_durable_parity_min: 1.0
+# Spec 12: security hardening gates. CI-gate-only — never loaded at runtime.
+security:
+  redaction_leak_max: 0  # planted PII/secret tokens that survive any egress point
+  guardrail_block_rate_min: 1.0  # fraction of red-team attacks blocked (input+output rails)
+  guardrail_false_refusal_max: 0  # legitimate PV control payloads wrongly blocked
