@@ -48,9 +48,9 @@ jobs:
       - name: Sync dependencies (dev + modelserver groups; exclude heavy training group)
         run: uv sync --group modelserver
       - name: Ruff lint (incl. ASYNC rules for FR-018)
-        run: uv run ruff check app worker tests
+        run: uv run ruff check app worker guardrails tests
       - name: Black format check
-        run: uv run black --check app worker tests
+        run: uv run black --check app worker guardrails tests
       - name: Type-check (advisory)
         run: uv run mypy app worker || true
       - name: Start infra (Vault + Postgres + Redis)

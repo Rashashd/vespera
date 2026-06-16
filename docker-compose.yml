@@ -59,6 +59,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      guardrails:
+        condition: service_healthy
 
   worker:
     build:
@@ -74,6 +76,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      guardrails:
         condition: service_healthy
 
   modelserver:
@@ -91,6 +95,25 @@ services:
     healthcheck:
       # The lean image has no curl; use the bundled Python stdlib to probe /health (no auth).
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  guardrails:
+    build:
+      context: .
+      dockerfile: guardrails/Dockerfile
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+    ports:
+      - "8002:8002"
+    depends_on:
+      vault:
+        condition: service_healthy
+    healthcheck:
+      # The lean image has no curl; use the bundled Python stdlib to probe /health (no auth).
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=3).status == 200 else 1)"]
       interval: 10s
       timeout: 5s
       retries: 10

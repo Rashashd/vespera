@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.core.config import Settings
+from app.core.dispatcher import EventDispatcher
+from app.guardrails.egress import guard_text
 from app.infra.llm_adapter import LLMClient, build_llm_client
 from app.observability.tracing import traced_llm_call
 
@@ -131,16 +133,28 @@ async def resolve_yes_no(
     client_id: int,
     document_id: int,
     session: object | None = None,
+    dispatcher: EventDispatcher | None = None,
 ) -> bool:
     """Ask the LLM: is this document an adverse drug reaction? Returns True=YES.
 
-    Raises on failure so the caller can apply the fail-safe escalation.
+    Raises on failure (incl. a blocked/unavailable guardrail) so the caller escalates.
     """
     llm = build_llm_client(settings)
     prompt_template = _load_prompt("triage_lowconf_resolve.txt")
     system_prompt = prompt_template.split("<document>")[0].strip()
     user_content = text
 
+    # Egress order (FR-012): guard(input) → call → guard(output). Redaction inserts before
+    # guard(input) in T024. A block/outage raises → triage fail-safe escalates.
+    await guard_text(
+        settings,
+        text=user_content,
+        direction="input",
+        client_id=client_id,
+        call_site="triage",
+        session=session,
+        dispatcher=dispatcher,
+    )
     raw = await _call_llm(
         llm,
         system_prompt,
@@ -149,6 +163,15 @@ async def resolve_yes_no(
         session=session,
         settings=settings,
         client_id=client_id,
+    )
+    await guard_text(
+        settings,
+        text=raw,
+        direction="output",
+        client_id=client_id,
+        call_site="triage",
+        session=session,
+        dispatcher=dispatcher,
     )
     result = _AdverseResult.model_validate(json.loads(raw))
     return result.adverse
@@ -161,10 +184,12 @@ async def assess_valence(
     client_id: int,
     document_id: int,
     session: object | None = None,
+    dispatcher: EventDispatcher | None = None,
 ) -> str:
     """Ask the LLM for valence of a NO-classified finding. Returns 'positive' or 'irrelevant'.
 
-    On any failure, returns 'positive' (fail-safe default per FR-016).
+    On any failure (incl. a blocked/unavailable guardrail), returns 'positive' (fail-safe
+    default per FR-016); the guardrail event is still audited before falling back.
     """
     log = _log.bind(client_id=client_id, document_id=document_id)
     try:
@@ -177,6 +202,15 @@ async def assess_valence(
         )
         user_content = text
 
+        await guard_text(
+            settings,
+            text=user_content,
+            direction="input",
+            client_id=client_id,
+            call_site="triage",
+            session=session,
+            dispatcher=dispatcher,
+        )
         raw = await _call_llm(
             llm,
             system_prompt,
@@ -185,6 +219,15 @@ async def assess_valence(
             session=session,
             settings=settings,
             client_id=client_id,
+        )
+        await guard_text(
+            settings,
+            text=raw,
+            direction="output",
+            client_id=client_id,
+            call_site="triage",
+            session=session,
+            dispatcher=dispatcher,
         )
         result = _ValenceResult.model_validate(json.loads(raw))
         if result.valence not in ("positive", "irrelevant"):

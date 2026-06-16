@@ -113,7 +113,15 @@ async def _triage_one(
 
     # --- Stage 3: Three-stage classify decision ---
     async def _llm_resolve(text: str, reliability: str) -> bool:
-        return await llm_module.resolve_yes_no(text, reliability, settings, client_id, document_id)
+        return await llm_module.resolve_yes_no(
+            text,
+            reliability,
+            settings,
+            client_id,
+            document_id,
+            session=session,
+            dispatcher=dispatcher,
+        )
 
     try:
         verdict, model_confidence, resolution_path = await resolve_adverse(
@@ -146,7 +154,13 @@ async def _triage_one(
     else:
         # NO verdict → LLM valence assessment; assess_valence defaults to "positive" on failure
         valence = await llm_module.assess_valence(
-            document_text, source_reliability, settings, client_id, document_id
+            document_text,
+            source_reliability,
+            settings,
+            client_id,
+            document_id,
+            session=session,
+            dispatcher=dispatcher,
         )
         bucket = Bucket.POSITIVE if valence == "positive" else Bucket.IRRELEVANT
 

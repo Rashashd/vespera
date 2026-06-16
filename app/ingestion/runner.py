@@ -8,6 +8,11 @@ from datetime import UTC, datetime, timedelta
 
 import structlog
 
+from app.core.config import Settings
+from app.core.dispatcher import EventDispatcher
+from app.domain.events import DocumentQuarantined
+from app.guardrails.client import GuardrailsUnavailable
+from app.guardrails.egress import GuardBlocked, guard_text
 from app.ingestion import service
 from app.ingestion.adapters import ENABLED_ADAPTERS, RawRecord, SourceAdapter, WatchlistQuery
 from app.ingestion.enums import (
@@ -45,11 +50,17 @@ async def run_ingestion(
     initial_lookback_days: int = 365,
     per_source_cap: int = 200,
     adapters: list[SourceAdapter] | None = None,
+    settings: Settings | None = None,
+    dispatcher: EventDispatcher | None = None,
 ) -> None:
     """Execute a full ingestion run: fan-out, dedup, persist, finish the run record.
 
     Uses the supplied session_factory so this function is framework-agnostic and callable from
     spec-11 ARQ without modification (D8). Each adapter is isolated: failure ≠ abort.
+
+    When ``settings`` is provided, each fetched document passes an intake guardrails scan
+    (FR-006a) before persistence; a blocked/unavailable scan quarantines that document
+    (held out of indexing+triage, DocumentQuarantined audited) and the cycle continues.
     """
     used_adapters = adapters if adapters is not None else ENABLED_ADAPTERS
     log = _log.bind(run_id=run_id, client_id=client_id, watchlist_id=watchlist_id)
@@ -146,6 +157,46 @@ async def run_ingestion(
                         src_skipped += 1
                         continue
                     seen_in_run.add(norm_id)
+
+                    # Intake guardrails scan (FR-006a): on block/outage, quarantine the
+                    # document (held out of indexing+triage) and continue the cycle. Pass no
+                    # dispatcher to guard_text so it raises without emitting a triage/agent
+                    # event; intake emits DocumentQuarantined instead.
+                    if settings is not None:
+                        doc_text = "\n".join(p for p in (record.title, record.summary) if p)
+                        try:
+                            await guard_text(
+                                settings,
+                                text=doc_text,
+                                direction="input",
+                                client_id=client_id,
+                                call_site="intake",
+                            )
+                        except (GuardBlocked, GuardrailsUnavailable) as exc:
+                            reason = (
+                                "intake_guard_blocked"
+                                if isinstance(exc, GuardBlocked)
+                                else "guardrails_unavailable"
+                            )
+                            log.warning(
+                                "ingestion.document_quarantined",
+                                source=rec_source,
+                                norm_id=norm_id,
+                                reason=reason,
+                            )
+                            if dispatcher is not None:
+                                await dispatcher.dispatch(
+                                    DocumentQuarantined(
+                                        actor_id=0,
+                                        actor_type="system",
+                                        client_id=client_id,
+                                        document_id=0,
+                                        reason=reason,
+                                    ),
+                                    session,
+                                )
+                            src_skipped += 1
+                            continue
 
                     try:
                         _, created = await service.upsert_document(

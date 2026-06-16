@@ -107,6 +107,8 @@ async def task_run_ingestion(
             session_factory=wc.session_factory,
             initial_lookback_days=settings.ingestion_initial_lookback_days,
             per_source_cap=settings.ingestion_per_source_cap,
+            settings=settings,
+            dispatcher=wc.dispatcher,
         )
         # Advance cycle to index stage if this is a scheduled cycle
         if cycle_id is not None:

@@ -13,6 +13,8 @@ from langgraph.graph import END, START, StateGraph
 from app.agent.state import DraftingState
 from app.agent.tools import EscalationSignal, ToolError, make_tools
 from app.core.config import Settings
+from app.guardrails.client import GuardrailsUnavailable
+from app.guardrails.egress import GuardBlocked, guard_text
 from app.triage.models import Finding
 
 _log = structlog.get_logger(__name__)
@@ -21,6 +23,20 @@ _PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
 
 def _load_prompt(name: str) -> str:
     return (_PROMPT_DIR / name).read_text(encoding="utf-8")
+
+
+def _untrusted_text(messages: list) -> str:
+    """Concatenate untrusted message content (finding fields + retrieved passages) to guard.
+
+    The SystemMessage is our own trusted prompt; injection risk lives in HumanMessage /
+    ToolMessage content (retrieved RAG passages from the corpus).
+    """
+    parts: list[str] = []
+    for msg in messages:
+        if isinstance(msg, (HumanMessage, ToolMessage)):
+            content = msg.content
+            parts.append(content if isinstance(content, str) else json.dumps(content))
+    return "\n".join(parts)
 
 
 def _build_compiled_graph(
@@ -40,7 +56,43 @@ def _build_compiled_graph(
     chat_model = build_agent_chat_model(settings).bind_tools(tools)
 
     async def agent_node(state: DraftingState) -> dict:
-        response = await chat_model.ainvoke(state["messages"])
+        dispatcher = getattr(app_state, "dispatcher", None)
+        # Guard the egress: input (untrusted finding/RAG content) → model call → output.
+        # Redaction inserts before guard(input) in T025. A block/outage escalates (fail-safe).
+        try:
+            await guard_text(
+                settings,
+                text=_untrusted_text(state["messages"]),
+                direction="input",
+                client_id=client.id,
+                call_site="agent",
+                session=session,
+                dispatcher=dispatcher,
+            )
+            response = await chat_model.ainvoke(state["messages"])
+            await guard_text(
+                settings,
+                text=str(getattr(response, "content", "")),
+                direction="output",
+                client_id=client.id,
+                call_site="agent",
+                session=session,
+                dispatcher=dispatcher,
+            )
+        except GuardBlocked as exc:
+            _log.warning("agent.guardrail.blocked", finding_id=finding.id, rail=exc.rail)
+            return {
+                "escalated": True,
+                "escalation_reason": f"guardrail_blocked:{exc.rail}",
+                "iterations_used": state["iterations_used"] + 1,
+            }
+        except GuardrailsUnavailable:
+            _log.warning("agent.guardrail.unavailable", finding_id=finding.id)
+            return {
+                "escalated": True,
+                "escalation_reason": "guardrails_unavailable",
+                "iterations_used": state["iterations_used"] + 1,
+            }
         usage = getattr(response, "usage_metadata", None) or {}
         in_tok = usage.get("input_tokens", 0) if isinstance(usage, dict) else 0
         out_tok = usage.get("output_tokens", 0) if isinstance(usage, dict) else 0

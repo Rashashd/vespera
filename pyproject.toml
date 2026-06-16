@@ -127,6 +127,8 @@ target-version = "py312"
 [tool.ruff.lint.per-file-ignores]
 # modelserver is a standalone package; no FastAPI dependency-injection patterns there
 "modelserver/**" = []
+# guardrails sidecar is likewise standalone (spec 12)
+"guardrails/**" = []
 
 [tool.ruff.lint]
 # E/F pyflakes+pycodestyle, I isort, ASYNC flake8-async (enforces FR-018 async correctness),
