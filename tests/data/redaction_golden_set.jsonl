@@ -1,0 +1,10 @@
+{"egress": "llm", "text": "Case for patient John Smith, MRN: 00998877: anaphylaxis after atorvastatin 40mg.", "leak_tokens": ["John Smith", "00998877"], "keep_tokens": ["anaphylaxis", "atorvastatin"]}
+{"egress": "llm", "text": "Reporter Jane Doe (jane.doe@example.com, 555-123-4567) noted hepatotoxicity with ondansetron.", "leak_tokens": ["jane.doe@example.com", "555-123-4567", "Jane Doe"], "keep_tokens": ["hepatotoxicity", "ondansetron"]}
+{"egress": "llm", "text": "Internal note: call the model with sk-ant-ABCDEF0123456789ABCDEF about thrombocytopenia.", "leak_tokens": ["sk-ant-ABCDEF0123456789ABCDEF"], "keep_tokens": ["thrombocytopenia"]}
+{"egress": "summary", "text": "Derived summary: patient Robert Brown, SSN 123-45-6789, developed QT prolongation.", "leak_tokens": ["Robert Brown", "123-45-6789"], "keep_tokens": ["QT prolongation"]}
+{"egress": "log", "text": "triage payload key=sk-ant-SECRETSECRET0123456789 mrn MRN: 00112233 ssn 123-45-6789", "leak_tokens": ["sk-ant-SECRETSECRET0123456789", "00112233", "123-45-6789"], "keep_tokens": []}
+{"egress": "log", "text": "ingest record contact admin@hospital.org token Bearer abcdef0123456789abcdef", "leak_tokens": ["admin@hospital.org", "abcdef0123456789abcdef"], "keep_tokens": []}
+{"egress": "config", "text": "watchlist keyword note: escalate for nurse Mary Jones, key sk-ant-CONFIGSECRET0123456789", "leak_tokens": ["Mary Jones", "sk-ant-CONFIGSECRET0123456789"], "keep_tokens": ["escalate"]}
+{"egress": "config", "text": "custom severity keyword: report MRN: 00554433 cases of agranulocytosis as serious", "leak_tokens": ["00554433"], "keep_tokens": ["agranulocytosis", "serious"]}
+{"egress": "llm", "text": "Stevens drug signal: rhabdomyolysis after simvastatin; no patient identifiers present.", "leak_tokens": [], "keep_tokens": ["rhabdomyolysis", "simvastatin"]}
+{"egress": "summary", "text": "Corroborated in 3 articles: nephrotoxicity associated with high-dose vancomycin.", "leak_tokens": [], "keep_tokens": ["nephrotoxicity", "vancomycin"]}

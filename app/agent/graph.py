@@ -15,6 +15,7 @@ from app.agent.tools import EscalationSignal, ToolError, make_tools
 from app.core.config import Settings
 from app.guardrails.client import GuardrailsUnavailable
 from app.guardrails.egress import GuardBlocked, guard_text
+from app.redaction import redact_async
 from app.triage.models import Finding
 
 _log = structlog.get_logger(__name__)
@@ -39,6 +40,24 @@ def _untrusted_text(messages: list) -> str:
     return "\n".join(parts)
 
 
+async def _redacted_messages(settings: Settings, messages: list) -> list:
+    """Return copies of Human/Tool messages with PII/secrets redacted (egress; FR-012).
+
+    The SystemMessage (our trusted prompt) is left intact. Citations are chunk_id refs
+    validated against un-redacted DB chunks, so redacting passage text never breaks grounding.
+    """
+    if not settings.redaction_enabled:
+        return messages
+    out: list = []
+    for msg in messages:
+        if isinstance(msg, (HumanMessage, ToolMessage)) and isinstance(msg.content, str):
+            redacted = await redact_async(settings, msg.content)
+            out.append(msg.model_copy(update={"content": redacted}))
+        else:
+            out.append(msg)
+    return out
+
+
 def _build_compiled_graph(
     settings: Settings,
     session: Any,
@@ -57,19 +76,20 @@ def _build_compiled_graph(
 
     async def agent_node(state: DraftingState) -> dict:
         dispatcher = getattr(app_state, "dispatcher", None)
-        # Guard the egress: input (untrusted finding/RAG content) → model call → output.
-        # Redaction inserts before guard(input) in T025. A block/outage escalates (fail-safe).
+        # Egress order (FR-012): redact → guard(input) → model call → guard(output).
+        # A block/outage escalates (fail-safe).
         try:
+            messages = await _redacted_messages(settings, state["messages"])
             await guard_text(
                 settings,
-                text=_untrusted_text(state["messages"]),
+                text=_untrusted_text(messages),
                 direction="input",
                 client_id=client.id,
                 call_site="agent",
                 session=session,
                 dispatcher=dispatcher,
             )
-            response = await chat_model.ainvoke(state["messages"])
+            response = await chat_model.ainvoke(messages)
             await guard_text(
                 settings,
                 text=str(getattr(response, "content", "")),

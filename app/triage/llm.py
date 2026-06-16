@@ -16,6 +16,7 @@ from app.core.dispatcher import EventDispatcher
 from app.guardrails.egress import guard_text
 from app.infra.llm_adapter import LLMClient, build_llm_client
 from app.observability.tracing import traced_llm_call
+from app.redaction import redact_async
 
 _log = structlog.get_logger(__name__)
 _PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
@@ -142,10 +143,10 @@ async def resolve_yes_no(
     llm = build_llm_client(settings)
     prompt_template = _load_prompt("triage_lowconf_resolve.txt")
     system_prompt = prompt_template.split("<document>")[0].strip()
-    user_content = text
+    # Egress order (FR-012): redact → guard(input) → call → guard(output). A block/outage
+    # raises → triage fail-safe escalates.
+    user_content = await redact_async(settings, text)
 
-    # Egress order (FR-012): guard(input) → call → guard(output). Redaction inserts before
-    # guard(input) in T024. A block/outage raises → triage fail-safe escalates.
     await guard_text(
         settings,
         text=user_content,
@@ -200,7 +201,8 @@ async def assess_valence(
             .strip()
             .format(source_reliability=source_reliability)
         )
-        user_content = text
+        # Egress order (FR-012): redact → guard(input) → call → guard(output).
+        user_content = await redact_async(settings, text)
 
         await guard_text(
             settings,

@@ -1,11 +1,14 @@
-"""LangSmith tracing setup; OFF by default and PII-safe at the triage call site (FR-032/035).
+"""LangSmith tracing setup; OFF by default and PII-safe at every traced call site (FR-023/032/035).
 
-Tracing is gated behind an explicit ``tracing_enabled`` switch AND a configured key — empty/disabled
-is a no-op so the app always boots. When enabled, the triage LLM call is traced with its inputs and
-outputs REDACTED to non-PII metadata only (no document text, prompts, or secrets), so traces never
-contain patient PII even before the Presidio redaction sweep (spec 12) lands. The LangChain drafting
-agent auto-traces full content when tracing is on (a spec-12 redaction concern), so tracing MUST
-remain disabled in production until Presidio exists (see the warning emitted on enable).
+Tracing is gated behind an explicit ``tracing_enabled`` switch AND a configured key — empty or
+disabled is a no-op so the app always boots. Two controls keep traces PII-free:
+  - Triage: ``traced_llm_call`` records only non-PII metadata (client_id, max_tokens) and drops
+    the response body.
+  - Drafting agent: LangChain auto-traces the messages it sends, but those messages are REDACTED
+    at egress (Presidio; ``app/agent/graph.py`` redacts Human/Tool content before
+    ``chat_model.ainvoke``), so the captured trace carries only redacted content (FR-024 —
+    "redaction is the control"); the output is derived from redacted input and is also guarded.
+Tracing still defaults OFF; flip ``tracing_enabled`` on only in non-prod to verify (US4/SC-007).
 """
 
 from __future__ import annotations
@@ -28,20 +31,20 @@ _SAFE_INPUT_KEYS = ("client_id", "max_tokens")
 def configure_tracing(settings: Settings) -> None:
     """Enable LangSmith tracing only when explicitly switched on AND a key is present (FR-032).
 
-    Emits a loud warning that traces may carry unredacted clinical text until Presidio (spec 12).
+    With Presidio egress redaction in place (spec 12), the agent trace carries redacted content
+    (FR-024). Tracing still defaults OFF; the note records that redaction is the control.
     """
     if not (settings.tracing_enabled and settings.langsmith_api_key):
         return
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
     os.environ["LANGCHAIN_API_KEY"] = settings.langsmith_api_key
     os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
-    _log.warning(
+    _log.info(
         "observability.tracing.enabled",
         project=settings.langsmith_project,
-        caution=(
-            "LangSmith tracing is ON. The drafting-agent path traces full content; until the "
-            "Presidio redaction sweep (spec 12) exists, traces may contain unredacted clinical "
-            "text — do NOT enable in production with real patient data."
+        note=(
+            "LangSmith tracing is ON. Agent messages are Presidio-redacted at egress before the "
+            "model call (redaction is the control, FR-024); verify a sample trace is PII-free."
         ),
     )
 

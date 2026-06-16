@@ -29,11 +29,32 @@ def _is_sensitive(key: str) -> bool:
     return lowered in _REDACT_KEYS or any(s in lowered for s in _REDACT_SUBSTRINGS)
 
 
+# Lazy handle to the spaCy-free value scrubber (secrets + structured identifiers). Imported on
+# first use so the redaction package (and Presidio) stays out of the early logging import chain.
+_scrub: Any = None
+
+
+def _get_scrub() -> Any:
+    """Return the value scrubber, importing it lazily; degrade to identity if unavailable."""
+    global _scrub
+    if _scrub is None:
+        try:
+            from app.redaction.recognizers import scrub_text
+
+            _scrub = scrub_text
+        except Exception:  # noqa: BLE001 - logging must never fail to import
+            _scrub = lambda value: value  # noqa: E731
+    return _scrub
+
+
 def _redact_processor(_logger: Any, _method: str, event_dict: dict[str, Any]) -> dict[str, Any]:
-    """Replace the value of any secret/PII-named key with a redaction marker."""
+    """Redact secret/PII-named keys, and scrub secrets/identifiers from string values (FR-009)."""
+    scrub = _get_scrub()
     for key in list(event_dict.keys()):
         if _is_sensitive(key):
             event_dict[key] = _REDACTED
+        elif isinstance(event_dict[key], str):
+            event_dict[key] = scrub(event_dict[key])
     return event_dict
 
 

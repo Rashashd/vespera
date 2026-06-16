@@ -2,6 +2,9 @@ CLAUDE.md
 .claude/
 .specify/
 memory/
+docs/design-system.md
+docs/AI-IMPLEMENTATION-PITFALLS.md
+
 
 # Secrets — never commit real secret values (all real secrets live in Vault)
 .env
