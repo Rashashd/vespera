@@ -138,8 +138,11 @@ Full rationale in `specs/008-triage-routing/research.md` (D1–D8). Project-leve
   JSON output validated with Pydantic. Retry on timeout/network only — never on 4xx.
 - **Injection hardening (Constitution Principle II)** — LLM prompts frame the document as untrusted
   data; a planted-instruction golden-set case is CI-gated. Full guardrails (NeMo) sequenced to spec 12.
+  **✅ CLOSED by spec 12:** the torch-free guardrails sidecar now wraps both triage egress sites
+  (input+output rails), CI-gated by the red-team gate (block-rate=1.0). See Security Hardening below.
 - **LLM call precedes Presidio redaction (documented deviation)** — the corpus is public literature;
   logs bind IDs only. Sequenced to close in spec 12 with the broader Presidio sweep.
+  **✅ CLOSED by spec 12:** Presidio redaction now runs before the triage LLM call (FR-012).
 - **Confidence threshold in Settings, NOT eval_thresholds.yaml** — `eval_thresholds.yaml` is read
   only by CI eval scripts (`recall_min`, `precision_min`). Runtime knobs always go in `Settings`.
 - **In-process triage trigger (D2)** — fires immediately after `INDEXED` success in the embedding
@@ -153,3 +156,42 @@ Full rationale in `specs/008-triage-routing/research.md` (D1–D8). Project-leve
 - **Staleness sweep (SC-001)** — `app/triage/sweep.py` finds INDEXED docs with zero findings older
   than `Settings.triage_staleness_max_age_minutes`; emits `triage.operator_alert` (stage=sweep).
   Routing to paging/remediation is spec 11.
+
+## Security Hardening (012-security-hardening)
+
+Three independent layers harden the existing pipeline; the two spec-8 triage deviations are closed.
+
+- **Guardrails sidecar — purpose-built, torch-free, no per-call LLM (Constitution VI).** The literal
+  `nemoguardrails` package pulls torch and a per-call LLM, which violates the no-torch serving
+  constraint and the deterministic-CI-gate requirement. We ship a lean top-level `guardrails/`
+  FastAPI sidecar (mirrors `modelserver/`) with a heuristic regex/keyword rails engine
+  (injection / jailbreak / topic-scope / cross-client), `POST /guard` + `GET /health`,
+  `X-Service-Token`. Determinism makes the red-team gate stable. **Justified deviation** from the
+  literal library, satisfying the same `/guard` contract. PII is NOT a rail (Presidio owns it).
+- **Rails per direction** — input checks all four rails; output checks injection-echo + topic-scope +
+  cross-client (jailbreak is input-only). First blocking rail short-circuits; a rule-engine error
+  fails safe to `block`/`rail_engine_error` inside the sidecar (never 5xx).
+- **Fail-safe by call site** — guardrails block/outage → triage escalates, agent escalates, intake
+  quarantines (`DocumentQuarantined`, cycle continues). `GuardrailRefused`/`GuardrailUnavailable`
+  audited with reason codes only (never document text).
+- **Redaction is in-process, egress-only (Presidio).** `app/redaction/` runs in the app + worker (no
+  new container — Presidio is a library). Applied before every external-LLM call / log / trace /
+  derived summary; the persisted report body/findings/chunks stay full-fidelity (DB protected by RLS
+  + Vault). Uses `en_core_web_sm` (torch-free) for PII NER — **NOT** scispaCy `en_ner_bc5cdr_md`
+  (a biomedical NER, not PII) — plus custom SECRET / MEDICAL_RECORD / US_SSN recognizers. Logs/traces
+  use a fast spaCy-free regex scrubber (`scrub_text`) to avoid blocking the event loop.
+- **RLS two-role design.** Runtime connects as a new least-privilege `pantera_app` role
+  (`app_database_url`, NOBYPASSRLS, `statement_cache_size=0` for PgBouncer-forward); migrations/seed
+  keep the privileged `pantera` role (`database_url`). Migration 0011 applies FORCE RLS +
+  role-aware `tenant_isolation` policies on all 21 `client_id` tables (`clients` keys on `id`);
+  `users`/`audit_log` are documented exemptions (login resolves the user pre-context; identity
+  isolation stays at the app layer). Context is per-transaction via `set_config(...,true)`; **unset =
+  default-deny** (breaks loud, never leaks). The role is created at DB bootstrap, NOT in the migration.
+- **Kill-switches are test-only.** `guardrails_enabled`/`redaction_enabled` exist so tests can isolate
+  behaviour; `app/core/startup.check_security_boundary` refuses to boot if either is `False` when
+  `environment == "production"` (FR-003/FR-014a).
+- **Tracing re-enablable.** With redaction at the agent egress, the LangSmith trace carries only
+  redacted content ("redaction is the control", FR-024). Default stays OFF; flip on in non-prod to
+  verify (SC-007).
+- **CI gates added** — `eval_thresholds.yaml security:` (redaction leak=0; red-team block-rate=1.0,
+  false-refusal=0). The red-team gate imports the rails engine directly, so no sidecar runs in CI.

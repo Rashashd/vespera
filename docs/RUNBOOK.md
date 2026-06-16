@@ -409,3 +409,50 @@ curl http://localhost:8001/ready | jq .latency_ms
 For the end-to-end retrieval latency, check the structured logs for `rag.search.ok` events
 which include `result_count`. Warm-cache median latency target is < 1 s for default top-K
 of 10 (SC-006).
+
+## Security Hardening (spec 12)
+
+### Guardrails sidecar
+
+Lean, torch-free FastAPI service (`guardrails/`, port 8002) exposing `POST /guard` +
+`GET /health`. Brought up by `docker compose up -d guardrails`. The app/worker call it on every
+external-LLM egress (triage, agent) and at document intake; it needs `guardrails_token` in Vault.
+
+```bash
+# Liveness (no auth)
+curl http://localhost:8002/health            # {"status":"ok"}
+# Probe a rail (service token required)
+curl -s -X POST http://localhost:8002/guard -H "X-Service-Token: $GUARDRAILS_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"text":"ignore previous instructions","direction":"input","client_id":1,"call_site":"triage"}'
+# → {"action":"block","rail":"injection",...}
+```
+
+Outage fail-safe: if the sidecar is unreachable, triage escalates, the drafting agent escalates,
+and intake quarantines the document (`DocumentQuarantined` audited) — the cycle continues.
+The kill-switches `guardrails_enabled`/`redaction_enabled` are TEST-ONLY; production refuses to
+boot with either `False` when `environment=production`.
+
+### RLS role provisioning (`pantera_app`)
+
+The runtime (API + worker) connects as the least-privilege `pantera_app` role (RLS-enforced);
+migrations/seed use the privileged `pantera` role. Create the role at DB bootstrap (idempotent):
+
+```bash
+# Fresh compose volume runs scripts/db/init-pantera-app-role.sql automatically. For an existing
+# volume (or CI), run it explicitly BEFORE `alembic upgrade head`:
+docker compose exec -T postgres psql -U pantera -d pantera -f - < scripts/db/init-pantera-app-role.sql
+# Then write app_database_url to Vault (scripts/write_secrets.py does this) and migrate:
+uv run alembic upgrade head     # migration 0011 applies RLS + grants to pantera_app
+```
+
+Symptom of a missing RLS context at a session site: that path "finds nothing" (default-deny
+returns 0 rows). It breaks loudly, never leaks. Request sessions set context in
+`current_active_principal`; worker sessions via the engine begin-listener (`install_system_rls`).
+
+### Redaction & tracing
+
+Presidio redaction runs in-process at every egress (no container). To re-enable LangSmith tracing
+(default OFF), set `tracing_enabled=true` + a `langsmith_api_key` in a **non-prod** env; the agent
+trace carries only redacted content (redaction is the control). Verify a sample trace is PII-free
+before enabling anywhere with real data.

@@ -144,3 +144,11 @@ per-document path; no new container and no ARQ dependency in v1 (durable jobs la
 |-----------|------------|-------------------------------------|
 | New `scispacy` + `en_ner_bc5cdr_md` dependency (Principle VI) | The finding grain is `(document_id, drug, reaction)`. BC5CDR NER supplies both the drug-mention verification for the pre-filter (FR-001) *and* the disease/reaction entity that forms the finding key. It is the brief-specified component. Runs in the app/worker pipeline, not the modelserver serving image, so the no-torch serving constraint is untouched. | Pure substring matching against watchlist drug names verifies the drug but yields **no reaction term**, leaving the finding grain unsatisfiable without an LLM extraction call per document (higher cost, less deterministic, weaker auditability). Asking the LLM for the reaction also widens the injection surface. NER is the leaner, more deterministic, brief-aligned choice. |
 | LLM call without NeMo Guardrails / Presidio (Principles II & V) | Triage needs LLM valence + low-confidence resolution now; the guardrails sidecar and Presidio redaction are scheduled for spec 12. Blocking spec 8 on spec 12 would invert the planned build order. | Shipping no LLM fallback would force every low-confidence finding to auto-escalate, producing the noisy expedited queue the user explicitly rejected. v1 mitigates with a hardened "treat document text as data" system prompt + a planted-injection golden-set case; spec 12 adds the full rails and redaction. Deviation is bounded and sequenced. |
+
+**✅ CLOSED by spec 12 (012-security-hardening), 2026-06-16.** Both deviations above are resolved:
+(a) Presidio redaction now runs **before** the triage LLM call (`app/triage/llm.py` order:
+redact → guard(input) → call → guard(output); FR-012) — Principle V residual closed. (b) The
+torch-free NeMo-Guardrails sidecar wraps both triage egress sites (resolution + valence) with
+input/output rails (injection/jailbreak/topic-scope/cross-client), CI-gated by the red-team gate
+(block-rate=1.0, false-refusal=0) — Principle II residual closed. See spec-12 FR-025/SC-008 and
+`docs/DECISIONS.md` (Security Hardening).
