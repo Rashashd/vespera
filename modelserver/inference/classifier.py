@@ -61,10 +61,14 @@ class ClassifierSession:
         input_ids, attention_mask = tokenize_batch(
             self._tokenizer, texts, max_length=self._max_tokens
         )
-        outputs = self._session.run(
-            None,
-            {"input_ids": input_ids, "attention_mask": attention_mask},
-        )
+        feed = {"input_ids": input_ids, "attention_mask": attention_mask}
+        # BERT-family exports (e.g. BiomedBERT) declare a third input, token_type_ids; for
+        # single-sequence classification it is all zeros. Supply it only when the model expects
+        # it so non-BERT exports keep working.
+        expected_inputs = {i.name for i in self._session.get_inputs()}
+        if "token_type_ids" in expected_inputs:
+            feed["token_type_ids"] = np.zeros_like(input_ids)
+        outputs = self._session.run(None, feed)
         # Expect logits [N, 2] — apply softmax for class-1 probability
         logits = outputs[0].astype(np.float64)
         shifted = logits - logits.max(axis=1, keepdims=True)
