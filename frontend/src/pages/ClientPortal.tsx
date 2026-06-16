@@ -59,7 +59,9 @@ export default function ClientPortal() {
                       {wlReports.length} report{wlReports.length !== 1 ? "s" : ""}
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs capitalize">{w.status}</Badge>
+                  <Badge variant="outline" className="text-xs capitalize">
+                    {w.is_active ? "active" : "inactive"}
+                  </Badge>
                 </div>
               </button>
             </li>

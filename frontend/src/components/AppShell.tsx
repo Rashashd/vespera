@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+  BarChart3,
+  Building2,
   ClipboardList,
   LayoutDashboard,
   List,
   LogOut,
   Menu,
+  ScrollText,
   Settings,
   Shield,
   X,
@@ -39,15 +42,33 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["reviewer"],
   },
   {
+    label: "Overview",
+    href: "/admin/overview",
+    icon: <BarChart3 className="h-5 w-5" />,
+    roles: ["manager"],
+  },
+  {
     label: "Dashboard",
     href: "/admin/dashboard",
     icon: <LayoutDashboard className="h-5 w-5" />,
-    roles: ["manager", "admin"],
+    roles: ["manager"],
+  },
+  {
+    label: "Clients",
+    href: "/clients",
+    icon: <Building2 className="h-5 w-5" />,
+    roles: ["manager"],
   },
   {
     label: "Admin Console",
     href: "/admin",
     icon: <Settings className="h-5 w-5" />,
+    roles: ["manager", "admin"],
+  },
+  {
+    label: "Audit Log",
+    href: "/audit",
+    icon: <ScrollText className="h-5 w-5" />,
     roles: ["manager", "admin"],
   },
   {

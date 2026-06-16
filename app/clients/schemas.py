@@ -67,7 +67,14 @@ class ClientOut(BaseModel):
     report_email_regular: str | None
     report_email_urgent: str | None
     urgent_severity_threshold: str
+    custom_severity_keywords: list[str] = Field(default_factory=list)
     created_at: datetime
+
+
+class SeverityKeywordsUpdate(BaseModel):
+    """PATCH body for /clients/{id}/severity-keywords; replaces the whole keyword list."""
+
+    keywords: list[str] = Field(default_factory=list)
 
 
 # --- Report email schema (spec 4b, US4) --------------------------------------

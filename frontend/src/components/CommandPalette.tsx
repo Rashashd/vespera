@@ -3,12 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { Command, CommandInput, CommandList, CommandItem, CommandGroup, CommandEmpty } from "cmdk";
 import { Search } from "lucide-react";
 import { Button } from "./ui/button";
+import { useAuth } from "@/auth/AuthContext";
 
 const ROUTES = [
   { label: "Review Queue", href: "/queue", roles: ["reviewer"] },
   { label: "All Reports", href: "/reports", roles: ["reviewer"] },
-  { label: "Dashboard", href: "/admin/dashboard", roles: ["manager", "admin"] },
+  { label: "Clients", href: "/clients", roles: ["manager"] },
+  { label: "Overview", href: "/admin/overview", roles: ["manager"] },
+  { label: "Dashboard", href: "/admin/dashboard", roles: ["manager"] },
   { label: "Admin Console", href: "/admin", roles: ["manager", "admin"] },
+  { label: "Audit Log", href: "/audit", roles: ["manager", "admin"] },
   { label: "My Reports", href: "/portal", roles: ["client_user"] },
 ];
 
@@ -19,6 +23,9 @@ const ROUTES = [
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = user?.user_type === "client" ? "client_user" : user?.role ?? "";
+  const routes = ROUTES.filter((r) => r.roles.includes(role));
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -64,7 +71,7 @@ export function CommandPalette() {
               <CommandList className="max-h-64 overflow-y-auto p-2">
                 <CommandEmpty>No results found.</CommandEmpty>
                 <CommandGroup heading="Navigate">
-                  {ROUTES.map((r) => (
+                  {routes.map((r) => (
                     <CommandItem
                       key={r.href}
                       value={r.label}

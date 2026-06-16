@@ -4,7 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { get, post } from "./client";
+import { get, post, patch, del } from "./client";
 import {
   ReportSummarySchema,
   ReportResponseSchema,
@@ -15,6 +15,7 @@ import {
   OpsDashboardSchema,
   ClientSchema,
   WatchlistSchema,
+  AuditEntrySchema,
   UserSchema,
   type ReportSummary,
   type ReportResponse,
@@ -259,5 +260,143 @@ export function useTriggerIngest(
   return useMutation({
     mutationFn: () =>
       post(`/clients/${clientId}/watchlists/${watchlistId}/ingest`),
+  });
+}
+
+// ── Audit log (staff oversight) ─────────────────────────────────────────────────
+
+export function useAuditLog(params: {
+  category?: string;
+  clientId?: number | null;
+}) {
+  const qs = new URLSearchParams();
+  if (params.category && params.category !== "all") qs.set("category", params.category);
+  if (params.clientId != null) qs.set("client_id", String(params.clientId));
+  const query = qs.toString();
+  return useQuery({
+    queryKey: ["audit", params.category ?? "all", params.clientId ?? null],
+    queryFn: () =>
+      get<unknown[]>(`/audit${query ? `?${query}` : ""}`).then((rows) =>
+        z.array(AuditEntrySchema).parse(rows),
+      ),
+  });
+}
+
+// ── Client management (manager / admin) ─────────────────────────────────────────
+
+export interface CreateClientBody {
+  name: string;
+  report_email_regular?: string | null;
+  report_email_urgent?: string | null;
+  urgent_severity_threshold?: string | null;
+}
+
+export function useCreateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateClientBody) =>
+      post<Client>("/clients", body).then((r) => ClientSchema.parse(r)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+export function useSuspendClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (clientId: number) => post(`/clients/${clientId}/suspend`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+export function useReactivateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (clientId: number) => post(`/clients/${clientId}/reactivate`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+export function useSetSeverityKeywords(clientId: number | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (keywords: string[]) =>
+      patch<Client>(`/clients/${clientId}/severity-keywords`, { keywords }).then((r) =>
+        ClientSchema.parse(r),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+// ── Watchlist management (manager / admin) ──────────────────────────────────────
+
+export interface CreateWatchlistBody {
+  name: string;
+  cadence: string;
+  severity_threshold: string;
+  budget_amount?: string | null;
+  budget_exceeded_policy: string;
+  items: { item_type: string; value: string }[];
+}
+
+export function useCreateWatchlist(clientId: number | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateWatchlistBody) =>
+      post<Watchlist>(`/clients/${clientId}/watchlists`, body).then((r) =>
+        WatchlistSchema.parse(r),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["watchlists", clientId] }),
+  });
+}
+
+export interface UpdateWatchlistBody {
+  name?: string;
+  cadence?: string;
+  severity_threshold?: string;
+  budget_amount?: string | null;
+  budget_exceeded_policy?: string;
+  is_active?: boolean;
+}
+
+export function useUpdateWatchlist(clientId: number | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      watchlistId,
+      body,
+    }: {
+      watchlistId: number;
+      body: UpdateWatchlistBody;
+    }) =>
+      patch<Watchlist>(`/clients/${clientId}/watchlists/${watchlistId}`, body).then((r) =>
+        WatchlistSchema.parse(r),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["watchlists", clientId] }),
+  });
+}
+
+export function useAddWatchlistItem(clientId: number | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      watchlistId,
+      item_type,
+      value,
+    }: {
+      watchlistId: number;
+      item_type: string;
+      value: string;
+    }) =>
+      post(`/clients/${clientId}/watchlists/${watchlistId}/items`, { item_type, value }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["watchlists", clientId] }),
+  });
+}
+
+export function useRemoveWatchlistItem(clientId: number | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ watchlistId, itemId }: { watchlistId: number; itemId: number }) =>
+      del(`/clients/${clientId}/watchlists/${watchlistId}/items/${itemId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["watchlists", clientId] }),
   });
 }

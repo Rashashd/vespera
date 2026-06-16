@@ -7,6 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
+from app.audit.routes import router as audit_router
 from app.auth.routes_auth import _users_me_router as auth_me_router
 from app.auth.routes_auth import router as auth_router
 from app.auth.routes_staff import router as staff_router
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(metrics_router)  # spec 10: GET /clients/{id}/metrics ops dashboard
     app.include_router(usage_router)  # spec 10: GET /clients/{id}/usage cost dashboard
     app.include_router(scheduling_router)  # spec 11: cycles, dead-letters admin
+    app.include_router(audit_router)  # GET /audit: staff-only audit-log viewer (cross-client)
     # Rate-limit machinery (FR-011): a default in-memory limiter so the middleware works
     # before startup; the lifespan upgrades app.state.limiter to the Redis-backed one.
     app.state.limiter = Limiter(key_func=get_remote_address)

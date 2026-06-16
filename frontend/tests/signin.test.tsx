@@ -37,7 +37,7 @@ describe("SignIn", () => {
   it("renders the sign-in form", () => {
     renderSignIn();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
   });
 
@@ -51,7 +51,7 @@ describe("SignIn", () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "bad@example.com" },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText("Password"), {
       target: { value: "wrongpassword" },
     });
     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
@@ -75,7 +75,7 @@ describe("SignIn", () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "user@example.com" },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText("Password"), {
       target: { value: "password" },
     });
     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));

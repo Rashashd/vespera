@@ -1,20 +1,26 @@
+import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useActingClient } from "@/auth/ActingClientContext";
 import { useWatchlists } from "@/api/hooks";
-import { TriggerButton } from "@/components/admin/TriggerButton";
 import { AuditExportButton } from "@/components/admin/AuditExportButton";
+import { CreateWatchlistDialog } from "@/components/admin/CreateWatchlistDialog";
+import { WatchlistEditor } from "@/components/admin/WatchlistEditor";
+import { SeverityKeywordsEditor } from "@/components/admin/SeverityKeywordsEditor";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 export default function AdminConsole() {
-  const { clientId, client, clients } = useActingClient();
+  const { clientId, client } = useActingClient();
   const { data: watchlists = [], isLoading, isError } = useWatchlists(clientId);
+  const [createOpen, setCreateOpen] = useState(false);
 
   if (!clientId) {
     return <p className="text-muted-foreground">Select a client to manage.</p>;
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Admin Console</h1>
         <AuditExportButton />
@@ -26,47 +32,49 @@ export default function AdminConsole() {
           <h2 className="text-sm font-semibold">Client</h2>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{client.name}</span>
-            <Badge variant="outline" className="capitalize">{client.status}</Badge>
+            <Badge variant="outline" className="capitalize">
+              {client.status}
+            </Badge>
           </div>
-          {client.custom_severity_keywords && client.custom_severity_keywords.length > 0 && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Custom severity keywords:</p>
-              <div className="flex flex-wrap gap-1">
-                {client.custom_severity_keywords.map((kw) => (
-                  <Badge key={kw} variant="secondary" className="text-xs">{kw}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
         </section>
       )}
+
+      {/* Severity escalation keywords */}
+      <SeverityKeywordsEditor
+        clientId={clientId}
+        keywords={client?.custom_severity_keywords ?? []}
+      />
 
       <Separator />
 
       {/* Watchlists */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Watchlists</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Watchlists</h2>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            New watchlist
+          </Button>
+        </div>
         {isLoading && <p className="text-muted-foreground text-sm">Loading…</p>}
-        {isError && <p className="text-destructive text-sm">Failed to load watchlists.</p>}
+        {isError && (
+          <p className="text-destructive text-sm">Failed to load watchlists.</p>
+        )}
         {!isLoading && !isError && watchlists.length === 0 && (
           <p className="text-muted-foreground text-sm">No watchlists configured.</p>
         )}
-        <ol className="space-y-2">
+        <div className="space-y-3">
           {watchlists.map((w) => (
-            <li key={w.id} className="rounded border bg-card p-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">{w.name}</p>
-                <Badge variant="muted" className="text-xs capitalize">{w.status}</Badge>
-              </div>
-              <TriggerButton
-                clientId={clientId}
-                watchlistId={w.id}
-                watchlistName={w.name}
-              />
-            </li>
+            <WatchlistEditor key={w.id} clientId={clientId} watchlist={w} />
           ))}
-        </ol>
+        </div>
       </section>
+
+      <CreateWatchlistDialog
+        clientId={clientId}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
     </div>
   );
 }

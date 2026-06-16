@@ -383,3 +383,12 @@ async def authed_admin_client(client, make_staff_user):
     token = await login_token(client, user.email)
     client.headers["Authorization"] = f"Bearer {token}"
     return client
+
+
+@pytest_asyncio.fixture
+async def authed_manager_client(client, make_staff_user):
+    """An ASGI client pre-authenticated as a manager (staff) — for require_manager routes."""
+    user = await make_staff_user(role="manager")
+    token = await login_token(client, user.email)
+    client.headers["Authorization"] = f"Bearer {token}"
+    return client

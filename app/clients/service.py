@@ -29,6 +29,7 @@ from app.clients.accounts import (
     rename_client,
     set_client_status,
     set_report_emails,
+    set_severity_keywords,
     suspend_client,
     update_client_user_scope,
 )
@@ -68,6 +69,7 @@ __all__ = [
     "suspend_client",
     "reactivate_client",
     "set_report_emails",
+    "set_severity_keywords",
     "create_client_user",
     "list_client_users",
     "get_client_user",

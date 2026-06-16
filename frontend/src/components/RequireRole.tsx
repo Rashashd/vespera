@@ -13,8 +13,10 @@ function defaultLandingFor(user: User): string {
     case "reviewer":
       return "/queue";
     case "manager":
-    case "admin":
       return "/admin/dashboard";
+    case "admin":
+      // Admins manage existing clients' watchlists/keywords; no client lifecycle or costs.
+      return "/admin";
     default:
       return "/login";
   }

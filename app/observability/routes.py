@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import acting_client, require_admin
+from app.auth.dependencies import acting_client, require_manager
 from app.auth.models import User
 from app.clients.models import Client
 from app.core.dependencies import get_session
@@ -25,7 +25,7 @@ _get_client_read = acting_client(allow_suspended=True)
 async def get_usage_dashboard(
     from_: datetime | None = Query(None, alias="from"),
     to: datetime | None = Query(None),
-    admin: User = Depends(require_admin),
+    manager: User = Depends(require_manager),
     client: Client = Depends(_get_client_read),
     session: AsyncSession = Depends(get_session),
 ) -> CostDashboard:

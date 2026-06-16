@@ -19,6 +19,7 @@ from app.clients.schemas import (
     ClientRead,
     ClientUpdate,
     ReportEmailUpdate,
+    SeverityKeywordsUpdate,
 )
 from app.core.dependencies import get_session
 from app.domain.events import (
@@ -245,6 +246,35 @@ async def set_report_emails(
                 client_id=admin.client_id,
                 target_client_id=client_id,
                 changes=changes,
+            ),
+            session,
+        )
+
+    await session.refresh(client)
+    return ClientOut.model_validate(client)
+
+
+@router.patch("/{client_id}/severity-keywords", response_model=ClientOut)
+async def set_severity_keywords(
+    client_id: int,
+    payload: SeverityKeywordsUpdate,
+    request: Request,
+    admin: User = Depends(require_admin),
+    target: Client = Depends(_get_acting_client_read),
+    session: AsyncSession = Depends(get_session),
+) -> ClientOut:
+    """Replace a client's custom severity-escalation keywords (admin-only; spec 8 FR-004)."""
+    before = list(target.custom_severity_keywords or [])
+    client = await service.set_severity_keywords(session, target, keywords=payload.keywords)
+
+    if list(client.custom_severity_keywords) != before:
+        await request.app.state.dispatcher.dispatch(
+            ClientUpdated(
+                actor_id=admin.id,
+                actor_type="human",
+                client_id=admin.client_id,
+                target_client_id=client_id,
+                changes={"custom_severity_keywords": list(client.custom_severity_keywords)},
             ),
             session,
         )

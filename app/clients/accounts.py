@@ -96,6 +96,27 @@ async def set_report_emails(
     return client
 
 
+async def set_severity_keywords(
+    session: AsyncSession,
+    client: Client,
+    *,
+    keywords: list[str],
+) -> Client:
+    """Replace the client's custom severity-escalation keyword list (spec 8 FR-004)."""
+    # Normalize: trim, drop blanks, de-duplicate case-insensitively while preserving order.
+    seen: set[str] = set()
+    cleaned: list[str] = []
+    for raw in keywords:
+        kw = raw.strip()
+        if kw and kw.lower() not in seen:
+            seen.add(kw.lower())
+            cleaned.append(kw)
+    client.custom_severity_keywords = cleaned
+    session.add(client)
+    await session.flush()
+    return client
+
+
 async def create_client_user(
     session: AsyncSession,
     client_id: int,

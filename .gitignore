@@ -40,3 +40,6 @@ coverage.xml
 .DS_Store
 Thumbs.db
 *.swp
+
+# local dev server logs
+vite-dev*.log

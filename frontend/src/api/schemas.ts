@@ -160,20 +160,57 @@ export const ClientSchema = z.object({
   id: z.number(),
   name: z.string(),
   status: z.string(),
-  cadence: z.string().optional(),
+  report_email_regular: z.string().nullable().optional(),
+  report_email_urgent: z.string().nullable().optional(),
+  urgent_severity_threshold: z.string().optional(),
   custom_severity_keywords: z.array(z.string()).optional(),
 });
 export type Client = z.infer<typeof ClientSchema>;
 
 // --- Watchlist ---
 
+export const WatchlistItemSchema = z.object({
+  id: z.number(),
+  item_type: z.string(),
+  value: z.string(),
+  mesh_validity: z.string().nullable().optional(),
+  mesh_canonical: z.string().nullable().optional(),
+});
+export type WatchlistItem = z.infer<typeof WatchlistItemSchema>;
+
+// Fields default-tolerant so minimal payloads (e.g. portal lists that only need
+// id/name) parse, while the admin console gets the full backend shape.
 export const WatchlistSchema = z.object({
   id: z.number(),
   client_id: z.number(),
   name: z.string(),
-  status: z.string(),
+  cadence: z.string().default("weekly"),
+  severity_threshold: z.string().default("serious"),
+  budget_amount: z.string().nullable().optional(),
+  budget_exceeded_policy: z.string().default("continue"),
+  is_active: z.boolean().default(true),
+  budget_status: z.string().default("none"),
+  current_period_spend: z.string().default("0"),
+  items: z.array(WatchlistItemSchema).default([]),
+  created_at: z.string().default(""),
 });
 export type Watchlist = z.infer<typeof WatchlistSchema>;
+
+// --- Audit log ---
+
+export const AuditEntrySchema = z.object({
+  id: z.number(),
+  actor_id: z.number(),
+  actor_type: z.string(),
+  actor_user_id: z.number().nullable().optional(),
+  action: z.string(),
+  target: z.string(),
+  event_type: z.string(),
+  client_id: z.number().nullable().optional(),
+  payload: z.record(z.unknown()).nullable().optional(),
+  created_at: z.string(),
+});
+export type AuditEntry = z.infer<typeof AuditEntrySchema>;
 
 // --- Cost / Ops Dashboard ---
 

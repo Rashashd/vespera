@@ -10,6 +10,9 @@ const AllReports = lazy(() => import("@/pages/AllReports"));
 const ReportDetailPage = lazy(() => import("@/pages/ReportDetailPage"));
 const AdminConsole = lazy(() => import("@/pages/AdminConsole"));
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
+const GlobalOverview = lazy(() => import("@/pages/GlobalOverview"));
+const AuditLog = lazy(() => import("@/pages/AuditLog"));
+const Clients = lazy(() => import("@/pages/Clients"));
 const ClientPortal = lazy(() => import("@/pages/ClientPortal"));
 const WatchlistPage = lazy(() => import("@/pages/WatchlistPage"));
 
@@ -75,7 +78,38 @@ export const router = createBrowserRouter([
           </RequireRole>
         ),
       },
-      // Admin console
+      // Manager-only surfaces (client lifecycle + cost dashboards)
+      {
+        path: "clients",
+        element: (
+          <RequireRole roles={["manager"]}>
+            <Suspense fallback={<Loading />}>
+              <Clients />
+            </Suspense>
+          </RequireRole>
+        ),
+      },
+      {
+        path: "admin/overview",
+        element: (
+          <RequireRole roles={["manager"]}>
+            <Suspense fallback={<Loading />}>
+              <GlobalOverview />
+            </Suspense>
+          </RequireRole>
+        ),
+      },
+      {
+        path: "admin/dashboard",
+        element: (
+          <RequireRole roles={["manager"]}>
+            <Suspense fallback={<Loading />}>
+              <DashboardPage />
+            </Suspense>
+          </RequireRole>
+        ),
+      },
+      // Admin console — manager + admin (manage existing clients' watchlists/keywords)
       {
         path: "admin",
         element: (
@@ -87,11 +121,11 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "admin/dashboard",
+        path: "audit",
         element: (
           <RequireRole roles={["manager", "admin"]}>
             <Suspense fallback={<Loading />}>
-              <DashboardPage />
+              <AuditLog />
             </Suspense>
           </RequireRole>
         ),
