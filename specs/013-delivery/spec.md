@@ -217,7 +217,7 @@ LLM tracing was scaffolded earlier (spec 10) and confirmed safe to enable once e
 
 - **FR-009**: Reviewer report views (all-reports list and report detail) MUST display the per-report delivery status: Approved-pending-delivery / Sent / Delivered (with the delivery time) / Delivery-failed.
 - **FR-010**: The client portal MUST display the client's `sent` and `delivered` reports with their delivery status, and MUST continue to exclude in-workflow reports (drafted/under_review/rejected/discarded).
-- **FR-011**: The manager dashboard MUST populate the previously-null **delivery metrics** for the acting client (counts of sent / delivered / failed and a delivery success rate, defined as delivered ÷ dispatched reports in the window).
+- **FR-011**: The manager dashboard MUST populate the previously-null **delivery metrics** for the acting client (counts of sent / delivered / failed and a delivery success rate, defined as delivered ÷ *dispatched*, where **dispatched** = reports that have left `approved` — i.e. in `sent`, `delivered`, or `delivery_failed` — in the window).
 
 **Reviewer-deadline SLA monitoring (US3)**
 
