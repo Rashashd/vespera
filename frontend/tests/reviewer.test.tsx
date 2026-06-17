@@ -66,7 +66,7 @@ describe("ReviewerQueue", () => {
       http.get("http://localhost:8000/clients", () => HttpResponse.json([{ id: 1, name: "Acme", status: "active" }])),
     );
     render(<TestWrapper><ReviewerQueue /></TestWrapper>);
-    await waitFor(() => expect(screen.getByText("#11")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Report #11")).toBeInTheDocument());
     // Expedited (#11) should appear before batch (#10)
     const items = screen.getAllByRole("button").filter((b) =>
       b.getAttribute("aria-label")?.includes("Report"),
