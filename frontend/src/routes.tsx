@@ -9,6 +9,8 @@ const ReviewerQueue = lazy(() => import("@/pages/ReviewerQueue"));
 const AllReports = lazy(() => import("@/pages/AllReports"));
 const ReportDetailPage = lazy(() => import("@/pages/ReportDetailPage"));
 const AdminConsole = lazy(() => import("@/pages/AdminConsole"));
+const Costs = lazy(() => import("@/pages/Costs"));
+const FailedQueue = lazy(() => import("@/pages/FailedQueue"));
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
 const GlobalOverview = lazy(() => import("@/pages/GlobalOverview"));
 const AuditLog = lazy(() => import("@/pages/AuditLog"));
@@ -90,6 +92,16 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "costs",
+        element: (
+          <RequireRole roles={["manager"]}>
+            <Suspense fallback={<Loading />}>
+              <Costs />
+            </Suspense>
+          </RequireRole>
+        ),
+      },
+      {
         path: "admin/overview",
         element: (
           <RequireRole roles={["manager"]}>
@@ -126,6 +138,16 @@ export const router = createBrowserRouter([
           <RequireRole roles={["manager", "admin"]}>
             <Suspense fallback={<Loading />}>
               <AuditLog />
+            </Suspense>
+          </RequireRole>
+        ),
+      },
+      {
+        path: "failed-queue",
+        element: (
+          <RequireRole roles={["manager", "admin"]}>
+            <Suspense fallback={<Loading />}>
+              <FailedQueue />
             </Suspense>
           </RequireRole>
         ),

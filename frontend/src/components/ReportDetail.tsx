@@ -3,18 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { useReport, useReportFindings } from "@/api/hooks";
 import { CitationPanel } from "./CitationPanel";
+import { PassageDrawer } from "./PassageDrawer";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { ReviewerActions } from "./ReviewerActions";
 import { RevisionHistory } from "./RevisionHistory";
 import { SlaCountdown } from "./SlaCountdown";
 import { DeliveryStatusChip } from "./DeliveryStatusChip";
+import { ReportStatusBadge } from "./ReportStatusBadge";
+import { SeverityBadge } from "./SeverityBadge";
 import { FindingRow } from "./FindingRow";
 import { DownloadReportButton } from "./DownloadReportButton";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { cn } from "@/lib/utils";
-import type { Claim } from "@/api/schemas";
+import type { Claim, CorroborationSource } from "@/api/schemas";
 
 interface Props {
   clientId: number | null;
@@ -47,6 +49,9 @@ export function ReportDetail({ clientId, reportId, mode }: Props) {
   const [selectedFindingId, setSelectedFindingId] = useState<number | null>(null);
   // Citation review tracking (FR-040) — per-session, client-side
   const [reviewedChunks, setReviewedChunks] = useState<Set<string>>(new Set());
+  // Shared passage drawer — opened from a source row or a claim's inline [n]
+  const [openChunkId, setOpenChunkId] = useState<number | null>(null);
+  const [openSource, setOpenSource] = useState<CorroborationSource | null>(null);
 
   const isReadOnly = mode !== "queue";
   const isBatch = report?.report_type === "batch";
@@ -66,27 +71,76 @@ export function ReportDetail({ clientId, reportId, mode }: Props) {
     total: allChunkIds.length,
   };
 
+  // Reference numbering: map each source's chunk ids → its 1-based reference
+  // number, so a claim's source_ref resolves to the same [n] shown in References.
+  const chunkToSourceIdx = new Map<number, number>();
+  sources.forEach((s, i) =>
+    (s.passage_chunk_ids ?? []).forEach((cid) => {
+      if (!chunkToSourceIdx.has(cid)) chunkToSourceIdx.set(cid, i);
+    }),
+  );
+  const markReviewed = (ref: string) =>
+    setReviewedChunks((prev) => new Set([...prev, ref]));
+  const refNumber = (ref?: string | null): number | null => {
+    if (!ref) return null;
+    const idx = chunkToSourceIdx.get(parseInt(ref, 10));
+    return idx == null ? null : idx + 1;
+  };
+  const openByRef = (ref: string) => {
+    const cid = parseInt(ref, 10);
+    const idx = chunkToSourceIdx.get(cid);
+    setOpenSource(idx == null ? null : sources[idx]);
+    setOpenChunkId(Number.isNaN(cid) ? null : cid);
+    markReviewed(ref);
+  };
+  const openSourceRow = (src: CorroborationSource) => {
+    const cid = src.passage_chunk_ids?.[0] ?? null;
+    setOpenSource(src);
+    setOpenChunkId(cid);
+    if (cid != null) markReviewed(String(cid));
+  };
+
   const backPath = mode === "queue" ? "/queue" : mode === "all-reports" ? "/reports" : "/portal";
 
-  // Find the bucket from the first included finding for the severity bar
-  const primaryBucket = findings.find((f) => f.state === "included")?.bucket ?? "minor";
+  // Primary finding drives the severity bar + header title.
+  const primaryFinding = findings.find((f) => f.state === "included") ?? findings[0];
+  const primaryBucket = primaryFinding?.bucket ?? "minor";
+  const title = primaryFinding
+    ? `${primaryFinding.drug} — ${primaryFinding.reaction}`
+    : `Report #${report.id}`;
 
   return (
     <div className={cn("flex flex-col h-full", BUCKET_CLASSES[primaryBucket])}>
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b bg-card">
-        <Button variant="ghost" size="sm" onClick={() => navigate(backPath)} aria-label="Back">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back
-        </Button>
-        <div className="flex-1 flex items-center gap-2 flex-wrap">
-          <span className="font-semibold text-sm">Report #{report.id}</span>
-          <Badge variant="outline" className="capitalize">{report.report_type}</Badge>
-          <Badge variant="outline" className="capitalize">{report.status.replace(/_/g, " ")}</Badge>
-          {report.sla_deadline && <SlaCountdown deadline={report.sla_deadline} />}
-          <DeliveryStatusChip status={report.status} />
+      <div className="border-b bg-card px-6 py-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate(backPath)} aria-label="Back">
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Back
+          </Button>
+          <DownloadReportButton />
         </div>
-        <DownloadReportButton />
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="mb-1.5 flex items-center gap-2">
+              <SeverityBadge bucket={primaryBucket} />
+              <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#4a6580] dark:text-[#8095a8]">
+                {report.report_type}
+              </span>
+              {report.sla_deadline && <SlaCountdown deadline={report.sla_deadline} />}
+            </div>
+            <h2 className="truncate font-display text-[22px] font-semibold text-foreground">
+              {title}
+            </h2>
+            <p className="mt-0.5 font-mono text-[11px] text-[#4a6580] dark:text-[#8095a8]">
+              Report #{report.id}
+            </p>
+          </div>
+          <div className="flex flex-shrink-0 flex-col items-end gap-2">
+            <ReportStatusBadge status={report.status} />
+            <DeliveryStatusChip status={report.status} />
+          </div>
+        </div>
       </div>
 
       {/* Mid-redraft warning */}
@@ -139,29 +193,46 @@ export function ReportDetail({ clientId, reportId, mode }: Props) {
 
           {/* Structured claims (clinical hierarchy) */}
           <section aria-label="Structured claims">
-            <h2 className="text-sm font-semibold mb-3">Structured claims</h2>
+            <h2 className="mb-3 font-display text-[15px] font-semibold text-foreground">
+              Structured claims
+            </h2>
             <ol className="space-y-3">
-              {sortClaims(report.structured_fields).map((claim, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <ProvenanceBadge
-                    claim={claim}
-                    onSourceClick={() => {
-                      if (claim.source_ref) {
-                        setReviewedChunks((s) => new Set([...s, claim.source_ref!]));
-                      }
-                    }}
-                  />
-                  <span className="flex-1">{claim.text}</span>
-                </li>
-              ))}
+              {sortClaims(report.structured_fields).map((claim, i) => {
+                const n = refNumber(claim.source_ref);
+                return (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <ProvenanceBadge
+                      claim={claim}
+                      onSourceClick={() => {
+                        if (claim.source_ref) openByRef(claim.source_ref);
+                      }}
+                    />
+                    <span className="flex-1">
+                      {claim.text}
+                      {n != null && (
+                        <button
+                          type="button"
+                          onClick={() => openByRef(claim.source_ref!)}
+                          className="ml-1 align-super text-[11px] font-medium text-primary hover:underline"
+                          aria-label={`View reference ${n}`}
+                        >
+                          [{n}]
+                        </button>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
             </ol>
           </section>
 
           {/* Draft body */}
           {report.draft_body && (
             <section aria-label="Report narrative">
-              <h2 className="text-sm font-semibold mb-2">Report narrative</h2>
-              <div className="prose prose-sm dark:prose-invert max-w-none rounded border bg-muted/30 p-4 whitespace-pre-wrap text-sm">
+              <h2 className="mb-2 font-display text-[15px] font-semibold text-foreground">
+                Report narrative
+              </h2>
+              <div className="prose prose-sm max-w-none whitespace-pre-wrap rounded-xl border bg-muted/30 p-4 text-sm dark:prose-invert">
                 {report.draft_body}
               </div>
             </section>
@@ -171,9 +242,9 @@ export function ReportDetail({ clientId, reportId, mode }: Props) {
 
           {/* Citations */}
           <CitationPanel
-            clientId={clientId}
             sources={sources}
             corroborationCount={report.corroboration_count}
+            onOpen={(src) => openSourceRow(src)}
           />
 
           <Separator />
@@ -195,6 +266,19 @@ export function ReportDetail({ clientId, reportId, mode }: Props) {
           report={report}
           citationReviewProgress={citationProgress}
           onAction={() => refetch()}
+        />
+      )}
+
+      {/* Shared passage drawer (opened from a source row or a claim's [n]) */}
+      {openChunkId !== null && (
+        <PassageDrawer
+          clientId={clientId}
+          chunkId={openChunkId}
+          source={openSource}
+          onClose={() => {
+            setOpenChunkId(null);
+            setOpenSource(null);
+          }}
         />
       )}
     </div>

@@ -16,6 +16,7 @@ import {
   ClientSchema,
   WatchlistSchema,
   AuditEntrySchema,
+  DeadLetterSchema,
   UserSchema,
   type ReportSummary,
   type ReportResponse,
@@ -279,6 +280,35 @@ export function useAuditLog(params: {
       get<unknown[]>(`/audit${query ? `?${query}` : ""}`).then((rows) =>
         z.array(AuditEntrySchema).parse(rows),
       ),
+  });
+}
+
+// ── Dead-letter / failed jobs (staff) ───────────────────────────────────────────
+
+export function useDeadLetters(params: {
+  resolved: boolean;
+  clientId?: number | null;
+  limit?: number;
+}) {
+  const qs = new URLSearchParams();
+  qs.set("resolved", String(params.resolved));
+  if (params.clientId != null) qs.set("client_id", String(params.clientId));
+  if (params.limit) qs.set("limit", String(params.limit));
+  return useQuery({
+    queryKey: ["dead-letters", params.resolved, params.clientId ?? null, params.limit ?? 50],
+    queryFn: () =>
+      get<unknown[]>(`/admin/dead-letters?${qs.toString()}`).then((rows) =>
+        z.array(DeadLetterSchema).parse(rows),
+      ),
+  });
+}
+
+export function useResolveDeadLetter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => post(`/admin/dead-letters/${id}/resolve`),
+    // Refetch on success AND on 409 (already-resolved) so the list reflects truth.
+    onSettled: () => qc.invalidateQueries({ queryKey: ["dead-letters"] }),
   });
 }
 

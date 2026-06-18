@@ -49,12 +49,9 @@ export default function AuditLog() {
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Audit log</h1>
-          <p className="text-sm text-muted-foreground">
-            Append-only record of every change and report outcome across all clients.
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Append-only record of every change and report outcome across all clients.
+        </p>
         <AuditExportButton />
       </div>
 
@@ -92,31 +89,33 @@ export default function AuditLog() {
       )}
 
       {entries.length > 0 && (
-        <div className="overflow-hidden rounded border bg-card">
+        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
           <table className="w-full text-sm">
-            <thead className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+            <thead className="border-b bg-muted/40 text-left font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#4a6580] dark:text-[#8095a8]">
               <tr>
-                <th className="px-4 py-2 font-medium">When</th>
-                <th className="px-4 py-2 font-medium">Event</th>
-                <th className="px-4 py-2 font-medium">Target</th>
-                <th className="px-4 py-2 font-medium">Client</th>
-                <th className="px-4 py-2 font-medium">Actor</th>
+                <th className="px-5 py-3 font-medium">When</th>
+                <th className="px-5 py-3 font-medium">Event</th>
+                <th className="px-5 py-3 font-medium">Target</th>
+                <th className="px-5 py-3 font-medium">Client</th>
+                <th className="px-5 py-3 font-medium">Actor</th>
               </tr>
             </thead>
             <tbody>
               {entries.map((e) => (
-                <tr key={e.id} className="border-b last:border-0 align-top">
-                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                <tr key={e.id} className="border-b align-top last:border-0">
+                  <td className="whitespace-nowrap px-5 py-3 text-muted-foreground">
                     {new Date(e.created_at).toLocaleString()}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-3">
                     <Badge variant={toneFor(e.event_type)} className="text-xs">
                       {humanize(e.event_type)}
                     </Badge>
                   </td>
-                  <td className={cn("px-4 py-3 font-mono text-xs")}>{e.target}</td>
-                  <td className="px-4 py-3">{clientName(e.client_id)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{actorLabel(e)}</td>
+                  <td className={cn("px-5 py-3 font-mono text-xs text-muted-foreground")}>
+                    {e.target}
+                  </td>
+                  <td className="px-5 py-3 text-foreground">{clientName(e.client_id)}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{actorLabel(e)}</td>
                 </tr>
               ))}
             </tbody>

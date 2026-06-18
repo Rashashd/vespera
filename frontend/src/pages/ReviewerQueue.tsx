@@ -4,7 +4,7 @@ import { AlertTriangle } from "lucide-react";
 import { useReportsQueue } from "@/api/hooks";
 import { useActingClient } from "@/auth/ActingClientContext";
 import { SlaCountdown } from "@/components/SlaCountdown";
-import { Badge } from "@/components/ui/badge";
+import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ReportSummary } from "@/api/schemas";
@@ -37,12 +37,14 @@ export default function ReviewerQueue() {
   ).length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Review Queue</h1>
+        <p className="text-sm text-muted-foreground">
+          Expedited first, then by review deadline.
+        </p>
         {overdueCount > 0 && (
           <div
-            className="flex items-center gap-1.5 rounded border border-red-300 bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+            className="flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-sm font-medium text-destructive"
             role="status"
             aria-live="polite"
           >
@@ -59,12 +61,12 @@ export default function ReviewerQueue() {
       {isError && <p className="text-destructive">Failed to load queue.</p>}
 
       {sorted.length === 0 && !isLoading && clientId && (
-        <div className="rounded border bg-muted/50 p-8 text-center text-muted-foreground">
+        <div className="rounded-2xl border bg-card p-10 text-center text-muted-foreground shadow-sm">
           Queue is empty — no reports awaiting review.
         </div>
       )}
 
-      <ol className="space-y-2">
+      <ol className="space-y-3">
         {sorted.map((r) => {
           const isExpedited = r.report_type === "expedited";
           const isOverdue =
@@ -74,35 +76,30 @@ export default function ReviewerQueue() {
               <button
                 type="button"
                 className={cn(
-                  "w-full text-left rounded border bg-card p-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isExpedited ? "border-l-4 border-l-amber-500" : "border-l-4 border-l-primary/30",
-                  isOverdue && "border-l-red-600",
+                  "w-full rounded-xl border border-l-4 bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isExpedited ? "border-l-[#b07a1e] dark:border-l-[#d9a441]" : "border-l-primary/40",
+                  isOverdue && "border-l-destructive",
                 )}
                 onClick={() => navigate(`/queue/${r.id}`)}
                 aria-label={`Report ${r.id}, ${r.report_type}, status ${r.status}`}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">#{r.id}</span>
-                      <Badge
-                        variant={isExpedited ? "default" : "outline"}
-                        className="capitalize text-xs"
-                      >
-                        {r.report_type}
-                      </Badge>
-                      <Badge variant="muted" className="capitalize text-xs">
-                        {r.status.replace(/_/g, " ")}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
+                  <div className="min-w-0 space-y-1.5">
+                    <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#4a6580] dark:text-[#8095a8]">
+                      {r.report_type}
+                    </span>
+                    <p className="font-display text-[15px] font-semibold text-foreground">
+                      Report #{r.id}
+                    </p>
+                    <p className="text-[12.5px] text-muted-foreground">
                       {r.corroboration_count} corroborating source
                       {r.corroboration_count !== 1 ? "s" : ""} · {r.revision_count} revision
                       {r.revision_count !== 1 ? "s" : ""}
                     </p>
                   </div>
-                  <div className="shrink-0">
+                  <div className="flex flex-col items-end gap-2">
                     {isExpedited && <SlaCountdown deadline={r.sla_deadline} />}
+                    <ReportStatusBadge status={r.status} />
                   </div>
                 </div>
               </button>
