@@ -133,7 +133,7 @@ description: "Task list for 013-delivery implementation"
 
 ### Tests for User Story 4
 
-- [ ] T038 [P] [US4] Component/integration test: manager creates a reviewer (→ `/queue`) and a scoped client-user (→ `/portal`, in-scope only); non-manager denied the staff screen in `frontend/src/__tests__/accounts.test.tsx`
+- [x] T038 [P] [US4] Component/integration test: manager creates a reviewer (→ `/queue`) and a scoped client-user (→ `/portal`, in-scope only); non-manager denied the staff screen in `frontend/src/__tests__/accounts.test.tsx`
 
 ### Implementation for User Story 4
 

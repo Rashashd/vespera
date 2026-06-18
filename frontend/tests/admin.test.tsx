@@ -75,21 +75,34 @@ describe("DashboardPage", () => {
     await waitFor(() => expect(screen.getByText("3")).toBeInTheDocument());
   });
 
-  it("shows delivery card as pending (spec-13 forward dep)", async () => {
+  it("renders delivery cards from the metrics delivery block (spec 13)", async () => {
     server.use(
       http.get("http://localhost:8000/clients", () =>
         HttpResponse.json([{ id: 1, name: "Acme", status: "active" }]),
       ),
+      http.get("http://localhost:8000/clients/1/metrics", () =>
+        HttpResponse.json({
+          client_id: 1,
+          by_status: { approved: 2 },
+          queue: { pending: 0, expedited: 0, batch: 0 },
+          sla: { overdue: 0, due_soon: 0, met_pct: 100 },
+          redraft: { avg_revisions: 0, hit_cap: 0 },
+          delivery: { sent: 1, delivered: 3, failed: 1, success_rate: 60.0 },
+          window: { from: null, to: null },
+          failed_jobs: 0,
+        }),
+      ),
     );
     render(<TestWrapper><DashboardPage /></TestWrapper>);
     await waitFor(() =>
-      expect(screen.getByText(/delivery metrics are pending/i)).toBeInTheDocument(),
+      expect(screen.getByText(/delivered ÷ dispatched/i)).toBeInTheDocument(),
     );
+    expect(screen.getByText("60%")).toBeInTheDocument();
   });
 });
 
 describe("AuditExportButton", () => {
-  it("renders as disabled with explanation", () => {
+  it("renders an enabled export button (spec 13 — endpoint shipped)", () => {
     render(
       <ThemeProvider>
         <MemoryRouter>
@@ -98,6 +111,6 @@ describe("AuditExportButton", () => {
       </ThemeProvider>,
     );
     const btn = screen.getByRole("button", { name: /export audit log/i });
-    expect(btn).toBeDisabled();
+    expect(btn).toBeEnabled();
   });
 });
