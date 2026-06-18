@@ -21,10 +21,12 @@ export const ReportStatus = z.enum([
   "discarded",
   "needs_manual_revision",
 ]);
+export type ReportStatus = z.infer<typeof ReportStatus>;
 
 export const ReportType = z.enum(["expedited", "batch"]);
 
 export const FindingBucket = z.enum(["emergency", "urgent", "minor", "positive", "irrelevant"]);
+export type FindingBucket = z.infer<typeof FindingBucket>;
 
 export const FindingReportState = z.enum(["included", "dropped", "discarded"]);
 

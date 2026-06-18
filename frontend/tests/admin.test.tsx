@@ -83,7 +83,9 @@ describe("DashboardPage", () => {
     );
     render(<TestWrapper><DashboardPage /></TestWrapper>);
     await waitFor(() =>
-      expect(screen.getByText(/delivery metrics are pending/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/populates once the delivery layer/i),
+      ).toBeInTheDocument(),
     );
   });
 });
