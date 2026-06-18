@@ -22,6 +22,12 @@ async def startup(ctx: dict) -> None:
     await load_secrets_from_vault(settings)
     ctx["settings"] = settings
 
+    # Spec 13 US8: configure LangSmith tracing for the worker pipeline (mirrors lifespan.py).
+    # OFF by default — no-op unless tracing_enabled AND a key are set; traces are PII-free.
+    from app.observability.tracing import configure_tracing
+
+    configure_tracing(settings)
+
     engine = create_engine(settings.app_database_url)  # least-priv runtime role (RLS-enforced)
     install_system_rls(engine)  # all worker sessions run as system (is_staff) — covers the pipeline
     ctx["engine"] = engine

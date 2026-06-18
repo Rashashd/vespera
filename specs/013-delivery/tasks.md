@@ -211,12 +211,12 @@ description: "Task list for 013-delivery implementation"
 
 ### Tests for User Story 8
 
-- [ ] T055 [P] [US8] Unit test: `configure_tracing` sets the three `LANGCHAIN_*` env vars when enabled+key, no-op when disabled or empty; `monkeypatch` restores env in `tests/unit/test_tracing_config.py`
+- [x] T055 [P] [US8] Unit test: `configure_tracing` sets the three `LANGCHAIN_*` env vars when enabled+key, no-op when disabled or empty; `monkeypatch` restores env in `tests/unit/test_tracing_config.py`
 
 ### Implementation for User Story 8
 
-- [ ] T056 [US8] Add `configure_tracing(settings)` to worker startup immediately after `ctx["settings"] = settings` (mirror `app/core/lifespan.py:64`) in `worker/worker.py`
-- [ ] T057 [P] [US8] Add `TRACING_ENABLED: ${TRACING_ENABLED:-false}` / `LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}` / `LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-pantera}` to BOTH `api` and `worker` services in `docker-compose.yml` (default OFF; flag must be `false`, never empty)
+- [x] T056 [US8] Add `configure_tracing(settings)` to worker startup immediately after `ctx["settings"] = settings` (mirror `app/core/lifespan.py:64`) in `worker/worker.py`
+- [x] T057 [P] [US8] Add `TRACING_ENABLED: ${TRACING_ENABLED:-false}` / `LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}` / `LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-pantera}` to BOTH `api` and `worker` services in `docker-compose.yml` (default OFF; flag must be `false`, never empty)
 
 **Checkpoint**: flipping the switch traces the real worker pipeline, PII-free.
 
