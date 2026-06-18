@@ -88,14 +88,14 @@ description: "Task list for 013-delivery implementation"
 
 ### Tests for User Story 2
 
-- [ ] T025 [P] [US2] Integration test: reviewer `ReportSummary`/`ReportResponse` carry `delivery_status`; `GET /clients/{id}/metrics` returns non-null `delivery {sent,delivered,failed,success_rate}` in `tests/integration/test_delivery_visibility.py`
+- [x] T025 [P] [US2] Integration test: reviewer `ReportSummary`/`ReportResponse` carry `delivery_status`; `GET /clients/{id}/metrics` returns non-null `delivery {sent,delivered,failed,success_rate}` in `tests/integration/test_delivery_visibility.py`
 
 ### Implementation for User Story 2
 
-- [ ] T026 [P] [US2] Add `delivery_status` to reviewer `ReportSummary` + `ReportResponse` and populate it in `app/reports/schemas.py` (+ the list/detail routes in `app/reports/routes.py`)
-- [ ] T027 [P] [US2] Keep the client-portal set at `{approved, sent, delivered}` — do NOT add `delivery_failed` (a failed delivery means the client never received it; FR-010). `_delivery_status()` may map the `delivery_failed` label defensively, but it must not surface in the portal list — in `app/reports/portal_routes.py`. (Reviewer `delivery_failed` visibility is handled by T026.)
-- [ ] T028 [P] [US2] Add the `DeliveryMetrics` submodel and change `OpsDashboard.delivery` to `DeliveryMetrics | None` in `app/observability/schemas.py`
-- [ ] T029 [US2] Populate the delivery block (`sent/delivered/failed/success_rate` = delivered ÷ dispatched) in `app/reports/metrics_routes.py` (depends T028)
+- [x] T026 [P] [US2] Add `delivery_status` to reviewer `ReportSummary` + `ReportResponse` and populate it in `app/reports/schemas.py` (+ the list/detail routes in `app/reports/routes.py`)
+- [x] T027 [P] [US2] Keep the client-portal set at `{approved, sent, delivered}` — do NOT add `delivery_failed` (a failed delivery means the client never received it; FR-010). `_delivery_status()` may map the `delivery_failed` label defensively, but it must not surface in the portal list — in `app/reports/portal_routes.py`. (Reviewer `delivery_failed` visibility is handled by T026.)
+- [x] T028 [P] [US2] Add the `DeliveryMetrics` submodel and change `OpsDashboard.delivery` to `DeliveryMetrics | None` in `app/observability/schemas.py`
+- [x] T029 [US2] Populate the delivery block (`sent/delivered/failed/success_rate` = delivered ÷ dispatched) in `app/reports/metrics_routes.py` (depends T028)
 - [ ] T030 [P] [US2] Update the OpsDashboard zod schema (`delivery` object) + add the field in `frontend/src/api/schemas.ts` and `frontend/src/api/hooks.ts`
 - [ ] T031 [US2] Render the dashboard Delivery cards from `metrics.delivery` (replace the stub) in `frontend/src/pages/DashboardPage.tsx` (depends T030)
 - [ ] T032 [P] [US2] Pass `delivery_status` into `DeliveryStatusChip` on the reviewer surfaces in `frontend/src/pages/AllReports.tsx` and `frontend/src/components/ReportDetail.tsx`

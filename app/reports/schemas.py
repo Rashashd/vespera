@@ -4,9 +4,22 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from app.reports.enums import ClaimProvenance, FindingReportState, ReportStatus, ReportType
+
+
+def delivery_status_label(status: str) -> str:
+    """Map a report status to its reviewer-facing delivery label (spec 13 FR-009).
+
+    Pre-delivery statuses (drafted/under_review/rejected/discarded/needs_manual_revision) are
+    'not_applicable' — the delivery chip is only meaningful from approval onward.
+    """
+    if status == ReportStatus.APPROVED:
+        return "approved_pending_delivery"
+    if status in (ReportStatus.SENT, ReportStatus.DELIVERED, ReportStatus.DELIVERY_FAILED):
+        return str(status)
+    return "not_applicable"
 
 
 class Claim(BaseModel):
@@ -39,6 +52,12 @@ class ReportResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def delivery_status(self) -> str:
+        """Reviewer-facing delivery label derived from status (spec 13 US2)."""
+        return delivery_status_label(self.status)
+
 
 class ReportSummary(BaseModel):
     """Compact report entry for the reviewer queue list (GET /clients/{id}/reports)."""
@@ -55,6 +74,12 @@ class ReportSummary(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def delivery_status(self) -> str:
+        """Reviewer-facing delivery label derived from status (spec 13 US2)."""
+        return delivery_status_label(self.status)
 
 
 class ApproveRequest(BaseModel):
