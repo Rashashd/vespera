@@ -173,3 +173,17 @@ async def test_non_approved_report_not_dispatched(
     async with priv_factory() as s:
         report = await s.get(Report, report_id)
         assert report.status == ReportStatus.DRAFTED
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_run_delivery_missing_report_is_noop(auth_app, priv_factory, monkeypatch) -> None:
+    """A delivery job for a non-existent report is a safe no-op (defensive guard, no crash)."""
+    calls: list[dict] = []
+
+    async def fake_send(self, payload):
+        calls.append(payload)
+
+    monkeypatch.setattr("app.delivery.n8n_client.N8nClient.send", fake_send)
+    await run_delivery(999_999_999, _make_wc(auth_app, priv_factory))
+    assert calls == []

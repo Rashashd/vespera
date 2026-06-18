@@ -12,8 +12,10 @@ from app.audit.handler import register_audit_handlers
 from app.audit.models import AuditLog
 from app.clients.models import Client
 from app.core.dispatcher import EventDispatcher
+from app.delivery.handlers import make_on_client_reactivated
 from app.delivery.models import DeliveryAttempt
 from app.delivery.service import run_delivery
+from app.domain.events import ClientReactivated
 from app.reports.enums import ReportStatus
 from app.reports.models import Report
 
@@ -249,3 +251,51 @@ async def test_suspended_holds_then_reactivation_releases(
     assert len(payloads) == 1
     async with priv_factory() as s:
         assert (await s.get(Report, rid)).status == ReportStatus.SENT
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_resend_unknown_report_404(authed_admin_client, make_client) -> None:
+    """Resend on a non-existent report → 404."""
+    cl = await make_client()
+    resp = await authed_admin_client.post(f"/clients/{cl.id}/reports/999999/resend")
+    assert resp.status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_resend_non_resendable_409(authed_admin_client, make_client, priv_factory) -> None:
+    """Resend on a drafted (not-yet-deliverable) report → 409."""
+    cl = await make_client()
+    rid = await _seed_report(priv_factory, cl.id, status="drafted")
+    resp = await authed_admin_client.post(f"/clients/{cl.id}/reports/{rid}/resend")
+    assert resp.status_code == 409
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_reactivation_handler_enqueues_only_approved_reports(
+    auth_app, make_client, priv_factory, monkeypatch
+) -> None:
+    """on_client_reactivated re-enqueues delivery for each held (approved) report, not others."""
+    job_ids: list[str] = []
+
+    async def fake_enqueue(name, **kw):
+        job_ids.append(kw["job_id"])
+
+    monkeypatch.setattr("app.delivery.handlers.enqueue", fake_enqueue)
+
+    cl = await make_client()
+    r1 = await _seed_report(priv_factory, cl.id, status="approved")
+    r2 = await _seed_report(priv_factory, cl.id, status="approved")
+    await _seed_report(priv_factory, cl.id, status="delivered")  # not re-enqueued
+
+    handler = make_on_client_reactivated(SimpleNamespace(state=SimpleNamespace(arq=object())))
+    event = ClientReactivated(
+        actor_id=1, actor_type="human", client_id=None, target_client_id=cl.id
+    )
+    async with priv_factory() as s:
+        async with s.begin():
+            await handler(event, s)
+
+    assert sorted(job_ids) == sorted([f"deliver:{r1}", f"deliver:{r2}"])
