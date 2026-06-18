@@ -100,14 +100,14 @@ async def approve_report(
     session: AsyncSession = Depends(get_session),
 ) -> ReportSummary:
     """Approve a report: drafted|under_review → approved."""
-    async with session.begin():
-        report = await svc.approve_report(
-            report_id=report_id,
-            client_id=client.id,
-            reviewer=reviewer,
-            session=session,
-            dispatcher=request.app.state.dispatcher,
-        )
+    # The transaction is owned by get_session; opening another here would double-begin.
+    report = await svc.approve_report(
+        report_id=report_id,
+        client_id=client.id,
+        reviewer=reviewer,
+        session=session,
+        dispatcher=request.app.state.dispatcher,
+    )
     return ReportSummary.model_validate(report)
 
 
@@ -121,17 +121,16 @@ async def edit_approve_report(
     session: AsyncSession = Depends(get_session),
 ) -> ReportSummary:
     """Edit report content then approve (reviewer_attested provenance)."""
-    async with session.begin():
-        report = await svc.edit_approve_report(
-            report_id=report_id,
-            client_id=client.id,
-            reviewer=reviewer,
-            draft_body=body.draft_body,
-            structured_fields=[c.model_dump() for c in body.structured_fields],
-            comment=body.comment,
-            session=session,
-            dispatcher=request.app.state.dispatcher,
-        )
+    report = await svc.edit_approve_report(
+        report_id=report_id,
+        client_id=client.id,
+        reviewer=reviewer,
+        draft_body=body.draft_body,
+        structured_fields=[c.model_dump() for c in body.structured_fields],
+        comment=body.comment,
+        session=session,
+        dispatcher=request.app.state.dispatcher,
+    )
     return ReportSummary.model_validate(report)
 
 
@@ -146,16 +145,15 @@ async def reject_report(
 ) -> ReportSummary:
     """Reject and trigger redraft (or needs_manual_revision on 4th rejection)."""
     settings = request.app.state.settings
-    async with session.begin():
-        report = await svc.reject_report(
-            report_id=report_id,
-            client_id=client.id,
-            reviewer=reviewer,
-            comment=body.comment,
-            redraft_cap=settings.report_redraft_cap,
-            session=session,
-            dispatcher=request.app.state.dispatcher,
-        )
+    report = await svc.reject_report(
+        report_id=report_id,
+        client_id=client.id,
+        reviewer=reviewer,
+        comment=body.comment,
+        redraft_cap=settings.report_redraft_cap,
+        session=session,
+        dispatcher=request.app.state.dispatcher,
+    )
 
     if ReportStatus(report.status) == ReportStatus.DRAFTED:
         await enqueue(
@@ -180,14 +178,13 @@ async def discard_report(
     session: AsyncSession = Depends(get_session),
 ) -> ReportSummary:
     """Discard a report (terminal)."""
-    async with session.begin():
-        report = await svc.discard_report(
-            report_id=report_id,
-            client_id=client.id,
-            reviewer=reviewer,
-            session=session,
-            dispatcher=request.app.state.dispatcher,
-        )
+    report = await svc.discard_report(
+        report_id=report_id,
+        client_id=client.id,
+        reviewer=reviewer,
+        session=session,
+        dispatcher=request.app.state.dispatcher,
+    )
     return ReportSummary.model_validate(report)
 
 
@@ -204,15 +201,14 @@ async def drop_finding(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Drop a finding back to pending_batch (re-eligible next cycle)."""
-    async with session.begin():
-        await svc.drop_finding_from_report(
-            report_id=report_id,
-            finding_id=finding_id,
-            client_id=client.id,
-            reviewer=reviewer,
-            session=session,
-            dispatcher=request.app.state.dispatcher,
-        )
+    await svc.drop_finding_from_report(
+        report_id=report_id,
+        finding_id=finding_id,
+        client_id=client.id,
+        reviewer=reviewer,
+        session=session,
+        dispatcher=request.app.state.dispatcher,
+    )
 
 
 @router.post("/reports/{report_id}/findings/{finding_id}/discard", status_code=204)
@@ -226,15 +222,14 @@ async def discard_finding(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Permanently discard a finding from a batch report."""
-    async with session.begin():
-        await svc.discard_finding_permanently(
-            report_id=report_id,
-            finding_id=finding_id,
-            client_id=client.id,
-            reviewer=reviewer,
-            session=session,
-            dispatcher=request.app.state.dispatcher,
-        )
+    await svc.discard_finding_permanently(
+        report_id=report_id,
+        finding_id=finding_id,
+        client_id=client.id,
+        reviewer=reviewer,
+        session=session,
+        dispatcher=request.app.state.dispatcher,
+    )
 
 
 # ── Batch consolidation ───────────────────────────────────────────────────────
