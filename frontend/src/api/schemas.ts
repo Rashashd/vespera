@@ -20,6 +20,10 @@ export const ReportStatus = z.enum([
   "rejected",
   "discarded",
   "needs_manual_revision",
+  // Delivery lifecycle (spec 13) — reviewer/all-reports lists can now carry these.
+  "sent",
+  "delivered",
+  "delivery_failed",
 ]);
 
 export const ReportType = z.enum(["expedited", "batch"]);
@@ -59,6 +63,9 @@ export const ReportSummarySchema = z.object({
   client_id: z.number(),
   report_type: ReportType,
   status: ReportStatus,
+  // Reviewer-facing delivery label (spec 13 US2): approved_pending_delivery / sent /
+  // delivered / delivery_failed / not_applicable. String-typed for forward tolerance.
+  delivery_status: z.string().optional(),
   corroboration_count: z.number(),
   revision_count: z.number(),
   sla_deadline: z.string().nullable().optional(),
@@ -230,13 +237,23 @@ export const CostDashboardSchema = z.object({
 });
 export type CostDashboard = z.infer<typeof CostDashboardSchema>;
 
+export const DeliveryMetricsSchema = z.object({
+  sent: z.number(),
+  delivered: z.number(),
+  failed: z.number(),
+  success_rate: z.number(),
+});
+export type DeliveryMetrics = z.infer<typeof DeliveryMetricsSchema>;
+
 export const OpsDashboardSchema = z.object({
   client_id: z.number(),
   by_status: z.record(z.number()),
   queue: z.object({ pending: z.number(), expedited: z.number(), batch: z.number() }),
   sla: z.object({ overdue: z.number(), due_soon: z.number(), met_pct: z.number() }),
   redraft: z.object({ avg_revisions: z.number(), hit_cap: z.number() }),
-  delivery: z.null(),
+  // Spec 13: delivery KPIs (populated; nullable for forward/back compatibility).
+  delivery: DeliveryMetricsSchema.nullable(),
   window: z.object({ from: z.string().nullable(), to: z.string().nullable() }),
+  failed_jobs: z.number().optional(),
 });
 export type OpsDashboard = z.infer<typeof OpsDashboardSchema>;

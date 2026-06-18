@@ -52,7 +52,9 @@ export default function AllReports() {
                     {r.corroboration_count} source{r.corroboration_count !== 1 ? "s" : ""}
                   </p>
                 </div>
-                <DeliveryStatusChip status={r.status} />
+                {r.delivery_status && r.delivery_status !== "not_applicable" && (
+                  <DeliveryStatusChip status={r.status} deliveryStatus={r.delivery_status} />
+                )}
               </div>
             </button>
           </li>

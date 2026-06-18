@@ -96,9 +96,9 @@ description: "Task list for 013-delivery implementation"
 - [x] T027 [P] [US2] Keep the client-portal set at `{approved, sent, delivered}` — do NOT add `delivery_failed` (a failed delivery means the client never received it; FR-010). `_delivery_status()` may map the `delivery_failed` label defensively, but it must not surface in the portal list — in `app/reports/portal_routes.py`. (Reviewer `delivery_failed` visibility is handled by T026.)
 - [x] T028 [P] [US2] Add the `DeliveryMetrics` submodel and change `OpsDashboard.delivery` to `DeliveryMetrics | None` in `app/observability/schemas.py`
 - [x] T029 [US2] Populate the delivery block (`sent/delivered/failed/success_rate` = delivered ÷ dispatched) in `app/reports/metrics_routes.py` (depends T028)
-- [ ] T030 [P] [US2] Update the OpsDashboard zod schema (`delivery` object) + add the field in `frontend/src/api/schemas.ts` and `frontend/src/api/hooks.ts`
-- [ ] T031 [US2] Render the dashboard Delivery cards from `metrics.delivery` (replace the stub) in `frontend/src/pages/DashboardPage.tsx` (depends T030)
-- [ ] T032 [P] [US2] Pass `delivery_status` into `DeliveryStatusChip` on the reviewer surfaces in `frontend/src/pages/AllReports.tsx` and `frontend/src/components/ReportDetail.tsx`
+- [x] T030 [P] [US2] Update the OpsDashboard zod schema (`delivery` object) + add the field in `frontend/src/api/schemas.ts` and `frontend/src/api/hooks.ts`
+- [x] T031 [US2] Render the dashboard Delivery cards from `metrics.delivery` (replace the stub) in `frontend/src/pages/DashboardPage.tsx` (depends T030)
+- [x] T032 [P] [US2] Pass `delivery_status` into `DeliveryStatusChip` on the reviewer surfaces in `frontend/src/pages/AllReports.tsx` and `frontend/src/components/ReportDetail.tsx`
 
 **Checkpoint**: delivery state is truthfully visible to all three audiences.
 
@@ -162,8 +162,8 @@ description: "Task list for 013-delivery implementation"
 - [x] T045 [US5] Implement `GET /clients/{client_id}/reports/{report_id}/download` (reuse `render_report_document`; client-user own approved/sent/delivered only; staff acting-client) in `app/delivery/routes.py` (depends T015)
 - [x] T046 [US5] Refine `GET /audit` authorization — admin → client/watchlist categories only; reviewer → 403 — in `app/audit/routes.py`
 - [x] T047 [US5] Implement `GET /audit/export?format=csv|json` (manager/admin; bounded/paginated; emits `AuditExported`) in `app/audit/routes.py` (depends T046, T009)
-- [ ] T048 [P] [US5] Enable + wire `DownloadReportButton` to the download endpoint in `frontend/src/components/DownloadReportButton.tsx`
-- [ ] T049 [P] [US5] Enable + wire `AuditExportButton` to `/audit/export` in `frontend/src/components/admin/AuditExportButton.tsx`
+- [x] T048 [P] [US5] Enable + wire `DownloadReportButton` to the download endpoint in `frontend/src/components/DownloadReportButton.tsx`
+- [x] T049 [P] [US5] Enable + wire `AuditExportButton` to `/audit/export` in `frontend/src/components/admin/AuditExportButton.tsx`
 
 **Checkpoint**: downloadable reports + exportable audit trail, correctly scoped.
 
@@ -195,9 +195,9 @@ description: "Task list for 013-delivery implementation"
 
 ### Implementation for User Story 7
 
-- [ ] T052 [US7] Build `DeadLetterCard` (reads `GET /admin/dead-letters` / `failed_jobs`) and mount it on the admin dashboard in `frontend/src/components/admin/DeadLetterCard.tsx` (+ `frontend/src/pages/DashboardPage.tsx`) — NOT `[P]`: shares `DashboardPage.tsx` with T031, sequence after it
-- [ ] T053 [P] [US7] Verify the budget-exceeded-policy control persists (already built at `frontend/src/components/admin/WatchlistEditor.tsx:170-184`) and add a regression test if missing — verify-only, no new control
-- [ ] T054 [US7] **First locate** the manual consolidate-batch control (grep the SPA for the consolidate-batch call; `TriggerButton.tsx` handles *ingest*, not consolidate), then adjust whichever component triggers consolidate to handle the 202 enqueue (acknowledge + refresh/poll, no inline report) in `frontend/src/components/admin/` — confirm the file before editing
+- [x] T052 [US7] Build `DeadLetterCard` (reads `GET /admin/dead-letters` / `failed_jobs`) and mount it on the admin dashboard in `frontend/src/components/admin/DeadLetterCard.tsx` (+ `frontend/src/pages/DashboardPage.tsx`) — NOT `[P]`: shares `DashboardPage.tsx` with T031, sequence after it
+- [x] T053 [P] [US7] Verify the budget-exceeded-policy control persists (already built at `frontend/src/components/admin/WatchlistEditor.tsx:170-184`) and add a regression test if missing — verify-only, no new control
+- [x] T054 [US7] **First locate** the manual consolidate-batch control (grep the SPA for the consolidate-batch call; `TriggerButton.tsx` handles *ingest*, not consolidate), then adjust whichever component triggers consolidate to handle the 202 enqueue (acknowledge + refresh/poll, no inline report) in `frontend/src/components/admin/` — confirm the file before editing
 
 **Checkpoint**: no stubbed control left dangling.
 

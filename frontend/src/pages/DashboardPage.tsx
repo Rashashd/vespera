@@ -1,5 +1,6 @@
 import { useActingClient } from "@/auth/ActingClientContext";
 import { useUsageDashboard, useOpsDashboard } from "@/api/hooks";
+import { DeadLetterCard } from "@/components/admin/DeadLetterCard";
 
 function StatCard({ title, value, subtitle }: { title: string; value: string | number; subtitle?: string }) {
   return (
@@ -39,14 +40,26 @@ export default function DashboardPage() {
             <StatCard title="Approved" value={ops.by_status["approved"] ?? 0} />
           </div>
         )}
+        {ops && <DeadLetterCard count={ops.failed_jobs ?? 0} />}
       </section>
 
-      {/* Delivery cards (spec-13 forward dependency) */}
+      {/* Delivery cards (spec 13) */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Delivery</h2>
-        <div className="rounded border bg-muted/50 p-4 text-sm text-muted-foreground">
-          Delivery metrics are pending the delivery layer — available once spec 13 ships.
-        </div>
+        {opsLoading && <p className="text-muted-foreground text-sm">Loading…</p>}
+        {ops?.delivery && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard title="Sent" value={ops.delivery.sent} subtitle="awaiting confirmation" />
+            <StatCard title="Delivered" value={ops.delivery.delivered} />
+            <StatCard title="Failed" value={ops.delivery.failed} />
+            <StatCard title="Success rate" value={`${ops.delivery.success_rate}%`} subtitle="delivered ÷ dispatched" />
+          </div>
+        )}
+        {ops && !ops.delivery && (
+          <div className="rounded border bg-muted/50 p-4 text-sm text-muted-foreground">
+            No delivery activity recorded yet for this client.
+          </div>
+        )}
       </section>
 
       {/* Cost dashboard */}

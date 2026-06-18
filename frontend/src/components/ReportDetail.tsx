@@ -84,9 +84,15 @@ export function ReportDetail({ clientId, reportId, mode }: Props) {
           <Badge variant="outline" className="capitalize">{report.report_type}</Badge>
           <Badge variant="outline" className="capitalize">{report.status.replace(/_/g, " ")}</Badge>
           {report.sla_deadline && <SlaCountdown deadline={report.sla_deadline} />}
-          <DeliveryStatusChip status={report.status} />
+          {report.delivery_status && report.delivery_status !== "not_applicable" && (
+            <DeliveryStatusChip status={report.status} deliveryStatus={report.delivery_status} />
+          )}
         </div>
-        <DownloadReportButton />
+        <DownloadReportButton
+          clientId={report.client_id}
+          reportId={report.id}
+          status={report.status}
+        />
       </div>
 
       {/* Mid-redraft warning */}
