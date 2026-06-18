@@ -1,51 +1,80 @@
+/* Self-hosted fonts (CSP-safe — bundled, served from same origin). */
+@import "@fontsource-variable/montserrat"; /* brand wordmark only */
+@import "@fontsource-variable/space-grotesk"; /* display / headings */
+@import "@fontsource-variable/dm-sans"; /* body / UI */
+@import "@fontsource/dm-mono/400.css"; /* labels, data, captions */
+@import "@fontsource/dm-mono/500.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    /* Page & surface */
     --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    --foreground: 214 56% 10%;
+
+    /* Card / popover */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 214 56% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 211 80% 40%;
-    --primary: 211 80% 38%;
+    --popover-foreground: 214 56% 10%;
+
+    /* Brand primaries — Teal */
+    --primary: 180 65% 33%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 173 58% 39%;
-    --secondary-foreground: 0 0% 100%;
-    --accent: 173 58% 39%;
+
+    /* Secondary / ghost surfaces */
+    --secondary: 210 39% 94%;
+    --secondary-foreground: 214 56% 18%;
+
+    /* Muted / subtle */
+    --muted: 210 27% 90%;
+    --muted-foreground: 210 27% 40%;
+
+    /* Accent — Teal Lt */
+    --accent: 180 33% 51%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
+
+    /* Destructive / alert */
+    --destructive: 0 63% 34%;
     --destructive-foreground: 0 0% 100%;
+
+    /* Chrome */
+    --border: 210 27% 86%;
+    --input: 210 27% 86%;
+    --ring: 180 65% 33%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 40% 96%;
-    --card: 222 40% 11%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 40% 11%;
-    --popover-foreground: 210 40% 96%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --border: 217 33% 20%;
-    --input: 217 33% 20%;
-    --ring: 211 90% 60%;
-    --primary: 211 90% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 173 58% 45%;
-    --secondary-foreground: 222 47% 11%;
-    --accent: 173 58% 45%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 72% 56%;
+    --background: 214 56% 8%;
+    --foreground: 210 39% 95%;
+
+    --card: 210 45% 15%;
+    --card-foreground: 210 39% 95%;
+    --popover: 214 56% 12%;
+    --popover-foreground: 210 39% 95%;
+
+    --primary: 180 58% 42%;
+    --primary-foreground: 214 56% 8%;
+
+    --secondary: 210 45% 20%;
+    --secondary-foreground: 210 39% 88%;
+
+    --muted: 210 45% 18%;
+    --muted-foreground: 180 33% 51%;
+
+    --accent: 180 33% 51%;
+    --accent-foreground: 214 56% 8%;
+
+    --destructive: 0 63% 42%;
     --destructive-foreground: 0 0% 100%;
+
+    --border: 210 45% 22%;
+    --input: 210 45% 22%;
+    --ring: 180 58% 42%;
   }
 
   * {
@@ -53,7 +82,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
@@ -64,6 +93,50 @@
 }
 
 @layer utilities {
+  /* ── Login atmosphere (design handoff: "Pantera Login Split", exact palette) ── */
+  /* Brand panel ground — themes with the page */
+  .login-brand {
+    background: linear-gradient(150deg, #e9f0f4 0%, #dce6ed 100%);
+  }
+  .dark .login-brand {
+    background: linear-gradient(150deg, #0b1320 0%, #070c15 100%);
+  }
+  /* Form panel ground */
+  .login-form {
+    background: linear-gradient(150deg, #fbfcfe 0%, #eef3f8 100%);
+  }
+  .dark .login-form {
+    background: linear-gradient(150deg, #0f1a2a 0%, #0a1320 100%);
+  }
+  /* Soft radial "orb" glows behind the brand panel */
+  .login-orb-1 {
+    background: radial-gradient(circle, rgba(30, 140, 140, 0.1) 0%, transparent 65%);
+  }
+  .dark .login-orb-1 {
+    background: radial-gradient(circle, rgba(30, 140, 140, 0.14) 0%, transparent 65%);
+  }
+  .login-orb-2 {
+    background: radial-gradient(circle, rgba(120, 150, 190, 0.16) 0%, transparent 66%);
+  }
+  .dark .login-orb-2 {
+    background: radial-gradient(circle, rgba(18, 52, 92, 0.3) 0%, transparent 66%);
+  }
+  /* Vignette to settle the watermark into the corner */
+  .login-vignette {
+    background: radial-gradient(
+      ellipse 72% 82% at 30% 40%,
+      transparent 38%,
+      rgba(150, 170, 190, 0.32) 100%
+    );
+  }
+  .dark .login-vignette {
+    background: radial-gradient(
+      ellipse 70% 80% at 30% 40%,
+      transparent 30%,
+      rgba(5, 9, 16, 0.5) 100%
+    );
+  }
+
   /* Sidebar rail width when collapsed */
   .sidebar-rail {
     width: 56px;

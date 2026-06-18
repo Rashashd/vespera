@@ -9,6 +9,7 @@ import { AuthProvider } from "@/auth/AuthContext";
 import { ActingClientProvider } from "@/auth/ActingClientContext";
 import DashboardPage from "@/pages/DashboardPage";
 import AdminConsole from "@/pages/AdminConsole";
+import FailedQueue from "@/pages/FailedQueue";
 import { AuditExportButton } from "@/components/admin/AuditExportButton";
 
 vi.mock("react-router-dom", async () => {
@@ -98,6 +99,57 @@ describe("DashboardPage", () => {
       expect(screen.getByText(/delivered ÷ dispatched/i)).toBeInTheDocument(),
     );
     expect(screen.getByText("60%")).toBeInTheDocument();
+  });
+});
+
+describe("FailedQueue", () => {
+  const DLS = [
+    {
+      id: 1, job_name: "task_run_full_cycle", job_key: "fc:1", client_id: null,
+      args_digest: "abc123", error_class: "OperationalError",
+      error_summary: "Connection pool exhausted during cycle fan-out.",
+      attempts: 4, first_failed_at: "2026-06-17T12:00:00Z",
+      dead_lettered_at: "2026-06-17T12:05:00Z", resolved_at: null,
+    },
+    {
+      id: 2, job_name: "task_consolidate_batch", job_key: "cb:2", client_id: 1,
+      args_digest: "def456", error_class: "TimeoutError", error_summary: null,
+      attempts: 3, first_failed_at: "2026-06-17T11:00:00Z",
+      dead_lettered_at: "2026-06-17T11:05:00Z", resolved_at: null,
+    },
+  ];
+
+  it("lists unresolved jobs with reason, system label, and null-summary fallback", async () => {
+    server.use(
+      http.get("http://localhost:8000/clients", () =>
+        HttpResponse.json([{ id: 1, name: "Acme", status: "active" }]),
+      ),
+      http.get("http://localhost:8000/admin/dead-letters", () => HttpResponse.json(DLS)),
+    );
+    render(<TestWrapper><FailedQueue /></TestWrapper>);
+    await waitFor(() =>
+      expect(screen.getByText("OperationalError")).toBeInTheDocument(),
+    );
+    // null error_summary falls back to error_class → "TimeoutError" appears as
+    // both the title and the reason line.
+    expect(screen.getAllByText("TimeoutError").length).toBeGreaterThanOrEqual(2);
+    // client_id null renders as "System".
+    expect(screen.getByText("System")).toBeInTheDocument();
+    // No retry/reprocess affordance — dead-lettered jobs cannot be replayed.
+    expect(
+      screen.queryByRole("button", { name: /retry|reprocess|re-?run/i }),
+    ).toBeNull();
+  });
+
+  it("shows the empty state when there are no unresolved jobs", async () => {
+    server.use(
+      http.get("http://localhost:8000/clients", () => HttpResponse.json([])),
+      http.get("http://localhost:8000/admin/dead-letters", () => HttpResponse.json([])),
+    );
+    render(<TestWrapper><FailedQueue /></TestWrapper>);
+    await waitFor(() =>
+      expect(screen.getByText(/no unresolved failed jobs/i)).toBeInTheDocument(),
+    );
   });
 });
 

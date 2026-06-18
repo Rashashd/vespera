@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import type { ReportSummary } from "@/api/schemas";
 
 interface Props {
   status: string;
@@ -24,10 +23,13 @@ const STATUS_VARIANT: Record<
 };
 
 export function DeliveryStatusChip({ status, deliveryStatus }: Props) {
-  // Derive delivery_status when not provided (reviewer-facing)
+  // Delivery only begins once a report is approved. Until spec 13 wires the
+  // real lifecycle (sent/delivered/delivery_failed via deliveryStatus), an
+  // approved report sits at "approved_pending_delivery". Non-approved reports
+  // have no delivery state yet, so the chip is hidden for them.
   const ds =
-    deliveryStatus ??
-    (status === "approved" ? "approved_pending_delivery" : "approved_pending_delivery");
+    deliveryStatus ?? (status === "approved" ? "approved_pending_delivery" : null);
+  if (!ds) return null;
 
   return (
     <Badge variant={STATUS_VARIANT[ds] ?? "muted"}>

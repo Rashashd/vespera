@@ -23,7 +23,7 @@ export default function ReportDetailPage({ mode }: Props) {
   }
 
   return (
-    <div className="h-full -m-6">
+    <div className="h-full -m-7">
       <ReportDetail clientId={clientId} reportId={parseInt(reportId, 10)} mode={mode} />
     </div>
   );

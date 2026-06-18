@@ -11,7 +11,23 @@ const config: Config = {
       screens: { "2xl": "1400px" },
     },
     extend: {
+      fontFamily: {
+        sans: ['"DM Sans Variable"', "system-ui", "sans-serif"],
+        display: ['"Space Grotesk Variable"', "system-ui", "sans-serif"],
+        wordmark: ['"Montserrat Variable"', "system-ui", "sans-serif"],
+        mono: ['"DM Mono"', "ui-monospace", "monospace"],
+      },
       colors: {
+        // Named brand palette (design-system.md §2)
+        pantera: {
+          navy: "hsl(214 56% 12%)",
+          navy2: "hsl(210 45% 15%)",
+          teal: "hsl(180 65% 33%)",
+          tealLt: "hsl(180 33% 51%)",
+          slate: "hsl(210 27% 40%)",
+          cloud: "hsl(210 39% 95%)",
+          alert: "hsl(0 63% 34%)",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
