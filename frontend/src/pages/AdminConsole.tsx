@@ -7,7 +7,6 @@ import { CreateWatchlistDialog } from "@/components/admin/CreateWatchlistDialog"
 import { WatchlistEditor } from "@/components/admin/WatchlistEditor";
 import { SeverityKeywordsEditor } from "@/components/admin/SeverityKeywordsEditor";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 export default function AdminConsole() {
@@ -20,22 +19,32 @@ export default function AdminConsole() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Admin Console</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage watchlists and severity rules for the acting client.
+        </p>
         <AuditExportButton />
       </div>
 
       {/* Client info */}
       {client && (
-        <section className="rounded border bg-card p-4 space-y-2">
-          <h2 className="text-sm font-semibold">Client</h2>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{client.name}</span>
-            <Badge variant="outline" className="capitalize">
-              {client.status}
-            </Badge>
+        <section className="flex items-center justify-between rounded-2xl border bg-card p-5 shadow-sm">
+          <div>
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#4a6580] dark:text-[#8095a8]">
+              Client
+            </p>
+            <p className="mt-1 font-display text-[17px] font-semibold text-foreground">
+              {client.name}
+            </p>
           </div>
+          <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-[#4a6580] dark:text-[#8095a8]">
+            <span
+              className={`h-2 w-2 rounded-full ${client.status === "active" ? "bg-primary" : "bg-[#b07a1e] dark:bg-[#d9a441]"}`}
+              aria-hidden="true"
+            />
+            {client.status}
+          </span>
         </section>
       )}
 
@@ -50,9 +59,11 @@ export default function AdminConsole() {
       {/* Watchlists */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Watchlists</h2>
+          <h2 className="font-display text-[15px] font-semibold text-foreground">
+            Watchlists
+          </h2>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />
+            <Plus className="mr-1 h-4 w-4" />
             New watchlist
           </Button>
         </div>

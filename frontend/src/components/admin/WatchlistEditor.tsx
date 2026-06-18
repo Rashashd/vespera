@@ -101,10 +101,20 @@ export function WatchlistEditor({
   };
 
   return (
-    <div className="rounded border bg-card p-4 space-y-4">
+    <div
+      className={`space-y-4 rounded-2xl border bg-card p-5 shadow-sm ${
+        watchlist.is_active ? "" : "opacity-70"
+      }`}
+    >
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium">{watchlist.name}</p>
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`h-2 w-2 rounded-full ${watchlist.is_active ? "bg-primary" : "bg-muted-foreground"}`}
+            aria-hidden="true"
+          />
+          <p className="font-display text-[15px] font-semibold text-foreground">
+            {watchlist.name}
+          </p>
           {!watchlist.is_active && (
             <Badge variant="outline" className="text-xs">
               inactive
