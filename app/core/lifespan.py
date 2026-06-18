@@ -73,8 +73,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Spec 13: approval enqueues delivery; reactivation releases held reports. Registered with
     # `app` so the handlers can reach app.state.arq at dispatch time (lazy — arq set below).
     from app.delivery.handlers import register_delivery_handlers
+    from app.delivery.notifications import register_budget_notifications
 
     register_delivery_handlers(dispatcher, app)
+    register_budget_notifications(dispatcher)
     limiter = build_limiter(settings.redis_url)
     use_redis_storage(settings.redis_url)  # spec 2: login limiter enforces against Redis (FR-010)
 

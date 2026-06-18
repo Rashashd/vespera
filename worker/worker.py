@@ -31,6 +31,10 @@ async def startup(ctx: dict) -> None:
     # Build dispatcher + register audit handlers so every job emits audit rows (spec 11 §3).
     dispatcher = EventDispatcher()
     register_audit_handlers(dispatcher)
+    # Spec 13 US6: budget-threshold crossings (raised in task_consolidate's gate) notify staff.
+    from app.delivery.notifications import register_budget_notifications
+
+    register_budget_notifications(dispatcher)
     ctx["dispatcher"] = dispatcher
 
     ctx["session_factory"] = create_session_factory(engine)

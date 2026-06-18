@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.auth.schemas import UserType
+from app.core.dispatcher import EventDispatcher
 from app.delivery.n8n_client import N8nClient
+from app.domain.events import WatchlistBudgetThresholdReached
 
 _log = structlog.get_logger(__name__)
 
@@ -107,3 +109,46 @@ async def notify_budget_threshold(
         client_id=client_id,
         context={"watchlist_id": watchlist_id, "state": state},
     )
+
+
+async def on_budget_threshold(
+    event: WatchlistBudgetThresholdReached, session: AsyncSession
+) -> None:
+    """Passive handler (US6/FR-019): notify manager+admin once per budget-state crossing.
+
+    The budget gate dispatches this every cycle while in warning/soft_capped, so dedup here:
+    notify only when the state CHANGED since the watchlist's previous threshold event. The
+    current event's audit row is excluded via no_autoflush (it is added by the audit handler,
+    which runs first, but is not yet flushed).
+    """
+    from app.audit.models import AuditLog
+    from app.core.config import get_settings
+
+    with session.sync_session.no_autoflush:
+        prev = (
+            await session.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.event_type == "WatchlistBudgetThresholdReached",
+                    AuditLog.target == f"watchlist:{event.watchlist_id}",
+                )
+                .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+    prev_state = (prev.payload or {}).get("state") if prev else None
+    if prev_state == event.state:
+        return  # already notified while in this state (no alert storm)
+
+    await notify_budget_threshold(
+        session,
+        N8nClient.from_settings(get_settings()),
+        watchlist_id=event.watchlist_id,
+        client_id=event.client_id,
+        state=event.state,
+    )
+
+
+def register_budget_notifications(dispatcher: EventDispatcher) -> None:
+    """Register the budget-threshold notification handler (call after register_audit_handlers)."""
+    dispatcher.register(WatchlistBudgetThresholdReached, on_budget_threshold)

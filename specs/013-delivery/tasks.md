@@ -177,11 +177,11 @@ description: "Task list for 013-delivery implementation"
 
 ### Tests for User Story 6
 
-- [ ] T050 [P] [US6] Integration test: budget warning/exceeded crossing → notification to manager+admin, audited, not re-sent while in the same state in `tests/integration/test_budget_notify.py`
+- [x] T050 [P] [US6] Integration test: budget warning/exceeded crossing → notification to manager+admin, audited, not re-sent while in the same state in `tests/integration/test_budget_notify.py`
 
 ### Implementation for User Story 6
 
-- [ ] T051 [US6] Implement + register the `WatchlistBudgetThresholdReached` handler (notify the client's manager+admin via the n8n client; dedup by state) in `app/delivery/notifications.py` and `app/core/lifespan.py` (depends T035)
+- [x] T051 [US6] Implement + register the `WatchlistBudgetThresholdReached` handler (notify the client's manager+admin via the n8n client; dedup by state) in `app/delivery/notifications.py` and `app/core/lifespan.py` (depends T035)
 
 **Checkpoint**: the agency is proactively nudged at budget thresholds.
 
