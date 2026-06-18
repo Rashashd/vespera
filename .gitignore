@@ -6,6 +6,7 @@ docs/design-system.md
 docs/AI-IMPLEMENTATION-PITFALLS.md
 docs/design_handoff_pantera/
 scripts/dev/
+docs/n8n/
 
 
 # Secrets — never commit real secret values (all real secrets live in Vault)
