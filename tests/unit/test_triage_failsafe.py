@@ -359,3 +359,48 @@ async def test_mark_triage_degraded_sets_marker():
 
     assert state.triage_failed_at is not None
     assert state.triage_error == "ner_unavailable"
+
+
+# ---------------------------------------------------------------------------
+# Orphaned-expedited (2B) — the expedited enqueue is isolated per finding: one
+# enqueue failure is surfaced and does NOT skip the others (the sweep re-enqueues).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_enqueue_expedited_drafts_isolates_failures():
+    """An enqueue failure for one expedited finding is surfaced and does not skip the others."""
+    from types import SimpleNamespace
+
+    from app.embedding import triage_trigger
+    from app.triage.enums import Bucket
+
+    outcomes = [
+        SimpleNamespace(created=True, finding_id=1, bucket=Bucket.EMERGENCY),
+        SimpleNamespace(created=True, finding_id=2, bucket=Bucket.URGENT),
+        SimpleNamespace(created=True, finding_id=3, bucket=Bucket.MINOR),  # not expedited; skipped
+    ]
+
+    attempted: list[int] = []
+
+    async def fake_enqueue(task, *, job_id, app_state, finding_id, revision):
+        attempted.append(finding_id)
+        if finding_id == 1:
+            raise RuntimeError("redis down")
+
+    with (
+        patch("app.jobs.enqueue.enqueue", new=fake_enqueue),
+        patch("app.embedding.triage_trigger._log") as mock_log,
+    ):
+        await triage_trigger._enqueue_expedited_drafts(outcomes, app_state=object(), client_id=7)
+
+    # Finding 1 failed but did NOT abort finding 2; finding 3 (MINOR) is not expedited.
+    assert attempted == [1, 2]
+    # The failed enqueue surfaced an operator alert (stage=expedited_enqueue).
+    assert any(
+        c.args
+        and c.args[0] == "triage.operator_alert"
+        and c.kwargs.get("stage") == "expedited_enqueue"
+        and c.kwargs.get("finding_id") == 1
+        for c in mock_log.error.call_args_list
+    )
