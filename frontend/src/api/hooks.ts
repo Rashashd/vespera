@@ -18,6 +18,8 @@ import {
   AuditEntrySchema,
   DeadLetterSchema,
   UserSchema,
+  StaffUserSchema,
+  ClientUserSchema,
   type ReportSummary,
   type ReportResponse,
   type PassageResponse,
@@ -428,5 +430,84 @@ export function useRemoveWatchlistItem(clientId: number | null) {
     mutationFn: ({ watchlistId, itemId }: { watchlistId: number; itemId: number }) =>
       del(`/clients/${clientId}/watchlists/${watchlistId}/items/${itemId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["watchlists", clientId] }),
+  });
+}
+
+// ── Account management — staff (manager) + client-users (admin) — spec 13 US4 ───
+
+export function useStaff() {
+  return useQuery({
+    queryKey: ["staff"],
+    queryFn: () =>
+      get<unknown[]>("/staff").then((rows) => z.array(StaffUserSchema).parse(rows)),
+  });
+}
+
+export function useCreateStaff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { email: string; password: string; role: string }) =>
+      post("/staff", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
+  });
+}
+
+export function useUpdateStaff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      userId,
+      body,
+    }: {
+      userId: number;
+      body: { role?: string; is_active?: boolean };
+    }) => patch(`/staff/${userId}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
+  });
+}
+
+export function useClientUsers(clientId: number | null) {
+  return useQuery({
+    queryKey: ["client-users", clientId],
+    queryFn: () =>
+      get<unknown[]>(`/clients/${clientId}/users`).then((rows) =>
+        z.array(ClientUserSchema).parse(rows),
+      ),
+    enabled: clientId !== null,
+  });
+}
+
+export interface CreateClientUserBody {
+  email: string;
+  password: string;
+  client_scope: string;
+  min_severity?: string | null;
+  watchlist_ids: number[];
+}
+
+export function useCreateClientUser(clientId: number | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateClientUserBody) => post(`/clients/${clientId}/users`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["client-users", clientId] }),
+  });
+}
+
+export function useUpdateClientUser(clientId: number | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      userId,
+      body,
+    }: {
+      userId: number;
+      body: {
+        client_scope?: string;
+        min_severity?: string | null;
+        watchlist_ids?: number[];
+        is_active?: boolean;
+      };
+    }) => patch(`/clients/${clientId}/users/${userId}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["client-users", clientId] }),
   });
 }

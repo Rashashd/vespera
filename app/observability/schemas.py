@@ -48,14 +48,23 @@ class RedraftMetrics(BaseModel):
     hit_cap: int
 
 
+class DeliveryMetrics(BaseModel):
+    """Per-client report-delivery KPIs in the window (spec 13 FR-011)."""
+
+    sent: int  # reports currently awaiting confirmation
+    delivered: int  # reports fully delivered in the window
+    failed: int  # reports delivery_failed in the window
+    success_rate: float  # delivered ÷ dispatched in the window; 100.0 when none dispatched
+
+
 class OpsDashboard(BaseModel):
-    """Live operational metrics from reports/findings (FR-021a). delivery is null until spec 13."""
+    """Live operational metrics from reports/findings (FR-021a) + delivery KPIs (spec 13)."""
 
     client_id: int
     by_status: dict[str, int]
     queue: QueueMetrics
     sla: SlaMetrics
     redraft: RedraftMetrics
-    delivery: None
+    delivery: DeliveryMetrics | None
     window: dict
     failed_jobs: int = 0  # unresolved dead-letter count for this client (spec 11 T038)

@@ -11,7 +11,7 @@ class ReportType(StrEnum):
 
 
 class ReportStatus(StrEnum):
-    """HITL state machine states for a report (FR-014/016/021)."""
+    """HITL + delivery state machine states for a report (FR-014/016/021; spec 13 FR-004)."""
 
     DRAFTED = "drafted"
     UNDER_REVIEW = "under_review"
@@ -19,11 +19,19 @@ class ReportStatus(StrEnum):
     REJECTED = "rejected"
     DISCARDED = "discarded"
     NEEDS_MANUAL_REVISION = "needs_manual_revision"
+    # Delivery lifecycle (spec 13): approved → sent → delivered | delivery_failed.
+    SENT = "sent"
+    DELIVERED = "delivered"
+    DELIVERY_FAILED = "delivery_failed"
 
     @property
     def is_terminal(self) -> bool:
-        """Terminal statuses accept no further transitions in this feature."""
-        return self in (ReportStatus.APPROVED, ReportStatus.DISCARDED)
+        """Terminal statuses accept no further HITL transitions in this feature.
+
+        `delivered` is terminal; `sent`/`delivery_failed` are NOT (a failed delivery can be
+        re-sent, and `sent` is awaiting confirmation) — spec 13 FR-004/FR-006.
+        """
+        return self in (ReportStatus.APPROVED, ReportStatus.DISCARDED, ReportStatus.DELIVERED)
 
 
 class ClaimProvenance(StrEnum):

@@ -465,6 +465,45 @@ async def task_cycle_start(
     )
 
 
+# ── task_deliver_report ───────────────────────────────────────────────────────
+
+
+async def task_deliver_report(
+    ctx: dict,
+    *,
+    report_id: int,
+    resend: bool = False,
+) -> None:
+    """Durable report delivery: render + dispatch an approved report to its channels (spec 13)."""
+    from app.delivery.service import run_delivery
+
+    job_key = f"deliver:{report_id}"
+
+    async def _run() -> None:
+        await run_delivery(report_id, WorkerContext(ctx), resend=resend)
+
+    await _run_with_dlq(
+        ctx,
+        fn=_run,
+        job_name="task_deliver_report",
+        job_key=job_key,
+        client_id=None,  # report carries client_id; not available here without a DB call
+        fn_kwargs={},
+    )
+
+    _log.info("task_deliver_report.done", report_id=report_id, resend=resend)
+
+
+# ── task_delivery_sla_sweep (cron) ────────────────────────────────────────────
+
+
+async def task_delivery_sla_sweep(ctx: dict) -> None:
+    """Cron: no-callback timeout flips + tiered SLA escalation sweep (spec 13 US3)."""
+    from app.delivery.sweep import run_sla_sweep
+
+    await run_sla_sweep(WorkerContext(ctx))
+
+
 # ── Register all tasks for inline mode ───────────────────────────────────────
 register_task("task_run_ingestion", task_run_ingestion)
 register_task("task_index_build", task_index_build)
@@ -472,3 +511,4 @@ register_task("task_expedited", task_expedited)
 register_task("task_redraft", task_redraft)
 register_task("task_consolidate", task_consolidate)
 register_task("task_cycle_start", task_cycle_start)
+register_task("task_deliver_report", task_deliver_report)

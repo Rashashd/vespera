@@ -1,5 +1,6 @@
 import { useActingClient } from "@/auth/ActingClientContext";
 import { useUsageDashboard, useOpsDashboard } from "@/api/hooks";
+import { DeadLetterCard } from "@/components/admin/DeadLetterCard";
 
 function StatCard({
   title,
@@ -79,20 +80,30 @@ export default function DashboardPage() {
             <StatCard title="Approved" value={ops.by_status["approved"] ?? 0} />
           </div>
         )}
+        {ops && <DeadLetterCard count={ops.failed_jobs ?? 0} />}
       </section>
 
-      {/* Delivery cards — placeholders until the spec-13 delivery layer ships */}
+      {/* Delivery cards (spec 13 — real delivery lifecycle) */}
       <section className="space-y-3">
         <SectionLabel>Delivery</SectionLabel>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard title="Sent" value={0} subtitle="this cycle" />
-          <StatCard title="Delivered" value={0} subtitle="confirmed" />
-          <StatCard title="Failed" value={0} subtitle="needs attention" />
-          <StatCard title="Success rate" value="—" subtitle="delivered ÷ sent" />
-        </div>
-        <p className="text-[12px] text-muted-foreground">
-          Populates once the delivery layer (spec 13) ships.
-        </p>
+        {opsLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {ops?.delivery && (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <StatCard title="Sent" value={ops.delivery.sent} subtitle="awaiting confirmation" />
+            <StatCard title="Delivered" value={ops.delivery.delivered} subtitle="confirmed" />
+            <StatCard title="Failed" value={ops.delivery.failed} subtitle="needs attention" />
+            <StatCard
+              title="Success rate"
+              value={`${ops.delivery.success_rate}%`}
+              subtitle="delivered ÷ dispatched"
+            />
+          </div>
+        )}
+        {ops && !ops.delivery && (
+          <div className="rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+            No delivery activity recorded yet for this client.
+          </div>
+        )}
       </section>
 
       {/* Cost dashboard */}

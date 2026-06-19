@@ -45,6 +45,12 @@ class Client(Base):
     custom_severity_keywords: Mapped[list] = mapped_column(
         JSONB, nullable=False, server_default="'[]'::jsonb"
     )
+    # SFTP delivery destination (spec 13, migration 0012). Destination metadata only — the
+    # SFTP credential lives in n8n's credential store, never in the app DB (D7).
+    sftp_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    sftp_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    sftp_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    sftp_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     __table_args__ = (
         CheckConstraint("status IN ('active', 'suspended')", name="ck_clients_status"),

@@ -42,6 +42,18 @@ class Report(Base):
         JSONB, nullable=False, server_default="'[]'::jsonb"
     )
     sla_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Delivery lifecycle timestamps + SLA escalation tracking (spec 13, migration 0012).
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivery_failed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    delivery_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 0 = none, 1 = reviewers notified, 2 = manager/admin notified (FR-012).
+    sla_escalation_tier: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    sla_escalated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     watchlist_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("watchlists.id", ondelete="SET NULL"), nullable=True
     )
@@ -62,7 +74,7 @@ class Report(Base):
         CheckConstraint("report_type IN ('expedited','batch')", name="ck_reports_type"),
         CheckConstraint(
             "status IN ('drafted','under_review','approved','rejected',"
-            "'discarded','needs_manual_revision')",
+            "'discarded','needs_manual_revision','sent','delivered','delivery_failed')",
             name="ck_reports_status",
         ),
         Index("ix_reports_client_id", "client_id"),

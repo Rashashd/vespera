@@ -23,3 +23,10 @@ docker-compose.yml
 docker-compose.override.yml
 # Local-only Vault secret-writing helper; never bake it into the image.
 scripts/write_secrets.py
+CLAUDE.md
+.claude/
+.specify/
+memory/
+docs/design-system.md
+docs/AI-IMPLEMENTATION-PITFALLS.md
+docs/design_handoff_pantera/

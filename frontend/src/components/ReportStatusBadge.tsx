@@ -18,6 +18,10 @@ const STATUS: Record<
     dot: "bg-[#a33a36] dark:bg-[#c0706c]",
   },
   discarded: { label: "Discarded", dot: "bg-muted-foreground" },
+  // Delivery lifecycle (spec 13) — these can appear as report statuses too.
+  sent: { label: "Sent", dot: "bg-[#4a6fa0] dark:bg-[#6e9fc4]" },
+  delivered: { label: "Delivered", dot: "bg-[#4a6fa0] dark:bg-[#6e9fc4]" },
+  delivery_failed: { label: "Delivery failed", dot: "bg-destructive" },
 };
 
 export function ReportStatusBadge({ status }: { status: ReportStatus }) {

@@ -52,6 +52,10 @@ services:
     environment:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: root
+      # Spec 13 US8: LangSmith tracing — OFF by default (the flag must be 'false', never empty).
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-pantera}
     ports:
       - "8000:8000"
     depends_on:
@@ -72,6 +76,10 @@ services:
     environment:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: root
+      # Spec 13 US8: LangSmith tracing — OFF by default (the flag must be 'false', never empty).
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-pantera}
     depends_on:
       vault:
         condition: service_healthy

@@ -20,6 +20,10 @@ export const ReportStatus = z.enum([
   "rejected",
   "discarded",
   "needs_manual_revision",
+  // Delivery lifecycle (spec 13) — reviewer/all-reports lists can now carry these.
+  "sent",
+  "delivered",
+  "delivery_failed",
 ]);
 export type ReportStatus = z.infer<typeof ReportStatus>;
 
@@ -61,6 +65,9 @@ export const ReportSummarySchema = z.object({
   client_id: z.number(),
   report_type: ReportType,
   status: ReportStatus,
+  // Reviewer-facing delivery label (spec 13 US2): approved_pending_delivery / sent /
+  // delivered / delivery_failed / not_applicable. String-typed for forward tolerance.
+  delivery_status: z.string().optional(),
   corroboration_count: z.number(),
   revision_count: z.number(),
   sla_deadline: z.string().nullable().optional(),
@@ -155,6 +162,30 @@ export const UserSchema = z.object({
   is_active: z.boolean(),
 });
 export type User = z.infer<typeof UserSchema>;
+
+// --- Account management (spec 13 US4) ---
+
+export const StaffUserSchema = z.object({
+  id: z.number(),
+  email: z.string(),
+  role: z.string(),
+  user_type: z.string(),
+  is_active: z.boolean(),
+  created_at: z.string().nullable().optional(),
+});
+export type StaffUser = z.infer<typeof StaffUserSchema>;
+
+export const ClientUserSchema = z.object({
+  id: z.number(),
+  email: z.string(),
+  client_id: z.number(),
+  role: z.string(),
+  client_scope: z.string().nullable().optional(),
+  min_severity: z.string().nullable().optional(),
+  watchlist_ids: z.array(z.number()),
+  is_active: z.boolean(),
+});
+export type ClientUser = z.infer<typeof ClientUserSchema>;
 
 // --- Client (admin console) ---
 
@@ -251,13 +282,23 @@ export const CostDashboardSchema = z.object({
 });
 export type CostDashboard = z.infer<typeof CostDashboardSchema>;
 
+export const DeliveryMetricsSchema = z.object({
+  sent: z.number(),
+  delivered: z.number(),
+  failed: z.number(),
+  success_rate: z.number(),
+});
+export type DeliveryMetrics = z.infer<typeof DeliveryMetricsSchema>;
+
 export const OpsDashboardSchema = z.object({
   client_id: z.number(),
   by_status: z.record(z.number()),
   queue: z.object({ pending: z.number(), expedited: z.number(), batch: z.number() }),
   sla: z.object({ overdue: z.number(), due_soon: z.number(), met_pct: z.number() }),
   redraft: z.object({ avg_revisions: z.number(), hit_cap: z.number() }),
-  delivery: z.null(),
+  // Spec 13: delivery KPIs (populated; nullable for forward/back compatibility).
+  delivery: DeliveryMetricsSchema.nullable(),
   window: z.object({ from: z.string().nullable(), to: z.string().nullable() }),
+  failed_jobs: z.number().optional(),
 });
 export type OpsDashboard = z.infer<typeof OpsDashboardSchema>;

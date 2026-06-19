@@ -22,6 +22,12 @@ async def startup(ctx: dict) -> None:
     await load_secrets_from_vault(settings)
     ctx["settings"] = settings
 
+    # Spec 13 US8: configure LangSmith tracing for the worker pipeline (mirrors lifespan.py).
+    # OFF by default — no-op unless tracing_enabled AND a key are set; traces are PII-free.
+    from app.observability.tracing import configure_tracing
+
+    configure_tracing(settings)
+
     engine = create_engine(settings.app_database_url)  # least-priv runtime role (RLS-enforced)
     install_system_rls(engine)  # all worker sessions run as system (is_staff) — covers the pipeline
     ctx["engine"] = engine
@@ -31,6 +37,10 @@ async def startup(ctx: dict) -> None:
     # Build dispatcher + register audit handlers so every job emits audit rows (spec 11 §3).
     dispatcher = EventDispatcher()
     register_audit_handlers(dispatcher)
+    # Spec 13 US6: budget-threshold crossings (raised in task_consolidate's gate) notify staff.
+    from app.delivery.notifications import register_budget_notifications
+
+    register_budget_notifications(dispatcher)
     ctx["dispatcher"] = dispatcher
 
     ctx["session_factory"] = create_session_factory(engine)
@@ -60,6 +70,8 @@ from app.jobs.scheduler import scheduler_tick  # noqa: E402
 from app.jobs.tasks import (  # noqa: E402
     task_consolidate,
     task_cycle_start,
+    task_deliver_report,
+    task_delivery_sla_sweep,
     task_expedited,
     task_index_build,
     task_redraft,
@@ -71,9 +83,13 @@ _settings = get_settings()
 try:
     from arq import cron as _arq_cron
 
+    # Sweep cadence: fire at every Nth minute of the hour (default every 15 min).
+    _sweep_minutes = set(range(0, 60, max(1, _settings.delivery_sweep_interval_minutes)))
+
     _cron_jobs = [
         _arq_cron(scheduler_tick, minute=_settings.scheduler_tick_cron_minute),
         _arq_cron(purge_expired, hour=3, minute=0),
+        _arq_cron(task_delivery_sla_sweep, minute=_sweep_minutes),
     ]
 except Exception:  # arq not available during unit tests
     _cron_jobs = []
@@ -89,6 +105,7 @@ class WorkerSettings:
         task_redraft,
         task_consolidate,
         task_cycle_start,
+        task_deliver_report,
         purge_expired,
     ]
     cron_jobs = _cron_jobs

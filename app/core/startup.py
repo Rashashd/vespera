@@ -50,6 +50,9 @@ async def load_secrets_from_vault(settings: Settings) -> None:
     # Bootstrap admin credentials are optional at boot (only the seed script needs them).
     settings.bootstrap_admin_email = data.get("bootstrap_admin_email", "")
     settings.bootstrap_admin_password = data.get("bootstrap_admin_password", "")
+    # Spec 13: optional delivery routing config — absent ⇒ delivery holds, app still boots.
+    settings.n8n_webhook_url = data.get("n8n_webhook_url", "")
+    settings.delivery_callback_token = data.get("delivery_callback_token", "")
 
     missing = [name for name in _REQUIRED_SECRETS if not getattr(settings, name)]
     if not (settings.anthropic_api_key or settings.openai_api_key):

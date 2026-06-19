@@ -49,15 +49,19 @@ async def _seed_entries(session: AsyncSession, client_id: int) -> None:
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_audit_excludes_login_events(
-    authed_admin_client: AsyncClient,
+    authed_manager_client: AsyncClient,
     make_client,
     async_session: AsyncSession,
 ) -> None:
-    """The viewer surfaces changes/outcomes but never login/access noise."""
+    """The viewer surfaces changes/outcomes but never login/access noise.
+
+    Uses a manager: spec-13 FR-018 restricts admins to client/watchlist events, so full
+    cross-category visibility (incl. report events) is a manager capability.
+    """
     cl = await make_client()
     await _seed_entries(async_session, cl.id)
 
-    resp = await authed_admin_client.get(f"/audit?client_id={cl.id}")
+    resp = await authed_manager_client.get(f"/audit?client_id={cl.id}")
     assert resp.status_code == 200
     types = {e["event_type"] for e in resp.json()}
     assert "ReportApproved" in types
@@ -68,15 +72,15 @@ async def test_audit_excludes_login_events(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_audit_category_reports_filters(
-    authed_admin_client: AsyncClient,
+    authed_manager_client: AsyncClient,
     make_client,
     async_session: AsyncSession,
 ) -> None:
-    """category=reports returns only report-class events."""
+    """category=reports returns only report-class events (manager sees all categories)."""
     cl = await make_client()
     await _seed_entries(async_session, cl.id)
 
-    resp = await authed_admin_client.get(f"/audit?client_id={cl.id}&category=reports")
+    resp = await authed_manager_client.get(f"/audit?client_id={cl.id}&category=reports")
     assert resp.status_code == 200
     types = {e["event_type"] for e in resp.json()}
     assert types == {"ReportApproved"}

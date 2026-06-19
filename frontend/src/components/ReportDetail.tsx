@@ -118,7 +118,11 @@ export function ReportDetail({ clientId, reportId, mode }: Props) {
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back
           </Button>
-          <DownloadReportButton />
+          <DownloadReportButton
+            clientId={report.client_id}
+            reportId={report.id}
+            status={report.status}
+          />
         </div>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -138,7 +142,12 @@ export function ReportDetail({ clientId, reportId, mode }: Props) {
           </div>
           <div className="flex flex-shrink-0 flex-col items-end gap-2">
             <ReportStatusBadge status={report.status} />
-            <DeliveryStatusChip status={report.status} />
+            {report.delivery_status && report.delivery_status !== "not_applicable" && (
+              <DeliveryStatusChip
+                status={report.status}
+                deliveryStatus={report.delivery_status}
+              />
+            )}
           </div>
         </div>
       </div>

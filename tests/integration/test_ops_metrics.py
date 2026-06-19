@@ -10,12 +10,13 @@ async def test_ops_metrics_empty_state(
     authed_admin_client: AsyncClient,
     make_client,
 ) -> None:
-    """Empty client returns a zeroed structure with delivery=null (spec-13 forward dep)."""
+    """Empty client returns a zeroed structure; the delivery block is populated (spec 13)."""
     cl = await make_client()
     resp = await authed_admin_client.get(f"/clients/{cl.id}/metrics")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["delivery"] is None
+    # Spec 13 fulfilled the forward dep: delivery is now a populated block (zeroed, 100% success).
+    assert data["delivery"] == {"sent": 0, "delivered": 0, "failed": 0, "success_rate": 100.0}
     assert isinstance(data["by_status"], dict)
     assert "pending" in data["queue"]
 

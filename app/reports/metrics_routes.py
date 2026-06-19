@@ -12,7 +12,13 @@ from app.auth.dependencies import acting_client, require_admin
 from app.auth.models import User
 from app.clients.models import Client
 from app.core.dependencies import get_session
-from app.observability.schemas import OpsDashboard, QueueMetrics, RedraftMetrics, SlaMetrics
+from app.observability.schemas import (
+    DeliveryMetrics,
+    OpsDashboard,
+    QueueMetrics,
+    RedraftMetrics,
+    SlaMetrics,
+)
 from app.reports.enums import ReportStatus, ReportType
 from app.reports.models import Report
 
@@ -78,6 +84,18 @@ async def get_ops_metrics(
     avg_rev = sum(all_revisions) / len(all_revisions) if all_revisions else 0.0
     hit_cap = sum(1 for r in reports if r.status == ReportStatus.NEEDS_MANUAL_REVISION.value)
 
+    # delivery KPIs (spec 13 FR-011): success_rate = delivered ÷ dispatched in window.
+    d_sent = by_status.get(ReportStatus.SENT.value, 0)
+    d_delivered = by_status.get(ReportStatus.DELIVERED.value, 0)
+    d_failed = by_status.get(ReportStatus.DELIVERY_FAILED.value, 0)
+    dispatched = d_sent + d_delivered + d_failed
+    delivery = DeliveryMetrics(
+        sent=d_sent,
+        delivered=d_delivered,
+        failed=d_failed,
+        success_rate=round(100.0 * d_delivered / dispatched, 1) if dispatched else 100.0,
+    )
+
     # dead-letter count for this client (spec 11 T038)
     from sqlalchemy import func
 
@@ -98,7 +116,7 @@ async def get_ops_metrics(
         queue=QueueMetrics(pending=len(non_term), expedited=expedited, batch=batch),
         sla=SlaMetrics(overdue=overdue, due_soon=due_soon, met_pct=met_pct),
         redraft=RedraftMetrics(avg_revisions=round(avg_rev, 2), hit_cap=hit_cap),
-        delivery=None,
+        delivery=delivery,
         window={"from": from_.isoformat() if from_ else None, "to": to.isoformat() if to else None},
         failed_jobs=failed_jobs_count,
     )

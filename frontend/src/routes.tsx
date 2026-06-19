@@ -15,6 +15,8 @@ const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
 const GlobalOverview = lazy(() => import("@/pages/GlobalOverview"));
 const AuditLog = lazy(() => import("@/pages/AuditLog"));
 const Clients = lazy(() => import("@/pages/Clients"));
+const StaffPage = lazy(() => import("@/pages/StaffPage"));
+const ClientUsersPage = lazy(() => import("@/pages/ClientUsersPage"));
 const ClientPortal = lazy(() => import("@/pages/ClientPortal"));
 const WatchlistPage = lazy(() => import("@/pages/WatchlistPage"));
 
@@ -138,6 +140,27 @@ export const router = createBrowserRouter([
           <RequireRole roles={["manager", "admin"]}>
             <Suspense fallback={<Loading />}>
               <AuditLog />
+            </Suspense>
+          </RequireRole>
+        ),
+      },
+      // Account management (spec 13 US4)
+      {
+        path: "admin/staff",
+        element: (
+          <RequireRole roles={["manager"]}>
+            <Suspense fallback={<Loading />}>
+              <StaffPage />
+            </Suspense>
+          </RequireRole>
+        ),
+      },
+      {
+        path: "admin/users",
+        element: (
+          <RequireRole roles={["manager", "admin"]}>
+            <Suspense fallback={<Loading />}>
+              <ClientUsersPage />
             </Suspense>
           </RequireRole>
         ),

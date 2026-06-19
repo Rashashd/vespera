@@ -79,6 +79,10 @@ jobs:
                   "modelserver_token": "ci-test-token",  # gitleaks:allow
                   # spec 12: guardrails sidecar credential (promoted to _REQUIRED_SECRETS).
                   "guardrails_token": "ci-test-guardrails-token",  # gitleaks:allow
+                  # spec 13: shared token for the n8n → backend delivery callback. Optional
+                  # (not in _REQUIRED_SECRETS), but the callback rejects an empty token, so the
+                  # delivery integration tests need a non-empty value here.
+                  "delivery_callback_token": "ci-test-delivery-token",  # gitleaks:allow
               },
           )
           print("secrets written")

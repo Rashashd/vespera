@@ -113,6 +113,15 @@ class Settings(BaseSettings):
     scheduler_tick_cron_minute: int = 0  # hourly tick
     dead_letter_retention_days: int = 90  # FR-009a
 
+    # --- Report delivery (spec 13) — all OPTIONAL; NOT in _REQUIRED_SECRETS. Delivery degrades
+    # (reports held approved-pending-delivery) when the routing layer is unconfigured; the app
+    # must still boot. n8n owns per-client SFTP credentials; the app stores destinations only (D7).
+    n8n_webhook_url: str = ""  # backend → n8n send/route webhook; empty ⇒ no real dispatch
+    delivery_callback_token: str = ""  # shared service token for the n8n → backend callback
+    delivery_no_callback_window_hours: int = 6  # sent→delivery_failed if no callback in window
+    sla_tier2_interval_hours: int = 2  # gap after Tier-1 before Tier-2 escalation
+    delivery_sweep_interval_minutes: int = 15  # sweep cron cadence (no-callback + SLA tiers)
+
     # Per-1K-token prices in USD, keyed by pinned model id.
     # Units: USD per 1,000 tokens (input or output). Currency: USD.
     # anthropic claude-3-5-sonnet-20241022: $3/$15 per M tokens = $0.003/$0.015 per 1K

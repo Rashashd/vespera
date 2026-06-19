@@ -16,6 +16,7 @@ from app.clients.routes_clients import router as clients_router
 from app.clients.routes_watchlists import router as watchlists_router
 from app.core.config import get_settings
 from app.core.lifespan import lifespan
+from app.delivery.routes import router as delivery_router
 from app.embedding.routes import router as embedding_router
 from app.ingestion.routes_documents import router as documents_router
 from app.ingestion.routes_ingestion import router as ingestion_router
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(usage_router)  # spec 10: GET /clients/{id}/usage cost dashboard
     app.include_router(scheduling_router)  # spec 11: cycles, dead-letters admin
     app.include_router(audit_router)  # GET /audit: staff-only audit-log viewer (cross-client)
+    app.include_router(delivery_router)  # spec 13: delivery callback + staff re-send + download
     # Rate-limit machinery (FR-011): a default in-memory limiter so the middleware works
     # before startup; the lifespan upgrades app.state.limiter to the Redis-backed one.
     app.state.limiter = Limiter(key_func=get_remote_address)

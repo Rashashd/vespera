@@ -51,7 +51,9 @@ export default function AllReports() {
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <DeliveryStatusChip status={r.status} />
+                  {r.delivery_status && r.delivery_status !== "not_applicable" && (
+                    <DeliveryStatusChip status={r.status} deliveryStatus={r.delivery_status} />
+                  )}
                   <ReportStatusBadge status={r.status} />
                 </div>
               </div>

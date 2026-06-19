@@ -14,6 +14,8 @@ import {
   ServerCrash,
   Settings,
   Shield,
+  UserCog,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { PantherMark } from "./PantherMark";
@@ -78,6 +80,18 @@ const NAV_ITEMS: NavItem[] = [
     end: true,
   },
   {
+    label: "Staff",
+    href: "/admin/staff",
+    icon: <Users className="h-5 w-5" />,
+    roles: ["manager"],
+  },
+  {
+    label: "Client Users",
+    href: "/admin/users",
+    icon: <UserCog className="h-5 w-5" />,
+    roles: ["manager", "admin"],
+  },
+  {
     label: "Audit Log",
     href: "/audit",
     icon: <ScrollText className="h-5 w-5" />,
@@ -128,6 +142,8 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith("/reports")) return "All Reports";
   if (pathname.startsWith("/admin/overview")) return "Overview";
   if (pathname.startsWith("/admin/dashboard")) return "Dashboard";
+  if (pathname.startsWith("/admin/staff")) return "Staff";
+  if (pathname.startsWith("/admin/users")) return "Client Users";
   if (pathname.startsWith("/admin")) return "Admin Console";
   if (pathname.startsWith("/costs")) return "Costs";
   if (pathname.startsWith("/clients")) return "Clients";
