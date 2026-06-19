@@ -13,7 +13,7 @@ from app.triage import llm as llm_module
 from app.triage import prefilter
 from app.triage.classify import resolve_adverse
 from app.triage.enums import Bucket
-from app.triage.ner import extract_entities, reaction_or_sentinel
+from app.triage.ner import NerUnavailable, extract_entities, reaction_or_sentinel
 from app.triage.routing import bucket_to_status, upsert_finding
 from app.triage.schemas import FindingOutcome
 from app.triage.severity import assign_bucket
@@ -44,7 +44,20 @@ async def triage_document(
     outcomes: list[FindingOutcome] = []
 
     # --- Stage 1: NER entity extraction ---
-    drugs_found, reactions_found = await extract_entities(document_text)
+    # A NER outage must NOT masquerade as "no entities found" (which would silently drop the
+    # whole document). Surface it as an alerted, typed failure and re-raise so the after-index
+    # hook marks the document degraded (Constitution III) instead of swallowing it.
+    try:
+        drugs_found, reactions_found = await extract_entities(document_text)
+    except NerUnavailable as exc:
+        log.error(
+            "triage.operator_alert",
+            stage="ner",
+            reason=str(exc),
+            client_id=client_id,
+            document_id=document_id,
+        )
+        raise
     log.info("triage.ner.extracted", drugs=len(drugs_found), reactions=len(reactions_found))
 
     # --- Stage 2: Drug pre-filter (match against watchlist) ---

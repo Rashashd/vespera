@@ -243,3 +243,55 @@ async def test_high_confidence_model_verdict_no_llm():
     assert confidence == pytest.approx(0.92)
     assert path == "model"
     assert llm_called is False
+
+
+# ---------------------------------------------------------------------------
+# NER failure — extract_entities must raise NerUnavailable (a loud, typed signal),
+# never a silent ([], []) result; triage_document must surface it, not swallow it.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ner_failure_raises_not_silent_empty():
+    """NER model load/exec failure → NerUnavailable, never a silent ([], []) result.
+
+    A silent empty result is indistinguishable from 'no entities found', so the document would
+    be dropped with zero findings (Constitution III). NER failure must be a loud, typed signal.
+    """
+    from app.triage.ner import NerUnavailable, extract_entities
+
+    with patch("app.triage.ner._get_nlp", side_effect=OSError("model artifact missing")):
+        with pytest.raises(NerUnavailable):
+            await extract_entities("Patient took ibuprofen and developed anaphylaxis.")
+
+
+@pytest.mark.asyncio
+async def test_triage_document_surfaces_ner_failure():
+    """triage_document re-raises NerUnavailable + emits operator_alert (stage=ner) — no swallow."""
+    from app.triage.ner import NerUnavailable
+    from app.triage.service import triage_document
+
+    with (
+        patch("app.triage.service.extract_entities", side_effect=NerUnavailable("ner down")),
+        patch("app.triage.service._log") as mock_log,
+    ):
+        bound = mock_log.bind.return_value
+        with pytest.raises(NerUnavailable):
+            await triage_document(
+                session=AsyncMock(),
+                document_id=1,
+                client_id=1,
+                document_text="Patient text.",
+                source_reliability="peer_reviewed",
+                watchlist_drugs=["ibuprofen"],
+                custom_keywords=[],
+                ms_client=AsyncMock(),
+                settings=MagicMock(),
+                dispatcher=AsyncMock(),
+            )
+
+    # The NER outage is surfaced as an operator alert (stage=ner), not silently swallowed.
+    assert any(
+        c.args and c.args[0] == "triage.operator_alert" and c.kwargs.get("stage") == "ner"
+        for c in bound.error.call_args_list
+    )
