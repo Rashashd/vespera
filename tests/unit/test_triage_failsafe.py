@@ -487,3 +487,47 @@ async def test_mark_triage_succeeded_sets_triaged_and_clears_degraded():
     assert state.triaged_at is not None
     assert state.triage_failed_at is None
     assert state.triage_error is None
+
+
+# ---------------------------------------------------------------------------
+# Backstop sweep — REMEDIATES (re-enqueues) untriaged docs + orphaned expedited
+# findings, with deterministic idempotent job_ids (not just a log warning).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_run_triage_sweep_remediates_untriaged_and_orphans():
+    """The sweep re-enqueues a re-triage per untriaged doc and a draft per orphaned expedited."""
+    from types import SimpleNamespace
+
+    from app.triage import sweep as sweep_mod
+
+    enqueued: list[tuple[str, str, dict]] = []
+
+    async def fake_enqueue(name, *, job_id, app_state, **kwargs):
+        enqueued.append((name, job_id, kwargs))
+
+    wc = SimpleNamespace(session_factory=lambda: _acm(MagicMock()))
+
+    with (
+        patch.object(
+            sweep_mod,
+            "find_untriaged_documents",
+            new=AsyncMock(return_value=[(10, 1), (11, 2)]),
+        ),
+        patch.object(
+            sweep_mod,
+            "find_orphaned_expedited",
+            new=AsyncMock(return_value=[(99, 1)]),
+        ),
+        patch("app.jobs.enqueue.enqueue", new=fake_enqueue),
+    ):
+        result = await sweep_mod.run_triage_sweep(wc)
+
+    assert result == {"retriaged": 2, "reexpedited": 1}
+    names = [e[0] for e in enqueued]
+    assert names.count("task_retriage_document") == 2
+    assert names.count("task_expedited") == 1
+    # Deterministic, idempotent job_ids (a sweep overlapping an in-flight job is a no-op).
+    job_ids = {e[1] for e in enqueued}
+    assert {"retriage:10", "retriage:11", "expedited:99:0"} <= job_ids

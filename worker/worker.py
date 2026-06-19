@@ -75,7 +75,9 @@ from app.jobs.tasks import (  # noqa: E402
     task_expedited,
     task_index_build,
     task_redraft,
+    task_retriage_document,
     task_run_ingestion,
+    task_triage_sweep,
 )
 
 _settings = get_settings()
@@ -90,6 +92,7 @@ try:
         _arq_cron(scheduler_tick, minute=_settings.scheduler_tick_cron_minute),
         _arq_cron(purge_expired, hour=3, minute=0),
         _arq_cron(task_delivery_sla_sweep, minute=_sweep_minutes),
+        _arq_cron(task_triage_sweep, minute=_sweep_minutes),
     ]
 except Exception:  # arq not available during unit tests
     _cron_jobs = []
@@ -106,6 +109,7 @@ class WorkerSettings:
         task_consolidate,
         task_cycle_start,
         task_deliver_report,
+        task_retriage_document,
         purge_expired,
     ]
     cron_jobs = _cron_jobs

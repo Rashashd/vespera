@@ -523,6 +523,89 @@ async def task_delivery_sla_sweep(ctx: dict) -> None:
     await run_sla_sweep(WorkerContext(ctx))
 
 
+# ── task_retriage_document ────────────────────────────────────────────────────
+
+
+async def task_retriage_document(
+    ctx: dict,
+    *,
+    document_id: int,
+    client_id: int,
+) -> None:
+    """Re-run triage for a document the sweep found indexed-but-untriaged (Constitution III).
+
+    Reconstructs the triage inputs (document + ordered chunk texts) and calls the hardened
+    after-index hook, which sets triaged_at on success (so it clears from future sweeps) or marks
+    it degraded again on a repeat failure. Idempotent: findings upsert; job_id is deterministic.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.embedding.models import Chunk
+    from app.embedding.triage_trigger import trigger_triage
+    from app.infra.modelserver_client import ModelserverClient
+    from app.ingestion.models import Document
+
+    wc = WorkerContext(ctx)
+    job_key = f"retriage:{document_id}"
+
+    async def _run() -> None:
+        async with wc.session_factory() as session:
+            document = (
+                await session.execute(
+                    select(Document)
+                    .options(selectinload(Document.provenance))
+                    .where(Document.id == document_id)
+                )
+            ).scalar_one_or_none()
+            if document is None:
+                return
+            chunk_texts = list(
+                (
+                    await session.execute(
+                        select(Chunk.text)
+                        .where(Chunk.document_id == document_id)
+                        .order_by(Chunk.ordinal)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        if not chunk_texts:
+            return
+        async with ModelserverClient.from_settings(wc.settings) as ms_client:
+            await trigger_triage(
+                session_factory=wc.session_factory,
+                document=document,
+                chunk_texts=chunk_texts,
+                client_id=client_id,
+                modelserver_client=ms_client,
+                dispatcher=wc.dispatcher,
+                app_state=wc,
+            )
+
+    await _run_with_dlq(
+        ctx,
+        fn=_run,
+        job_name="task_retriage_document",
+        job_key=job_key,
+        client_id=client_id,
+        fn_kwargs={},
+    )
+
+    _log.info("task_retriage_document.done", document_id=document_id, client_id=client_id)
+
+
+# ── task_triage_sweep (cron) ──────────────────────────────────────────────────
+
+
+async def task_triage_sweep(ctx: dict) -> None:
+    """Cron: triage backstop sweep — re-triage untriaged docs + re-enqueue orphaned expedited."""
+    from app.triage.sweep import run_triage_sweep
+
+    await run_triage_sweep(WorkerContext(ctx))
+
+
 # ── Register all tasks for inline mode ───────────────────────────────────────
 register_task("task_run_ingestion", task_run_ingestion)
 register_task("task_index_build", task_index_build)
@@ -531,3 +614,5 @@ register_task("task_redraft", task_redraft)
 register_task("task_consolidate", task_consolidate)
 register_task("task_cycle_start", task_cycle_start)
 register_task("task_deliver_report", task_deliver_report)
+register_task("task_retriage_document", task_retriage_document)
+register_task("task_triage_sweep", task_triage_sweep)
