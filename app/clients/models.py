@@ -41,6 +41,10 @@ class Client(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+    # Set when the client's personal data is erased (right-to-erasure, migration 0015); the row
+    # survives as a minimal tombstone (id + name + timestamps) so the relationship/audit-trail
+    # remains intact — Constitution V. status moves to the terminal 'erased' state.
+    erased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Added by migration 0007; per-client keyword escalation list (spec 8 FR-004).
     custom_severity_keywords: Mapped[list] = mapped_column(
         JSONB, nullable=False, server_default="'[]'::jsonb"
@@ -53,7 +57,7 @@ class Client(Base):
     sftp_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     __table_args__ = (
-        CheckConstraint("status IN ('active', 'suspended')", name="ck_clients_status"),
+        CheckConstraint("status IN ('active', 'suspended', 'erased')", name="ck_clients_status"),
         CheckConstraint(
             "urgent_severity_threshold IN ('non-serious','serious','life-threatening')",
             name="ck_clients_urgent_threshold",
