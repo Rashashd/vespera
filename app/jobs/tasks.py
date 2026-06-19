@@ -307,6 +307,17 @@ async def task_consolidate(
         period_start = datetime.fromisoformat(cycle_period_start)
         period_end = datetime.fromisoformat(cycle_period_end)
 
+        # Degraded-cycle check (Constitution III): if any document in this cycle's index run
+        # failed triage, the cycle completes 'degraded' rather than clean — applied on EVERY
+        # completion path below (budget pause/critical and normal consolidation).
+        degraded_reason: str | None = None
+        if cycle_id is not None:
+            from app.scheduling.service import CycleService
+
+            async with wc.session_factory() as session:
+                if await CycleService.cycle_has_degraded_triage(session, cycle_id):
+                    degraded_reason = "triage_failed"
+
         # Budget gate (cycle path only; manual triggers bypass — FR-019)
         if cycle_id is not None:
             from app.scheduling.budget_policy import gate
@@ -329,7 +340,10 @@ async def task_consolidate(
                 async with wc.session_factory() as session:
                     async with session.begin():
                         await CycleService.mark_completed(
-                            session, cycle_id, skipped_reason="budget_pause"
+                            session,
+                            cycle_id,
+                            skipped_reason="budget_pause",
+                            degraded_reason=degraded_reason,
                         )
                 return
 
@@ -344,7 +358,10 @@ async def task_consolidate(
                 async with wc.session_factory() as session:
                     async with session.begin():
                         await CycleService.mark_completed(
-                            session, cycle_id, skipped_reason="budget_critical_only"
+                            session,
+                            cycle_id,
+                            skipped_reason="budget_critical_only",
+                            degraded_reason=degraded_reason,
                         )
                 return
 
@@ -364,7 +381,9 @@ async def task_consolidate(
 
             async with wc.session_factory() as session:
                 async with session.begin():
-                    await CycleService.mark_completed(session, cycle_id)
+                    await CycleService.mark_completed(
+                        session, cycle_id, degraded_reason=degraded_reason
+                    )
 
     await _run_with_dlq(
         ctx,

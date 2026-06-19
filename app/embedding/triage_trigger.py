@@ -12,6 +12,47 @@ from app.infra.modelserver_client import ModelserverClient
 _log = structlog.get_logger(__name__)
 
 
+def _failure_code(exc: Exception) -> str:
+    """Short, PII-free reason code for the degraded marker (the full message goes only to logs)."""
+    from app.triage.ner import NerUnavailable
+
+    if isinstance(exc, NerUnavailable):
+        return "ner_unavailable"
+    return type(exc).__name__[:255]
+
+
+async def _mark_triage_degraded(
+    session_factory: Callable[[], AsyncSession],
+    document: Any,
+    client_id: int,
+    exc: Exception,
+) -> None:
+    """Record triage_failed_at on the document's index state — the durable degraded marker.
+
+    Best-effort: a failure to record the marker must not crash the index loop (the document is
+    already indexed). It is logged, and the staleness sweep remains the backstop (Constitution III).
+    """
+    from datetime import UTC, datetime
+
+    from app.embedding.service import IndexBuildService
+
+    try:
+        async with session_factory() as session:
+            async with session.begin():
+                state = await IndexBuildService.get_or_create_index_state(
+                    session, document.id, client_id
+                )
+                state.triage_failed_at = datetime.now(UTC)
+                state.triage_error = _failure_code(exc)
+    except Exception:
+        _log.error(
+            "triage.degraded_mark_failed",
+            document_id=document.id,
+            client_id=client_id,
+            exc_info=True,
+        )
+
+
 async def trigger_triage(
     *,
     session_factory: Callable[[], AsyncSession],
@@ -97,3 +138,7 @@ async def trigger_triage(
             error=str(exc),
             exc_info=True,
         )
+        # Fail SAFE (Constitution III): record a durable degraded marker so the cycle cannot be
+        # reported 'completed' clean. Best-effort — never raise out of the after-index hook (the
+        # document is already indexed; the staleness sweep is the backstop if this write fails).
+        await _mark_triage_degraded(session_factory, document, client_id, exc)

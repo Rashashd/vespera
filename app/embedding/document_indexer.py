@@ -224,7 +224,8 @@ async def process_document(
             chunk_count=len(chunk_rows),
         )
 
-        # Triage fires after embedding commit; failures are logged and swallowed (FR-009).
+        # Triage fires after embedding commit; on failure it records a durable degraded marker
+        # on the document's index state so the cycle cannot report 'completed' clean (FR-009).
         if dispatcher is not None:
             await trigger_triage(
                 session_factory=session_factory,

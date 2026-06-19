@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -295,3 +296,66 @@ async def test_triage_document_surfaces_ner_failure():
         c.args and c.args[0] == "triage.operator_alert" and c.kwargs.get("stage") == "ner"
         for c in bound.error.call_args_list
     )
+
+
+# ---------------------------------------------------------------------------
+# Degraded marking — a triage failure records a durable per-document marker, and
+# the cycle completes 'degraded', never clean (Constitution III).
+# ---------------------------------------------------------------------------
+
+
+@asynccontextmanager
+async def _acm(value=None):
+    """Minimal async context manager yielding `value` (stands in for session_factory/begin)."""
+    yield value
+
+
+@pytest.mark.asyncio
+async def test_mark_completed_records_degraded_reason():
+    """mark_completed(degraded_reason=...) records it while status stays 'completed'.
+
+    The partial batch report still ships (status completed), but degraded_reason != NULL means
+    the run must not be read as a clean 'all clear'.
+    """
+    from app.scheduling.models import WatchlistCycle
+    from app.scheduling.service import CycleService
+
+    cycle = WatchlistCycle()
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=cycle)
+
+    result = await CycleService.mark_completed(session, 1, degraded_reason="triage_failed")
+
+    assert result is cycle
+    assert cycle.status == "completed"
+    assert cycle.current_stage == "done"
+    assert cycle.degraded_reason == "triage_failed"
+
+
+@pytest.mark.asyncio
+async def test_mark_triage_degraded_sets_marker():
+    """A triage failure writes triage_failed_at + a PII-free reason code (no silent swallow)."""
+    from types import SimpleNamespace
+
+    from app.embedding import triage_trigger
+    from app.triage.ner import NerUnavailable
+
+    state = SimpleNamespace(triage_failed_at=None, triage_error=None)
+    document = SimpleNamespace(id=99)
+
+    session = MagicMock()
+    session.begin = lambda: _acm(None)
+
+    def session_factory():
+        return _acm(session)
+
+    with patch(
+        "app.embedding.service.IndexBuildService.get_or_create_index_state",
+        new=AsyncMock(return_value=state),
+    ):
+        await triage_trigger._mark_triage_degraded(
+            session_factory, document, client_id=7, exc=NerUnavailable("ner down")
+        )
+
+    assert state.triage_failed_at is not None
+    assert state.triage_error == "ner_unavailable"
