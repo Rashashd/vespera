@@ -142,6 +142,8 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith("/reports")) return "All Reports";
   if (pathname.startsWith("/admin/overview")) return "Overview";
   if (pathname.startsWith("/admin/dashboard")) return "Dashboard";
+  if (pathname.startsWith("/admin/staff")) return "Staff";
+  if (pathname.startsWith("/admin/users")) return "Client Users";
   if (pathname.startsWith("/admin")) return "Admin Console";
   if (pathname.startsWith("/costs")) return "Costs";
   if (pathname.startsWith("/clients")) return "Clients";

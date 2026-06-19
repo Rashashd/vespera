@@ -62,16 +62,13 @@ export default function ClientUsersPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-xl font-semibold">Client Users{client ? ` — ${client.name}` : ""}</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage portal users for the acting client. Manager / admin only.
-        </p>
-      </div>
+    <div className="max-w-3xl space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Manage portal users for {client ? client.name : "the acting client"}. Manager / admin only.
+      </p>
 
-      <form onSubmit={handleCreate} className="rounded border bg-card p-4 space-y-3">
-        <h2 className="text-sm font-medium">Create client user</h2>
+      <form onSubmit={handleCreate} className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
+        <h2 className="font-display text-[15px] font-semibold text-foreground">Create client user</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="space-y-1">
             <Label htmlFor="cu-email">Email</Label>
@@ -150,15 +147,15 @@ export default function ClientUsersPage() {
         </p>
       </form>
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium">Existing users</h2>
+      <section className="space-y-3">
+        <h2 className="font-display text-[15px] font-semibold text-foreground">Existing users</h2>
         {isLoading && <p className="text-muted-foreground text-sm">Loading…</p>}
         {isError && <p className="text-destructive text-sm">Failed to load client users.</p>}
         <ul className="space-y-2">
           {users.map((u) => (
             <li
               key={u.id}
-              className="flex items-center justify-between gap-3 rounded border bg-card p-3"
+              className={`flex items-center justify-between gap-3 rounded-xl border bg-card p-3.5 shadow-sm ${u.is_active ? "" : "opacity-60"}`}
             >
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium">{u.email}</span>

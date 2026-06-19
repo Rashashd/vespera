@@ -36,16 +36,13 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-xl font-semibold">Staff</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage internal staff accounts (reviewer / admin / manager). Manager-only.
-        </p>
-      </div>
+    <div className="max-w-3xl space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Manage internal staff accounts (reviewer / admin / manager). Manager-only.
+      </p>
 
-      <form onSubmit={handleCreate} className="rounded border bg-card p-4 space-y-3">
-        <h2 className="text-sm font-medium">Create staff user</h2>
+      <form onSubmit={handleCreate} className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
+        <h2 className="font-display text-[15px] font-semibold text-foreground">Create staff user</h2>
         <div className="grid sm:grid-cols-3 gap-3">
           <div className="space-y-1">
             <Label htmlFor="staff-email">Email</Label>
@@ -92,15 +89,15 @@ export default function StaffPage() {
         </p>
       </form>
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium">Existing staff</h2>
+      <section className="space-y-3">
+        <h2 className="font-display text-[15px] font-semibold text-foreground">Existing staff</h2>
         {isLoading && <p className="text-muted-foreground text-sm">Loading…</p>}
         {isError && <p className="text-destructive text-sm">Failed to load staff.</p>}
         <ul className="space-y-2">
           {staff.map((u) => (
             <li
               key={u.id}
-              className="flex items-center justify-between gap-3 rounded border bg-card p-3"
+              className={`flex items-center justify-between gap-3 rounded-xl border bg-card p-3.5 shadow-sm ${u.is_active ? "" : "opacity-60"}`}
             >
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium">{u.email}</span>
