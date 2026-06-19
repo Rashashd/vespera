@@ -139,7 +139,7 @@ async def _triage_one(
         )
 
     try:
-        verdict, model_confidence, resolution_path = await resolve_adverse(
+        verdict, model_confidence, resolution_path, classifier_version = await resolve_adverse(
             text=document_text,
             ms_client=ms_client,
             settings=settings,
@@ -160,7 +160,14 @@ async def _triage_one(
             client_id=client_id,
             document_id=document_id,
         )
-        verdict, model_confidence, resolution_path = True, None, "escalated"
+        # No classifier_version: the classifier never ran (a NULL version is how a triage-outage
+        # escalation is told apart from a low-confidence one in the finding/audit record).
+        verdict, model_confidence, resolution_path, classifier_version = (
+            True,
+            None,
+            "escalated",
+            None,
+        )
 
     # --- Stage 4: Severity bucketing ---
     if verdict:
@@ -196,6 +203,7 @@ async def _triage_one(
             bucket=bucket,
             resolution_path=resolution_path,
             model_confidence=model_confidence,
+            classifier_version=classifier_version,
         )
 
         if created:
@@ -208,6 +216,7 @@ async def _triage_one(
                 confidence=model_confidence or 0.0,
                 resolution_path=resolution_path,
                 routing_outcome=status.value,
+                classifier_version=classifier_version,
             )
             await dispatcher.dispatch(event, session)
             log.info(

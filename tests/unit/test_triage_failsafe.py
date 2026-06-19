@@ -27,7 +27,7 @@ async def test_low_conf_llm_failure_escalates():
     async def failing_llm_resolve(text, reliability):
         raise RuntimeError("LLM timeout")
 
-    verdict, confidence, path = await resolve_adverse(
+    verdict, confidence, path, classifier_version = await resolve_adverse(
         text="Some finding text.",
         ms_client=ms_client,
         settings=settings,
@@ -54,7 +54,7 @@ async def test_low_conf_llm_success_verdict_followed():
     async def llm_resolve_false(text, reliability):
         return False
 
-    verdict, confidence, path = await resolve_adverse(
+    verdict, confidence, path, classifier_version = await resolve_adverse(
         text="Some text.",
         ms_client=ms_client,
         settings=settings,
@@ -162,6 +162,8 @@ async def test_classifier_outage_escalates_not_suppressed():
     event = dispatcher.dispatch.call_args.args[0]
     assert event.resolution_path == "escalated"
     assert event.routing_outcome == FindingStatus.PENDING_EXPEDITED.value
+    # A classifier OUTAGE has no version (distinguishes it from a low-confidence escalation).
+    assert event.classifier_version is None
 
 
 # ---------------------------------------------------------------------------
@@ -218,7 +220,9 @@ async def test_db_persist_error_logs_alert_and_reraises():
 async def test_high_confidence_model_verdict_no_llm():
     """confidence >= threshold → model verdict used directly, no LLM call."""
     ms_client = AsyncMock()
-    ms_client.classify.return_value = [{"confidence": 0.92, "is_adverse": True}]
+    ms_client.classify.return_value = [
+        {"confidence": 0.92, "is_adverse": True, "model_version": {"sha256": "clf-sha-001"}}
+    ]
 
     settings = MagicMock()
     settings.triage_confidence_threshold = 0.70
@@ -230,7 +234,7 @@ async def test_high_confidence_model_verdict_no_llm():
         llm_called = True
         return True
 
-    verdict, confidence, path = await resolve_adverse(
+    verdict, confidence, path, classifier_version = await resolve_adverse(
         text="Patient had seizure.",
         ms_client=ms_client,
         settings=settings,
@@ -243,6 +247,7 @@ async def test_high_confidence_model_verdict_no_llm():
     assert verdict is True
     assert confidence == pytest.approx(0.92)
     assert path == "model"
+    assert classifier_version == "clf-sha-001"  # SHA propagated from the classify result
     assert llm_called is False
 
 
@@ -404,3 +409,49 @@ async def test_enqueue_expedited_drafts_isolates_failures():
         and c.kwargs.get("finding_id") == 1
         for c in mock_log.error.call_args_list
     )
+
+
+# ---------------------------------------------------------------------------
+# Classifier-version attribution — a normal classification stamps the finding's
+# audit event with the classifier SHA-256 (an outage stamps None; see above).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_finding_event_carries_classifier_version():
+    """A normal classification stamps the finding's audit event with the classifier SHA-256."""
+    from app.triage.service import _triage_one
+
+    ms_client = AsyncMock()
+    ms_client.classify.return_value = [
+        {"confidence": 0.93, "is_adverse": True, "model_version": {"sha256": "clf-sha-777"}}
+    ]
+
+    session = AsyncMock()
+    dispatcher = AsyncMock()
+    settings = MagicMock()
+    settings.triage_confidence_threshold = 0.70
+    log = MagicMock()
+
+    with patch(
+        "app.triage.service.upsert_finding",
+        new=AsyncMock(return_value=(55, True)),
+    ):
+        await _triage_one(
+            session=session,
+            document_id=1,
+            client_id=1,
+            drug="ibuprofen",
+            reaction="anaphylaxis",
+            document_text="Patient suffered anaphylaxis after ibuprofen.",
+            source_reliability="peer_reviewed",
+            custom_keywords=[],
+            ms_client=ms_client,
+            settings=settings,
+            dispatcher=dispatcher,
+            log=log,
+        )
+
+    dispatcher.dispatch.assert_awaited_once()
+    event = dispatcher.dispatch.call_args.args[0]
+    assert event.classifier_version == "clf-sha-777"

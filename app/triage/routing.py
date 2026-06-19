@@ -38,6 +38,7 @@ async def upsert_finding(
     bucket: Bucket,
     resolution_path: str,
     model_confidence: float | None,
+    classifier_version: str | None = None,
 ) -> tuple[int, bool]:
     """Insert a finding idempotently; return (finding_id, created).
 
@@ -60,6 +61,7 @@ async def upsert_finding(
             status=status.value,
             model_confidence=confidence_val,
             resolution_path=resolution_path,
+            classifier_version=classifier_version,
             corroboration_sources=None,
         )
         .on_conflict_do_nothing(index_elements=["document_id", "drug", "reaction"])
