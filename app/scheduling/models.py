@@ -47,6 +47,10 @@ class WatchlistCycle(Base):
         BigInteger, ForeignKey("index_build_runs.id", ondelete="SET NULL"), nullable=True
     )
     skipped_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Set at consolidation when the cycle's index run produced any triage-failed document, so a
+    # degraded run is distinguishable from a clean completion (status stays 'completed', but a
+    # non-NULL degraded_reason means triage coverage was incomplete — Constitution III).
+    degraded_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     failure_stage: Mapped[str | None] = mapped_column(String(24), nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     started_at: Mapped[datetime] = mapped_column(
