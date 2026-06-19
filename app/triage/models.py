@@ -37,6 +37,10 @@ class Finding(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     model_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     resolution_path: Mapped[str] = mapped_column(String(12), nullable=False)
+    # SHA-256 of the classifier artifact that made the call (mirrors chunks.embedder_version).
+    # NULL when the classifier was unavailable and the pair was escalated (resolution_path
+    # 'escalated' + NULL version distinguishes an outage escalation from a low-confidence one).
+    classifier_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     corroboration_sources: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

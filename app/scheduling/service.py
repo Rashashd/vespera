@@ -124,8 +124,15 @@ class CycleService:
         session: AsyncSession,
         cycle_id: int,
         skipped_reason: str | None = None,
+        degraded_reason: str | None = None,
     ) -> WatchlistCycle | None:
-        """Mark cycle completed (with optional skipped_reason for budget-skipped drafting)."""
+        """Mark cycle completed.
+
+        skipped_reason records budget-skipped drafting; degraded_reason records incomplete triage
+        coverage (Constitution III). The cycle still completes — the partial batch report for the
+        documents that DID triage still ships — but a non-NULL degraded_reason means the run must
+        NOT be read as a clean 'all clear'.
+        """
         cycle = await session.get(WatchlistCycle, cycle_id)
         if cycle is None:
             return None
@@ -135,9 +142,41 @@ class CycleService:
         cycle.updated_at = datetime.now(UTC)
         if skipped_reason:
             cycle.skipped_reason = skipped_reason
+        if degraded_reason:
+            cycle.degraded_reason = degraded_reason
         await session.flush()
-        _log.info("cycle.completed", cycle_id=cycle_id, skipped_reason=skipped_reason)
+        _log.info(
+            "cycle.completed",
+            cycle_id=cycle_id,
+            skipped_reason=skipped_reason,
+            degraded_reason=degraded_reason,
+        )
         return cycle
+
+    @staticmethod
+    async def cycle_has_degraded_triage(session: AsyncSession, cycle_id: int) -> bool:
+        """True when this cycle's index run produced any document that failed triage.
+
+        Scoped by the cycle's index_build_run_id so it reflects triage failures from THIS run —
+        a broken run must not be allowed to complete clean (Constitution III). Returns False when
+        the cycle has no linked index run (nothing to attribute).
+        """
+        from app.embedding.models import DocumentIndexState
+
+        cycle = await session.get(WatchlistCycle, cycle_id)
+        if cycle is None or cycle.index_build_run_id is None:
+            return False
+        row = (
+            await session.execute(
+                select(DocumentIndexState.id)
+                .where(
+                    DocumentIndexState.last_run_id == cycle.index_build_run_id,
+                    DocumentIndexState.triage_failed_at.is_not(None),
+                )
+                .limit(1)
+            )
+        ).first()
+        return row is not None
 
     @staticmethod
     async def abandon_cycle(session: AsyncSession, cycle_id: int) -> WatchlistCycle | None:

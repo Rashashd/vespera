@@ -21,6 +21,7 @@ class FindingClassified(DomainEvent):
     confidence: float = 0.0
     resolution_path: str = ""  # "model" | "llm" | "escalated"
     routing_outcome: str = ""  # "pending_expedited" | "pending_batch" | "classified"
+    classifier_version: str | None = None  # SHA-256 of the classifier; None on a classifier outage
 
 
 @dataclass(frozen=True, slots=True)

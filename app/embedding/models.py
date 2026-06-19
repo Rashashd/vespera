@@ -94,6 +94,16 @@ class DocumentIndexState(Base):
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Durable triage-degraded marker (Constitution III): set when triage could not run for this
+    # document (e.g. an NER outage), so a broken run is detectable and the cycle cannot report
+    # 'completed' clean. NULL = triage ran (or has not run yet). triage_error is a PII-free code.
+    triage_failed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    triage_error: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Set when triage RAN for this document (whether or not it produced findings); lets the
+    # staleness sweep tell a legitimately-zero-finding document from a never-triaged one.
+    triaged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_run_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("index_build_runs.id", ondelete="SET NULL"), nullable=True
     )

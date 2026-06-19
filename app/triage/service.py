@@ -9,11 +9,12 @@ from app.core.config import Settings
 from app.core.dispatcher import EventDispatcher
 from app.domain.events import FindingClassified
 from app.infra.modelserver_client import ModelserverClient, ModelserverError
+from app.observability.sentry import capture_operator_alert
 from app.triage import llm as llm_module
 from app.triage import prefilter
 from app.triage.classify import resolve_adverse
 from app.triage.enums import Bucket
-from app.triage.ner import extract_entities, reaction_or_sentinel
+from app.triage.ner import NerUnavailable, extract_entities, reaction_or_sentinel
 from app.triage.routing import bucket_to_status, upsert_finding
 from app.triage.schemas import FindingOutcome
 from app.triage.severity import assign_bucket
@@ -44,7 +45,27 @@ async def triage_document(
     outcomes: list[FindingOutcome] = []
 
     # --- Stage 1: NER entity extraction ---
-    drugs_found, reactions_found = await extract_entities(document_text)
+    # A NER outage must NOT masquerade as "no entities found" (which would silently drop the
+    # whole document). Surface it as an alerted, typed failure and re-raise so the after-index
+    # hook marks the document degraded (Constitution III) instead of swallowing it.
+    try:
+        drugs_found, reactions_found = await extract_entities(document_text)
+    except NerUnavailable as exc:
+        log.error(
+            "triage.operator_alert",
+            stage="ner",
+            reason=str(exc),
+            client_id=client_id,
+            document_id=document_id,
+        )
+        capture_operator_alert(
+            "triage.operator_alert",
+            stage="ner",
+            client_id=client_id,
+            document_id=document_id,
+            error_class=type(exc).__name__,
+        )
+        raise
     log.info("triage.ner.extracted", drugs=len(drugs_found), reactions=len(reactions_found))
 
     # --- Stage 2: Drug pre-filter (match against watchlist) ---
@@ -107,7 +128,9 @@ async def _triage_one(
 ) -> FindingOutcome | None:
     """Classify a single drug+reaction pair and persist the finding.
 
-    Returns None when the classifier is unavailable (operator_alert emitted; finding skipped).
+    On classifier OUTAGE (ModelserverError) the verdict is forced to YES and escalated
+    (resolution_path="escalated") rather than skipped — a classifier failure MUST escalate,
+    not suppress (Constitution III) — mirroring the low-confidence path in classify.py:55-57.
     Raises on DB/persist failure so the caller's transaction rolls back (FR-018).
     """
 
@@ -124,7 +147,7 @@ async def _triage_one(
         )
 
     try:
-        verdict, model_confidence, resolution_path = await resolve_adverse(
+        verdict, model_confidence, resolution_path, classifier_version = await resolve_adverse(
             text=document_text,
             ms_client=ms_client,
             settings=settings,
@@ -134,6 +157,10 @@ async def _triage_one(
             document_id=document_id,
         )
     except ModelserverError as exc:
+        # Fail SAFE (Constitution III): a classifier OUTAGE must escalate, never suppress.
+        # Mirror the low-confidence+LLM-failure path (classify.py:55-57): force verdict=YES with
+        # resolution_path="escalated" and no model confidence, so the pair is still severity-
+        # bucketed, persisted, and surfaced to a human instead of being silently dropped.
         log.error(
             "triage.operator_alert",
             stage="classify",
@@ -141,7 +168,21 @@ async def _triage_one(
             client_id=client_id,
             document_id=document_id,
         )
-        return None
+        capture_operator_alert(
+            "triage.operator_alert",
+            stage="classify",
+            client_id=client_id,
+            document_id=document_id,
+            error_class=type(exc).__name__,
+        )
+        # No classifier_version: the classifier never ran (a NULL version is how a triage-outage
+        # escalation is told apart from a low-confidence one in the finding/audit record).
+        verdict, model_confidence, resolution_path, classifier_version = (
+            True,
+            None,
+            "escalated",
+            None,
+        )
 
     # --- Stage 4: Severity bucketing ---
     if verdict:
@@ -177,6 +218,7 @@ async def _triage_one(
             bucket=bucket,
             resolution_path=resolution_path,
             model_confidence=model_confidence,
+            classifier_version=classifier_version,
         )
 
         if created:
@@ -189,6 +231,7 @@ async def _triage_one(
                 confidence=model_confidence or 0.0,
                 resolution_path=resolution_path,
                 routing_outcome=status.value,
+                classifier_version=classifier_version,
             )
             await dispatcher.dispatch(event, session)
             log.info(
@@ -206,6 +249,13 @@ async def _triage_one(
             reason=str(exc),
             client_id=client_id,
             document_id=document_id,
+        )
+        capture_operator_alert(
+            "triage.operator_alert",
+            stage="persist",
+            client_id=client_id,
+            document_id=document_id,
+            error_class=type(exc).__name__,
         )
         raise  # trigger transaction rollback (no finding without its audit row)
 

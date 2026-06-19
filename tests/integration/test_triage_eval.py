@@ -65,7 +65,7 @@ async def _evaluate_case(case: dict) -> str:
             raise RuntimeError("LLM unavailable")
         return bool(llm_resolve_adverse)
 
-    verdict, model_confidence, _path = await resolve_adverse(
+    verdict, model_confidence, _path, _clf = await resolve_adverse(
         text=text,
         ms_client=ms_client,
         settings=settings,
