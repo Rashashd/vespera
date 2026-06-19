@@ -69,6 +69,14 @@ class ClientOut(BaseModel):
     urgent_severity_threshold: str
     custom_severity_keywords: list[str] = Field(default_factory=list)
     created_at: datetime
+    erased_at: datetime | None = None  # set on the tombstone after right-to-erasure (Cluster 3)
+
+
+class ClientEraseRequest(BaseModel):
+    """Body for POST /clients/{id}/erase. confirm_name MUST echo the client's exact name — an
+    irreversible-action safeguard against erasing the wrong tenant."""
+
+    confirm_name: str
 
 
 class SeverityKeywordsUpdate(BaseModel):

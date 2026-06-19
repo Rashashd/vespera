@@ -33,8 +33,13 @@ async def audit_log_handler(event: DomainEvent, session: AsyncSession) -> None:
     # Human events link to users.id; system events (sentinel 0) stay unlinked (spec 2, D5).
     actor_user_id = event.actor_id if event.actor_type == "human" else None
     # For cross-client staff events the actor client_id is NULL; record the acted-upon client
-    # (target_client_id) so queries can filter by tenant (D11/FR-021).
-    effective_client_id = event.client_id or getattr(event, "target_client_id", None)
+    # (target_client_id, or erased_client_id for ClientErased) so queries can filter by tenant
+    # (D11/FR-021) — and so an erasure stays auditable by tenant after the data is purged.
+    effective_client_id = (
+        event.client_id
+        or getattr(event, "target_client_id", None)
+        or getattr(event, "erased_client_id", None)
+    )
     session.add(
         AuditLog(
             actor_id=event.actor_id,

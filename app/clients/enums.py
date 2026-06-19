@@ -8,6 +8,7 @@ class ClientStatus(StrEnum):
 
     ACTIVE = "active"
     SUSPENDED = "suspended"
+    ERASED = "erased"  # terminal tombstone after right-to-erasure (Cluster 3, migration 0015)
 
 
 class Cadence(StrEnum):
