@@ -153,6 +153,20 @@ function pageTitle(pathname: string): string {
   return "Pantera";
 }
 
+/**
+ * The acting-client switcher only belongs on pages scoped to a single client
+ * (you're "acting as" that tenant). Global / cross-client pages — Clients, Costs,
+ * Overview, Staff, Audit Log, Failed Queue — must not show it.
+ */
+function showsActingClient(pathname: string): boolean {
+  if (pathname.startsWith("/queue")) return true; // review queue + report detail
+  if (pathname.startsWith("/reports")) return true; // all reports + report detail
+  if (pathname.startsWith("/admin/dashboard")) return true; // per-client ops dashboard
+  if (pathname.startsWith("/admin/users")) return true; // the acting client's users
+  if (pathname === "/admin") return true; // admin console (acting client's watchlists/keywords)
+  return false;
+}
+
 export function AppShell() {
   const { user, clearAuth } = useAuth();
   const navigate = useNavigate();
@@ -297,8 +311,8 @@ export function AppShell() {
 
           <div className="flex-1" />
 
-          {/* Acting client switcher (staff only) */}
-          {isStaff && <ActingClientSwitcher />}
+          {/* Acting client switcher — staff only, and only on single-client pages */}
+          {isStaff && showsActingClient(location.pathname) && <ActingClientSwitcher />}
           <ThemeToggle />
           <CommandPalette />
         </header>
