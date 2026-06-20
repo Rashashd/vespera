@@ -168,7 +168,7 @@ export const router = createBrowserRouter([
       {
         path: "failed-queue",
         element: (
-          <RequireRole roles={["manager", "admin"]}>
+          <RequireRole roles={["manager"]}>
             <Suspense fallback={<Loading />}>
               <FailedQueue />
             </Suspense>

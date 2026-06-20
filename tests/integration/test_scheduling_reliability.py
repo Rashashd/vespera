@@ -964,7 +964,7 @@ class TestDeadLetterVisibility:
     async def test_dead_letter_endpoint_lists_unresolved(
         self, auth_app, make_client, make_staff_user, client
     ):
-        """GET /admin/dead-letters returns unresolved dead-letters (staff-only)."""
+        """GET /admin/dead-letters returns unresolved dead-letters (manager-only)."""
         from app.jobs.dead_letter import record
 
         owner = await make_client()
@@ -984,7 +984,7 @@ class TestDeadLetterVisibility:
             dispatcher=dispatcher,
         )
 
-        staff = await make_staff_user(role="admin")
+        staff = await make_staff_user(role="manager")
         # Login to get token
         resp = await client.post(
             "/auth/jwt/login",
@@ -1006,7 +1006,7 @@ class TestDeadLetterVisibility:
     async def test_dead_letter_resolve_endpoint(
         self, auth_app, make_client, make_staff_user, client
     ):
-        """POST /admin/dead-letters/{id}/resolve sets resolved_at (staff-only)."""
+        """POST /admin/dead-letters/{id}/resolve sets resolved_at (manager-only)."""
         from sqlalchemy import select
 
         from app.jobs.dead_letter import record
@@ -1038,7 +1038,7 @@ class TestDeadLetterVisibility:
         assert row is not None
         dl_id = row.id
 
-        staff = await make_staff_user(role="admin")
+        staff = await make_staff_user(role="manager")
         resp = await client.post(
             "/auth/jwt/login",
             data={"username": staff.email, "password": "Abcdef1!"},

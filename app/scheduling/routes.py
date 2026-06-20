@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_acting_client_read, require_staff
+from app.auth.dependencies import get_acting_client_read, require_manager, require_staff
 from app.auth.models import User
 from app.clients.models import Client
 from app.core.dependencies import get_session
@@ -123,10 +123,10 @@ async def list_dead_letters(
     resolved: bool = Query(False),
     client_id: int | None = Query(None),
     limit: int = Query(50, ge=1, le=500),
-    staff: User = Depends(require_staff),
+    manager: User = Depends(require_manager),
     session: AsyncSession = Depends(get_session),
 ) -> list[DeadLetterOut]:
-    """Staff: list dead-lettered jobs (unresolved by default)."""
+    """Manager-only: list dead-lettered jobs (unresolved by default); platform ops, not admin."""
     stmt = select(DeadLetter).order_by(DeadLetter.dead_lettered_at.desc()).limit(limit)
     if not resolved:
         stmt = stmt.where(DeadLetter.resolved_at.is_(None))
@@ -139,10 +139,10 @@ async def list_dead_letters(
 @router.post("/admin/dead-letters/{dead_letter_id}/resolve", response_model=DeadLetterOut)
 async def resolve_dead_letter(
     dead_letter_id: int,
-    staff: User = Depends(require_staff),
+    manager: User = Depends(require_manager),
     session: AsyncSession = Depends(get_session),
 ) -> DeadLetterOut:
-    """Staff: mark a dead-letter record resolved (operator-acknowledged)."""
+    """Manager-only: mark a dead-letter record resolved (operator-acknowledged)."""
     from datetime import UTC
 
     row = await session.get(DeadLetter, dead_letter_id)

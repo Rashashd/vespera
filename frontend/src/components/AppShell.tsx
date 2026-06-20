@@ -102,7 +102,7 @@ const NAV_ITEMS: NavItem[] = [
     label: "Failed Queue",
     href: "/failed-queue",
     icon: <ServerCrash className="h-5 w-5" />,
-    roles: ["manager", "admin"],
+    roles: ["manager"],
   },
   {
     label: "My Watchlists",
