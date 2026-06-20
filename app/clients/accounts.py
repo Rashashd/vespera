@@ -1,5 +1,7 @@
 """Client (tenant) lifecycle and client-user management (spec 3 + spec 4b)."""
 
+from datetime import UTC, datetime
+
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,6 +76,55 @@ async def suspend_client(session: AsyncSession, client: Client) -> Client:
 async def reactivate_client(session: AsyncSession, client: Client) -> Client:
     """Set status='active'; idempotent (FR-011)."""
     return await set_client_status(session, client, ClientStatus.ACTIVE)
+
+
+# Tables RETAINED through erasure: the client tombstone + the PII-free, RLS-exempt audit trail.
+_ERASURE_RETAIN = frozenset({"clients", "audit_log"})
+
+
+async def erase_client(session: AsyncSession, client: Client) -> Client:
+    """Right-to-erasure (Constitution V): purge a client's personal data, keep a tombstone.
+
+    Deletes every client_id-scoped row EXCEPT the clients tombstone and the audit_log (retained as
+    the PII-free compliance trail). Vectors live in chunks (deleted by client_id); sessions are
+    stateless JWT, so deleting the client's users invalidates any outstanding token. Runs in the
+    caller's transaction so the purge is atomic with the audit row + ClientErased event. The clients
+    row survives with id + name + timestamps; PII/config is nulled and status moves to 'erased'.
+    """
+    # Register EVERY client-scoped table on Base.metadata before the sweep — a missed table is an
+    # incomplete erasure. The sweep is metadata-driven, so any future client_id table is purged too.
+    import app.audit.models  # noqa: F401
+    import app.auth.models  # noqa: F401
+    import app.clients.models  # noqa: F401
+    import app.delivery.models  # noqa: F401
+    import app.embedding.models  # noqa: F401
+    import app.ingestion.models  # noqa: F401
+    import app.observability.models  # noqa: F401
+    import app.reports.models  # noqa: F401
+    import app.scheduling.models  # noqa: F401
+    import app.triage.models  # noqa: F401
+    from app.db.base import Base
+
+    client_id = client.id
+    # Delete children-first (reversed FK-dependency order) so RESTRICT foreign keys never block.
+    for table in reversed(Base.metadata.sorted_tables):
+        if table.name in _ERASURE_RETAIN or "client_id" not in table.c:
+            continue
+        await session.execute(delete(table).where(table.c.client_id == client_id))
+
+    # Scrub the tombstone: keep id + name + timestamps; drop PII/config; mark erased.
+    client.report_email_regular = None
+    client.report_email_urgent = None
+    client.sftp_enabled = False
+    client.sftp_host = None
+    client.sftp_path = None
+    client.sftp_username = None
+    client.custom_severity_keywords = []
+    client.status = ClientStatus.ERASED.value
+    client.erased_at = datetime.now(UTC)
+    session.add(client)
+    await session.flush()
+    return client
 
 
 async def set_report_emails(

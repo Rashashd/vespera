@@ -130,6 +130,7 @@ async def edit_approve_report(
         comment=body.comment,
         session=session,
         dispatcher=request.app.state.dispatcher,
+        settings=request.app.state.settings,
     )
     return ReportSummary.model_validate(report)
 
@@ -153,6 +154,7 @@ async def reject_report(
         redraft_cap=settings.report_redraft_cap,
         session=session,
         dispatcher=request.app.state.dispatcher,
+        settings=settings,
     )
 
     if ReportStatus(report.status) == ReportStatus.DRAFTED:

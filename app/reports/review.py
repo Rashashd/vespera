@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
+from app.core.config import Settings
 from app.domain.events import (
     FindingDiscarded,
     ReportApproved,
@@ -16,6 +17,7 @@ from app.domain.events import (
     ReportEdited,
     ReportRejected,
 )
+from app.redaction.redactor import redact_async
 from app.reports._helpers import (
     REVIEW_STATUSES,
     load_report_finding,
@@ -73,6 +75,7 @@ async def edit_approve_report(
     comment: str,
     session: AsyncSession,
     dispatcher: Any,
+    settings: Settings,
 ) -> Report:
     """Edit content then approve; edited claims tagged reviewer_attested."""
     report = await load_report_for_client(report_id, client_id, session)
@@ -98,11 +101,14 @@ async def edit_approve_report(
     report.draft_body = draft_body or report.draft_body
     report.status = ReportStatus.APPROVED
     report.updated_at = now_utc()
+    # Redact direct identifiers from the reviewer's free-text before storing it at rest (A6/D6);
+    # clinical content is preserved (only PII entity types are redacted).
+    redacted_comment = await redact_async(settings, comment)
     report.reviewer_comments = list(report.reviewer_comments or []) + [
         {
             "reviewer_id": reviewer.id,
             "action": "edit_approve",
-            "comment": comment,
+            "comment": redacted_comment,
             "ts": now_utc().isoformat(),
         }
     ]
@@ -131,6 +137,7 @@ async def reject_report(
     redraft_cap: int,
     session: AsyncSession,
     dispatcher: Any,
+    settings: Settings,
 ) -> Report:
     """Reject: triggers redraft (rev_count++) or needs_manual_revision on 4th rejection."""
     report = await load_report_for_client(report_id, client_id, session)
@@ -139,11 +146,13 @@ async def reject_report(
 
     new_revision_count = (report.revision_count or 0) + 1
     report.revision_count = new_revision_count
+    # Redact direct identifiers from the reviewer's free-text before storing it at rest (A6/D6).
+    redacted_comment = await redact_async(settings, comment)
     report.reviewer_comments = list(report.reviewer_comments or []) + [
         {
             "reviewer_id": reviewer.id,
             "action": "reject",
-            "comment": comment,
+            "comment": redacted_comment,
             "ts": now_utc().isoformat(),
         }
     ]

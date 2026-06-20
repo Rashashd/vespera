@@ -12,9 +12,11 @@ from app.auth.dependencies import (
 )
 from app.auth.models import User
 from app.clients import service
+from app.clients.enums import ClientStatus
 from app.clients.models import Client
 from app.clients.schemas import (
     ClientCreate,
+    ClientEraseRequest,
     ClientOut,
     ClientRead,
     ClientUpdate,
@@ -24,6 +26,7 @@ from app.clients.schemas import (
 from app.core.dependencies import get_session
 from app.domain.events import (
     ClientCreated,
+    ClientErased,
     ClientReactivated,
     ClientReportEmailChanged,
     ClientSuspended,
@@ -195,6 +198,37 @@ async def reactivate_client(
             actor_type="human",
             client_id=None,
             target_client_id=client.id,
+        ),
+        session,
+    )
+    await session.refresh(client)
+    return ClientOut.model_validate(client)
+
+
+@router.post("/{client_id}/erase", response_model=ClientOut)
+async def erase_client_endpoint(
+    payload: ClientEraseRequest,
+    request: Request,
+    manager: User = Depends(require_manager),
+    target: Client = Depends(_get_acting_client_read),
+    session: AsyncSession = Depends(get_session),
+) -> ClientOut:
+    """Irreversibly erase a client's personal data — purge rows + vectors + sessions, retain a
+    tombstone (manager-only; right-to-erasure, Constitution V). The body must echo the exact client
+    name as a safeguard; an already-erased client returns 409. Atomic with the audit row + event.
+    """
+    if target.status == ClientStatus.ERASED.value:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="ALREADY_ERASED")
+    if payload.confirm_name != target.name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ERASE_NAME_MISMATCH")
+
+    client = await service.erase_client(session, target)
+    await request.app.state.dispatcher.dispatch(
+        ClientErased(
+            actor_id=manager.id,
+            actor_type="human",
+            client_id=None,
+            erased_client_id=client.id,
         ),
         session,
     )

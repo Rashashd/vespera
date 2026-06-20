@@ -35,6 +35,13 @@ def _make_reviewer(reviewer_id: int = 99) -> MagicMock:
     return u
 
 
+def _settings() -> MagicMock:
+    """Settings stub with redaction disabled — keeps these state-machine unit tests off Presidio."""
+    s = MagicMock()
+    s.redaction_enabled = False
+    return s
+
+
 class TestApproveTransitions:
     @pytest.mark.asyncio
     async def test_approve_from_drafted(self):
@@ -120,6 +127,7 @@ class TestRejectAndRedraftCap:
             redraft_cap=3,
             session=session,
             dispatcher=dispatcher,
+            settings=_settings(),
         )
 
         assert result.revision_count == 1
@@ -144,6 +152,7 @@ class TestRejectAndRedraftCap:
             redraft_cap=3,
             session=session,
             dispatcher=dispatcher,
+            settings=_settings(),
         )
 
         assert result.status == ReportStatus.DRAFTED
@@ -168,6 +177,7 @@ class TestRejectAndRedraftCap:
             redraft_cap=3,
             session=session,
             dispatcher=dispatcher,
+            settings=_settings(),
         )
 
         assert result.status == ReportStatus.NEEDS_MANUAL_REVISION
@@ -191,6 +201,7 @@ class TestRejectAndRedraftCap:
             redraft_cap=3,
             session=session,
             dispatcher=dispatcher,
+            settings=_settings(),
         )
 
         assert len(result.reviewer_comments) == 1
@@ -227,6 +238,7 @@ class TestEditApproveProvenance:
                 comment="Fixed drug name",
                 session=session,
                 dispatcher=dispatcher,
+                settings=_settings(),
             )
 
         assert result.status == ReportStatus.APPROVED

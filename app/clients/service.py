@@ -21,6 +21,7 @@ from app.clients._helpers import (
 from app.clients.accounts import (
     create_client,
     create_client_user,
+    erase_client,
     get_client,
     get_client_user,
     list_client_users,
@@ -68,6 +69,7 @@ __all__ = [
     "set_client_status",
     "suspend_client",
     "reactivate_client",
+    "erase_client",
     "set_report_emails",
     "set_severity_keywords",
     "create_client_user",
