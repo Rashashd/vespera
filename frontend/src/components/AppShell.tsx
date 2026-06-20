@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
+import { useWatchlists } from "@/api/hooks";
 import { PantherMark } from "./PantherMark";
 import { Wordmark } from "./Wordmark";
 import { ActingClientSwitcher } from "./ActingClientSwitcher";
@@ -104,10 +105,11 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["manager", "admin"],
   },
   {
-    label: "My Reports",
+    label: "My Watchlists",
     href: "/portal",
     icon: <Shield className="h-5 w-5" />,
     roles: ["client_user"],
+    end: true,
   },
 ];
 
@@ -149,7 +151,7 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith("/clients")) return "Clients";
   if (pathname.startsWith("/audit")) return "Audit Log";
   if (pathname.startsWith("/failed-queue")) return "Failed Queue";
-  if (pathname.startsWith("/portal")) return "My Reports";
+  if (pathname.startsWith("/portal")) return "My Watchlists";
   return "Pantera";
 }
 
@@ -173,6 +175,10 @@ export function AppShell() {
   const location = useLocation();
   const role = useUserRole();
   const isStaff = user?.user_type === "staff";
+
+  // Client-portal users get their own watchlists listed in the sidebar.
+  const portalClientId = role === "client_user" ? (user?.client_id ?? null) : null;
+  const { data: portalWatchlists = [] } = useWatchlists(portalClientId);
 
   // Auto-collapse on report-detail routes (layout C rail collision avoidance)
   const isDetailRoute =
@@ -260,6 +266,40 @@ export function AppShell() {
               {!collapsed && <span className="truncate">{item.label}</span>}
             </NavLink>
           ))}
+
+          {/* Client-portal users: their watchlists as sub-items */}
+          {role === "client_user" && !collapsed && portalWatchlists.length > 0 && (
+            <div className="space-y-0.5 pt-2">
+              <p className="px-3 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                Watchlists
+              </p>
+              {portalWatchlists.map((w) => (
+                <NavLink
+                  key={w.id}
+                  to={`/portal/watchlists/${w.id}`}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                      !w.is_active && "opacity-60",
+                    )
+                  }
+                  title={w.name}
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 flex-shrink-0 rounded-full",
+                      w.is_active ? "bg-primary" : "bg-muted-foreground",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate">{w.name}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
         </nav>
 
         {/* User block + logout */}
