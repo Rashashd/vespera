@@ -71,7 +71,16 @@ async def list_reports(
         q = q.where(Report.status.in_([s.value for s in _REVIEW_STATUSES]))
 
     rows = (await session.execute(q)).scalars().all()
-    return [ReportSummary.model_validate(r) for r in rows]
+
+    # Attach each report's clinical severity (highest-severity included finding) in one extra
+    # query, so the list can render a severity badge without an N+1 per-row findings fetch.
+    severity_by_report = await svc.severity_by_report(session, [r.id for r in rows])
+    summaries: list[ReportSummary] = []
+    for r in rows:
+        summary = ReportSummary.model_validate(r)
+        summary.severity = severity_by_report.get(r.id)
+        summaries.append(summary)
+    return summaries
 
 
 @router.get("/reports/{report_id}", response_model=ReportResponse)
