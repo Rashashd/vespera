@@ -57,6 +57,10 @@ async def load_secrets_from_vault(settings: Settings) -> None:
     # Spec 13: optional delivery routing config — absent ⇒ delivery holds, app still boots.
     settings.n8n_webhook_url = data.get("n8n_webhook_url", "")
     settings.delivery_callback_token = data.get("delivery_callback_token", "")
+    # LangSmith tracing key (optional): sourced from Vault per the secrets-in-Vault principle,
+    # NOT a plaintext .env. Falls back to any env-provided value when absent from Vault. The
+    # TRACING_ENABLED toggle and LANGSMITH_PROJECT name are non-secret and stay env-driven.
+    settings.langsmith_api_key = data.get("langsmith_api_key", settings.langsmith_api_key)
 
     missing = [name for name in _REQUIRED_SECRETS if not getattr(settings, name)]
     if not (settings.anthropic_api_key or settings.openai_api_key):

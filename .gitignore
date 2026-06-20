@@ -17,6 +17,9 @@ docs/n8n/
 # Local-only Vault provisioning helper (kept out of the repo intentionally)
 scripts/write_secrets.py
 
+# Local-only demo seed (kept on disk, out of the repo)
+scripts/seed_demo.sql
+
 # Local-only Compose port-remap override (e.g. when the host already runs Postgres/Redis)
 docker-compose.override.yml
 
