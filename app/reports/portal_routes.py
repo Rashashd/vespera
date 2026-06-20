@@ -15,6 +15,7 @@ from app.auth.schemas import UserType
 from app.clients.models import Client
 from app.core.dependencies import get_session
 from app.ingestion.models import DocumentWatchlist
+from app.reports import service as report_service
 from app.reports.models import Report, ReportFinding
 from app.reports.schemas import (
     PortalReportDetail,
@@ -144,6 +145,9 @@ async def list_portal_reports(
         .all()
     )
 
+    # Clinical severity per report (highest-severity included finding) in one extra query.
+    severity_by_report = await report_service.severity_by_report(session, [r.id for r in rows])
+
     summaries: list[PortalReportSummary] = []
     for r in rows:
         effective_wl = r.watchlist_id
@@ -157,6 +161,7 @@ async def list_portal_reports(
                 id=r.id,
                 report_type=r.report_type,
                 status=r.status,
+                severity=severity_by_report.get(r.id),
                 watchlist_id=effective_wl,
                 corroboration_count=r.corroboration_count,
                 sla_deadline=r.sla_deadline,

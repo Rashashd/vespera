@@ -4,6 +4,7 @@ import { useAllReports } from "@/api/hooks";
 import { useActingClient } from "@/auth/ActingClientContext";
 import { DeliveryStatusChip } from "@/components/DeliveryStatusChip";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
+import { SeverityBadge } from "@/components/SeverityBadge";
 import { Button } from "@/components/ui/button";
 
 export default function AllReports() {
@@ -40,9 +41,12 @@ export default function AllReports() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1.5">
-                  <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#4a6580] dark:text-[#8095a8]">
-                    {r.report_type}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {r.severity && <SeverityBadge bucket={r.severity} />}
+                    <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#4a6580] dark:text-[#8095a8]">
+                      {r.report_type}
+                    </span>
+                  </div>
                   <p className="font-display text-[15px] font-semibold text-foreground">
                     Report #{r.id}
                   </p>

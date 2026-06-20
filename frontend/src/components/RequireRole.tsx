@@ -8,12 +8,15 @@ interface Props {
 }
 
 function defaultLandingFor(user: User): string {
-  if (!user.role && user.user_type === "client") return "/portal";
+  // Client-portal users always land on /portal. Key off user_type, not role: client users
+  // carry role="client_user" (role is never null), so the old `!user.role` check never matched
+  // and bounced them back to /login.
+  if (user.user_type === "client") return "/portal";
   switch (user.role) {
     case "reviewer":
       return "/queue";
     case "manager":
-      return "/admin/dashboard";
+      return "/admin/overview";
     case "admin":
       // Admins manage existing clients' watchlists/keywords; no client lifecycle or costs.
       return "/admin";

@@ -1,4 +1,4 @@
-"""Integration (US5): audit access/export role model — manager all, admin scoped, reviewer 403."""
+"""Integration (US5): audit access/export role model by role (manager/admin/reviewer)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ async def _login(auth_app, email: str, password: str = "Abcdef1!") -> AsyncClien
 
 
 async def _seed_audit(factory, client_id: int) -> None:
-    """Seed one report event (manager-only) and one watchlist event (admin-visible)."""
+    """Seed one report event and one watchlist event (both admin-visible)."""
     d = EventDispatcher()
     register_audit_handlers(d)
     async with factory() as s:
@@ -49,7 +49,7 @@ async def _seed_audit(factory, client_id: int) -> None:
 async def test_export_role_scope_and_audited(
     auth_app, make_client, make_staff_user, priv_factory
 ) -> None:
-    """Manager exports all; admin exports client/watchlist only; reviewer 403; export is audited."""
+    """Manager exports all; admin sees client/watchlist+reports; reviewer 403; export audited."""
     cl = await make_client()
     await _seed_audit(priv_factory, cl.id)
 
@@ -67,12 +67,12 @@ async def test_export_role_scope_and_audited(
     assert "ReportApproved" in mgr_types
     assert "WatchlistCreated" in mgr_types
 
-    # Admin → only client/watchlist-management events (report event excluded).
+    # Admin → client/watchlist-management events AND report lifecycle/delivery outcomes.
     adm = await adm_c.get(f"/audit/export?format=json&client_id={cl.id}")
     assert adm.status_code == 200
     adm_types = {row["event_type"] for row in adm.json()}
     assert "WatchlistCreated" in adm_types
-    assert "ReportApproved" not in adm_types
+    assert "ReportApproved" in adm_types
 
     # Reviewer → denied.
     assert (await rev_c.get(f"/audit/export?format=csv&client_id={cl.id}")).status_code == 403
@@ -96,7 +96,7 @@ async def test_export_role_scope_and_audited(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_audit_list_admin_scope(auth_app, make_client, make_staff_user, priv_factory) -> None:
-    """GET /audit for an admin excludes report events (client/watchlist scope only)."""
+    """GET /audit for an admin includes client/watchlist AND report events."""
     cl = await make_client()
     await _seed_audit(priv_factory, cl.id)
     admin = await make_staff_user(role="admin")
@@ -105,7 +105,7 @@ async def test_audit_list_admin_scope(auth_app, make_client, make_staff_user, pr
     assert resp.status_code == 200
     types = {row["event_type"] for row in resp.json()}
     assert "WatchlistCreated" in types
-    assert "ReportApproved" not in types
+    assert "ReportApproved" in types
 
 
 @pytest.mark.integration

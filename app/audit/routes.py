@@ -29,9 +29,10 @@ router = APIRouter(prefix="/audit", tags=["audit"])
 # (Login monitoring, if needed, belongs in a dedicated security view, not this one.)
 _EXCLUDED_EVENT_TYPES = ("UserLoggedIn", "LoginFailed", "UserLoggedOut")
 
-# Spec 13 FR-018: an admin sees ONLY client/watchlist-management events; a manager sees all;
-# a reviewer is denied entirely (require_admin already excludes reviewers).
+# An admin sees client/watchlist-management events AND report lifecycle/delivery outcomes;
+# a manager sees everything; a reviewer is denied entirely (require_admin excludes reviewers).
 _ADMIN_VISIBLE_EVENTS = (
+    # Account / client / watchlist management
     "ClientCreated",
     "ClientUpdated",
     "ClientSuspended",
@@ -45,6 +46,16 @@ _ADMIN_VISIBLE_EVENTS = (
     "WatchlistItemAdded",
     "WatchlistItemRemoved",
     "WatchlistActivationChanged",
+    # Report lifecycle + delivery outcomes (admins can review report activity too)
+    "ReportDrafted",
+    "ReportApproved",
+    "ReportEdited",
+    "ReportRejected",
+    "ReportDiscarded",
+    "ReportOperatorAlert",
+    "ReportDispatched",
+    "ReportDelivered",
+    "ReportDeliveryFailed",
 )
 
 

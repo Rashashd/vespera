@@ -66,6 +66,10 @@ class ReportSummary(BaseModel):
     client_id: int
     report_type: ReportType
     status: ReportStatus
+    # Highest-severity bucket among the report's included findings (emergency/urgent/minor/
+    # positive); None when the report has no included findings. Lets the list show the clinical
+    # classification without a per-row findings fetch.
+    severity: str | None = None
     corroboration_count: int
     revision_count: int
     sla_deadline: datetime | None
@@ -177,6 +181,8 @@ class PortalReportSummary(BaseModel):
     report_type: ReportType
     status: ReportStatus
     delivery_status: str
+    # Highest-severity included-finding bucket (emergency/urgent/minor/positive); None if none.
+    severity: str | None = None
     watchlist_id: int | None
     corroboration_count: int
     sla_deadline: datetime | None

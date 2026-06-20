@@ -65,6 +65,8 @@ export const ReportSummarySchema = z.object({
   client_id: z.number(),
   report_type: ReportType,
   status: ReportStatus,
+  // Highest-severity included-finding bucket; null when the report has no included findings.
+  severity: FindingBucket.nullable().optional(),
   // Reviewer-facing delivery label (spec 13 US2): approved_pending_delivery / sent /
   // delivered / delivery_failed / not_applicable. String-typed for forward tolerance.
   delivery_status: z.string().optional(),
@@ -141,6 +143,7 @@ export const PortalReportSummarySchema = z.object({
   report_type: ReportType,
   status: ReportStatus,
   delivery_status: DeliveryStatus,
+  severity: FindingBucket.nullable().optional(),
   watchlist_id: z.number().nullable().optional(),
   corroboration_count: z.number(),
   sla_deadline: z.string().nullable().optional(),
