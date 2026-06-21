@@ -71,7 +71,8 @@ export const ReportSummarySchema = z.object({
   // delivered / delivery_failed / not_applicable. String-typed for forward tolerance.
   delivery_status: z.string().optional(),
   corroboration_count: z.number(),
-  revision_count: z.number(),
+  // Portal report detail omits revision_count (reviewer-internal) — default so it still parses.
+  revision_count: z.number().default(0),
   sla_deadline: z.string().nullable().optional(),
   watchlist_id: z.number().nullable().optional(),
   created_at: z.string(),
@@ -94,7 +95,8 @@ export const ReportResponseSchema = ReportSummarySchema.extend({
   structured_fields: z.array(ClaimSchema),
   draft_body: z.string().nullable().optional(),
   corroboration_sources: z.array(CorroborationSourceSchema).nullable().optional(),
-  reviewer_comments: z.array(ReviewerCommentSchema),
+  // Portal report detail omits reviewer comments — default so it still parses.
+  reviewer_comments: z.array(ReviewerCommentSchema).default([]),
   cycle_period_start: z.string().nullable().optional(),
   cycle_period_end: z.string().nullable().optional(),
 });

@@ -73,6 +73,7 @@ async def test_multichannel_failure_then_targeted_resend(
         payloads.append(payload)
 
     monkeypatch.setattr("app.delivery.n8n_client.N8nClient.send", fake_send)
+    monkeypatch.setattr(auth_app.state.settings, "n8n_webhook_url", "https://n8n.test/webhook")
 
     cl = await make_client()
     await _configure(
@@ -153,6 +154,7 @@ async def test_callback_idempotency_and_unknown_dispatch(
         return None
 
     monkeypatch.setattr("app.delivery.n8n_client.N8nClient.send", fake_send)
+    monkeypatch.setattr(auth_app.state.settings, "n8n_webhook_url", "https://n8n.test/webhook")
 
     cl = await make_client()
     await _configure(priv_factory, cl.id, report_email_regular="regular@example.com")
@@ -224,6 +226,38 @@ async def test_no_channel_holds_report(auth_app, make_client, priv_factory, monk
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_unconfigured_n8n_holds_report(
+    auth_app, make_client, priv_factory, monkeypatch
+) -> None:
+    """No n8n webhook configured → report holds approved-pending-delivery (graceful degrade)."""
+    monkeypatch.setattr(auth_app.state.settings, "n8n_webhook_url", "")
+
+    cl = await make_client()
+    await _configure(priv_factory, cl.id, report_email_regular="regular@example.com")
+    rid = await _seed_report(priv_factory, cl.id)
+    await run_delivery(rid, _make_wc(auth_app, priv_factory))
+
+    # No dispatch attempts; report stays approved; held with reason "unconfigured".
+    assert await _attempts_by_channel(priv_factory, rid) == {}
+    async with priv_factory() as s:
+        assert (await s.get(Report, rid)).status == ReportStatus.APPROVED
+        held = (
+            (
+                await s.execute(
+                    select(AuditLog).where(
+                        AuditLog.event_type == "ReportDeliveryHeld",
+                        AuditLog.client_id == cl.id,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert any((row.payload or {}).get("reason") == "unconfigured" for row in held)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_suspended_holds_then_reactivation_releases(
     auth_app, make_client, priv_factory, monkeypatch
 ) -> None:
@@ -234,6 +268,7 @@ async def test_suspended_holds_then_reactivation_releases(
         payloads.append(payload)
 
     monkeypatch.setattr("app.delivery.n8n_client.N8nClient.send", fake_send)
+    monkeypatch.setattr(auth_app.state.settings, "n8n_webhook_url", "https://n8n.test/webhook")
 
     cl = await make_client(status="suspended")
     await _configure(priv_factory, cl.id, report_email_regular="regular@example.com")

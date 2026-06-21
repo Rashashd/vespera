@@ -192,6 +192,7 @@ async def get_portal_report(
 
     return PortalReportDetail(
         id=report.id,
+        client_id=report.client_id,
         report_type=report.report_type,
         status=report.status,
         delivery_status=_delivery_status(report.status),

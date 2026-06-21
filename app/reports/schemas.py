@@ -197,6 +197,7 @@ class PortalReportSummary(BaseModel):
 class PortalReportDetail(PortalReportSummary):
     """Full portal report including claims, body, sources, and per-finding status (FR-030)."""
 
+    client_id: int
     structured_fields: list[Claim]
     draft_body: str | None
     corroboration_sources: list[dict] | None

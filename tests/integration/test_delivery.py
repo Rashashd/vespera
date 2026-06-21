@@ -71,6 +71,7 @@ async def test_approve_dispatch_callback_delivered(
         sent_payloads.append(payload)
 
     monkeypatch.setattr("app.delivery.n8n_client.N8nClient.send", fake_send)
+    monkeypatch.setattr(auth_app.state.settings, "n8n_webhook_url", "https://n8n.test/webhook")
 
     cl = await make_client()
     await _set_channels(priv_factory, cl.id, regular="regular@example.com")
@@ -130,6 +131,7 @@ async def test_recipient_selection_by_urgency(
         sent_payloads.append(payload)
 
     monkeypatch.setattr("app.delivery.n8n_client.N8nClient.send", fake_send)
+    monkeypatch.setattr(auth_app.state.settings, "n8n_webhook_url", "https://n8n.test/webhook")
 
     cl = await make_client()
     await _set_channels(

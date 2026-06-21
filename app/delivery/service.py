@@ -248,6 +248,19 @@ async def dispatch_report(
         )
         return "held"
 
+    # No routing webhook configured → hold approved-pending-delivery rather than failing every
+    # attempt (FR-002/003 graceful degradation; the report re-dispatches once n8n is wired).
+    if not n8n.configured:
+        await _hold(
+            session,
+            report,
+            dispatcher,
+            reason="unconfigured",
+            actor_id=actor_id,
+            actor_type=actor_type,
+        )
+        return "held"
+
     existing = {a.channel: a for a in await _load_attempts(session, report.id)}
     document = render_report_document(report, await _included_findings(session, report))
 

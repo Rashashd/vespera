@@ -43,7 +43,11 @@ function sortClaims(claims: Claim[]): Claim[] {
 
 export function ReportDetail({ clientId, reportId, mode }: Props) {
   const navigate = useNavigate();
-  const { data: report, isLoading, isError, refetch } = useReport(clientId, reportId);
+  const { data: report, isLoading, isError, refetch } = useReport(
+    clientId,
+    reportId,
+    mode === "portal",
+  );
   const { data: findings = [] } = useReportFindings(clientId, reportId);
 
   const [selectedFindingId, setSelectedFindingId] = useState<number | null>(null);

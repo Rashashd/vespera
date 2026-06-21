@@ -86,11 +86,18 @@ export function useAllReports(clientId: number | null, page = 0, limit = 50) {
   });
 }
 
-export function useReport(clientId: number | null, reportId: number | undefined) {
+export function useReport(
+  clientId: number | null,
+  reportId: number | undefined,
+  portal = false,
+) {
+  // Client-portal users hit the portal-safe endpoint; staff hit the reviewer endpoint
+  // (reviewer route is require_reviewer, so client users would 404 on it).
+  const path = portal ? "portal/reports" : "reports";
   return useQuery({
-    queryKey: ["report", clientId, reportId],
+    queryKey: ["report", clientId, reportId, portal],
     queryFn: () =>
-      get<unknown>(`/clients/${clientId}/reports/${reportId}`).then((r) =>
+      get<unknown>(`/clients/${clientId}/${path}/${reportId}`).then((r) =>
         ReportResponseSchema.parse(r),
       ),
     enabled: clientId !== null && reportId !== undefined,

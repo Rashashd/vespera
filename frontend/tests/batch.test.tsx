@@ -90,7 +90,8 @@ describe("Batch finding management", () => {
 
   it("hides drop/discard controls in read-only mode (portal)", async () => {
     server.use(
-      http.get("http://localhost:8000/clients/1/reports/5", () => HttpResponse.json(BATCH_REPORT)),
+      // Portal mode fetches the portal-safe report endpoint, not the reviewer one.
+      http.get("http://localhost:8000/clients/1/portal/reports/5", () => HttpResponse.json(BATCH_REPORT)),
       http.get("http://localhost:8000/clients/1/reports/5/findings", () => HttpResponse.json(FINDINGS)),
       http.get("http://localhost:8000/clients", () => HttpResponse.json([{ id: 1, name: "Acme", status: "active" }])),
     );
