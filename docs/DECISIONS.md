@@ -201,3 +201,77 @@ Three independent layers harden the existing pipeline; the two spec-8 triage dev
   verify (SC-007).
 - **CI gates added** — `eval_thresholds.yaml security:` (redaction leak=0; red-team block-rate=1.0,
   false-refusal=0). The red-team gate imports the rails engine directly, so no sidecar runs in CI.
+
+## Report Delivery & Notifications (013-delivery)
+
+Full rationale in `specs/013-delivery/research.md`; operational detail in `delivery-runbook.md`.
+Project-level highlights:
+
+- **Delivery is gated by the HITL approval, enforced at send time.** A passive `ReportApproved`
+  handler enqueues the durable `task_deliver_report`; the job **re-checks the report is still
+  `approved` at send time** before dispatching, so an edit/discard between approval and send
+  cancels delivery. The HITL gate (Constitution I) is therefore enforced again at the delivery
+  boundary, not just at the queue.
+- **Report status is derived, not stored.** Overall delivery status is computed from the
+  `delivery_attempt` rows: `delivered` = all channels delivered; `delivery_failed` = any channel
+  failed; otherwise `sent`. There is no separate status enum to drift out of sync with the attempts.
+- **A report with no deliverable path is *held*, not *failed*.** No configured channel, or a
+  suspended client, leaves the report `approved` and alerts staff; reactivating the client (or a
+  staff `resend`) re-enqueues delivery. Failure is reserved for an actual channel/callback failure,
+  so the dashboard never shows a spurious red for an unconfigured client. (This graceful-hold path
+  is the `fix/portal-detail-delivery-hold` work.)
+- **The SFTP credential lives in n8n, never in the app DB.** The app stores destination metadata
+  only (`sftp_host`/`sftp_path`); n8n holds the secret and performs the transfer. This keeps a
+  whole class of delivery secret out of the application trust boundary.
+- **n8n routes delivery/notifications; ARQ executes pipeline work — neither replaces the other**
+  (Constitution VI). Backend → n8n is one webhook per channel (httpx + tenacity, 3 attempts, never
+  retries 4xx); n8n → backend is a callback `POST …/delivery-callback` authenticated by a
+  constant-time `X-Delivery-Token` (service token, bypasses user JWT, sets per-client RLS context
+  explicitly), idempotent per `(report, channel)`. No extra message broker is introduced.
+- **Delivery config is optional and fail-soft.** `n8n_webhook_url` and `delivery_callback_token`
+  are NOT in `_REQUIRED_SECRETS`; unset → the app boots and **holds** delivery (a missing/empty
+  callback token rejects callbacks with 401, so it must be set in CI even though it is optional).
+- **The delivered report body is NOT redacted — it is the deliverable.** Redaction is egress-only
+  for external-LLM/log/trace paths; a client's own approved report is rendered full-fidelity and
+  sent to that client. Delivery/notification **logs and traces** are PII-free (Presidio /
+  `scrub_text`); failure `error`/`reason` strings are scrubbed before they are logged or persisted.
+- **SLA sweep, two independent timers** (`task_delivery_sla_sweep`, cron): a `sent` report with no
+  callback within `delivery_no_callback_window_hours` (default 6) → `delivery_failed` + staff alert;
+  an open expedited report past `sla_deadline` escalates Tier-1 (the client's reviewers), then
+  Tier-2 (manager/admin) after `sla_tier2_interval_hours`. Each tier fires at most once; an actioned
+  report never escalates. Budget-threshold notifications dedup by state (one alert per crossing).
+
+## Security-Audit Remediation (post-spec hardening)
+
+A security/safety audit run after the 13 specs surfaced one CRITICAL plus several HIGH/medium
+issues; they are being remediated cluster-by-cluster (each its own PR). Decisions worth recording
+at the project level — clusters 1–3 are complete (migrations `0013`–`0015`):
+
+- **Triage now fails safe — proven by construction (Cluster 1, Constitution III).** A classifier
+  or NER outage previously returned `None` and let the cycle complete *clean*, silently suppressing
+  detection. It now **escalates** (forces `verdict=YES`, `resolution_path="escalated"`) on a
+  classifier outage and emits an operator alert on an NER outage; a document that could not be
+  triaged writes a durable `triage_failed_at` marker, and consolidation marks the cycle **`degraded`**
+  (`status=completed` + `degraded_reason`, so the partial report still ships) — a broken run can
+  never report clean. `findings.classifier_version` (the classifier artifact SHA) is recorded;
+  **NULL distinguishes an outage escalation from a low-confidence one**. The backstop staleness
+  sweep was dead code; it is now wired to cron and **remediates** (re-triages slipped documents,
+  re-enqueues orphaned expedited findings). Migrations `0013` (markers + version) and `0014`
+  (`triaged_at`, so the sweep tells a legitimately-zero document from a never-triaged one).
+- **Model integrity refuses boot on a bad artifact (Cluster 2).** App-local boot validation now
+  refuses to start on a scispaCy NER version mismatch or embedder-tokenizer SHA mismatch (mirroring
+  the modelserver's own refuse-boot), and the index-time `/ready` pin-check is extended to the
+  classifier and reranker. The onnx 1.19.0 path-traversal/TOCTOU CVEs were cleared by pinning
+  `onnx>=1.21.0` and `requires-python ">=3.12,<3.13"` — **the project is now Python 3.12-only.**
+- **Right-to-erasure + reviewer-comment redaction at rest (Cluster 3, Constitution V).** A manager
+  can `POST /clients/{id}/erase` (the body must echo the client's exact name as a safeguard); it
+  atomically purges every `client_id` table — **including chunk vectors and user sessions** — and
+  retains only a minimal `clients` tombstone (id + name + timestamps kept, PII nulled,
+  `status=erased`, `erased_at` set) plus the PII-free `audit_log`, dispatching `ClientErased`. The
+  erasure is itself audited and atomic with the audit row. Separately, reviewer comments are now
+  redacted (Presidio `redact_async`) **before they are persisted** on edit-approve and reject, so
+  PII a reviewer pastes never lands in the DB in the clear. Migration `0015`.
+- **PII → external-LLM sufficiency is a human regulatory call, deliberately NOT pre-built.**
+  Patient-derived free-text literature reaches the external LLM after *best-effort* Presidio
+  redaction; whether that satisfies GDPR/HIPAA/ICH is a regulatory judgment routed to a human and a
+  **do-not-ship-to-real-data gate**, not a coding task. Flagged, not speculatively engineered.

@@ -13,8 +13,11 @@ Operational guide for running Pantera locally and in production.
    `docker compose exec -e VAULT_TOKEN=root vault vault kv put secret/pantera/secrets \
      database_url='postgresql+asyncpg://pantera:pantera@postgres:5432/pantera' \
      redis_url='redis://redis:6379/0' anthropic_api_key='<key>'`
-4. Apply the baseline schema (in-container so hostnames resolve):
-   `docker compose run --rm api alembic upgrade head`
+4. Apply the schema (in-container so hostnames resolve):
+   `docker compose run --rm api alembic upgrade head` — the current head is **`0015`** (migrations
+   `0001`–`0015`; `0013`–`0015` are the security-audit remediation: triage fail-safe markers and
+   client right-to-erasure). For RLS (migration `0011`), the least-priv `pantera_app` role must
+   exist first — see "RLS role provisioning" below.
 5. `docker compose up -d` — then `curl http://localhost:8000/health` → `{"status":"ok"}`.
 6. **Bootstrap the first admin** (spec 2; idempotent — a no-op if any user exists):
    `docker compose run --rm api python scripts/seed_admin.py`
@@ -66,6 +69,23 @@ client-scoped and a cross-tenant id returns 404):
 Each watchlist read exposes a derived `budget_status` (`ok` < 80% → `warning` ≥ 80% →
 `soft_capped` ≥ 100% of the current-UTC-month spend) and `current_period_spend`. Raising the
 budget or a new month auto-clears the cap (spend metering itself arrives in a later spec).
+
+### Right-to-erasure (security-audit Cluster 3)
+
+A **manager** can irreversibly erase a client's personal data:
+
+```bash
+curl -X POST http://localhost:8000/clients/<client_id>/erase \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"confirm_name": "<the client's exact name>"}'
+```
+
+`confirm_name` MUST echo the client's exact name (a typo-safeguard; a mismatch is rejected). The
+operation atomically purges every `client_id`-scoped table — **including chunk vectors and user
+sessions** — and retains only a minimal tombstone: the `clients` row keeps its id, name, and
+timestamps, but PII/config is nulled and `status` moves to the terminal `erased` (with `erased_at`
+set). The PII-free `audit_log` is preserved and the erasure is itself audited (`ClientErased`). An
+already-erased client returns `409`.
 
 ## Literature ingestion (spec 4)
 
@@ -393,14 +413,29 @@ uv run pytest tests/integration/test_triage_eval.py -v
 # Expected: recall >= 0.90, precision >= 0.75, FN <= FP (SC-003)
 ```
 
-### Staleness sweep (operator alert)
+### Fail-safe behavior (security-audit Cluster 1)
 
-Documents that are `INDEXED` but have zero findings after `triage_staleness_max_age_minutes`
-(default 30 min) emit `triage.operator_alert` (stage=sweep). These appear in structured logs:
+Triage **fails safe** (Constitution III): a classifier outage **escalates** the drug/reaction pair
+(forces `verdict=YES`, `resolution_path="escalated"`, NULL `classifier_version`) rather than
+suppressing it, and an NER outage emits an operator alert and stops that document being marked
+triaged. A document that could not be triaged carries a durable `triage_failed_at` marker, and the
+cycle is marked **`degraded`** at consolidation (`status=completed` + `degraded_reason` — the
+partial batch report still ships, but the run is never reported clean). `findings.classifier_version`
+records the artifact SHA that made each call; a NULL value flags an outage escalation. Operator
+alerts are also forwarded to Sentry.
+
+### Staleness sweep (operator alert + remediation)
+
+`task_triage_sweep` runs on cron (no longer log-only). Documents that are `INDEXED` but have zero
+findings after `triage_staleness_max_age_minutes` (default 30 min) emit `triage.operator_alert`
+(stage=sweep). These appear in structured logs:
 ```
 {"event": "triage.operator_alert", "stage": "sweep", "document_id": ..., "reason": "indexed_with_no_finding_past_staleness_window"}
 ```
-Routing these to a paging system is spec 11.
+The sweep now **remediates** rather than only alerting: it re-triages documents that genuinely
+slipped through (`task_retriage_document`) and re-enqueues orphaned `PENDING_EXPEDITED` findings that
+never produced a report. The `triaged_at` marker (migration 0014) lets it tell a legitimately
+zero-finding document from a never-triaged one, so clean documents are not re-triaged forever.
 ```bash
 curl http://localhost:8001/ready | jq .latency_ms
 # Shows p50/p95 for classify, embed, rerank operations
