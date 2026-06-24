@@ -1,8 +1,8 @@
-# Pantera
+# Vespera
 
 **Automated pharmacovigilance literature monitoring and adverse-event signal detection.**
 
-Pantera is a B2B SaaS platform that continuously monitors medical literature and regulatory
+Vespera is a B2B SaaS platform that continuously monitors medical literature and regulatory
 feeds for a client's drugs, detects adverse-event signals, and drafts grounded safety reports.
 Every report is **human-reviewed before delivery** — the system triages and drafts, but a
 qualified reviewer is the only authority that can authorize a send. Because its outputs feed
@@ -217,7 +217,7 @@ All project documentation lives in [`docs/`](docs/):
 
 ## Governing principles
 
-Pantera is built spec-first ("own every line; no vibe coding"). Seven non-negotiable
+Vespera is built spec-first ("own every line; no vibe coding"). Seven non-negotiable
 principles govern the system: human-in-the-loop authority, grounding is the grade, triage
 fails safe, every decision is backed by a number, multi-tenant isolation & data protection,
 lean/reproducible/justified architecture, and spec-driven development. They are the contract

@@ -152,7 +152,7 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith("/audit")) return "Audit Log";
   if (pathname.startsWith("/failed-queue")) return "Failed Queue";
   if (pathname.startsWith("/portal")) return "My Watchlists";
-  return "Pantera";
+  return "Vespera";
 }
 
 /**
@@ -210,11 +210,11 @@ export function AppShell() {
           )}
         >
           {collapsed ? (
-            <Link to="/" aria-label="Pantera home">
+            <Link to="/" aria-label="Vespera home">
               <PantherMark className="h-11 w-11" />
             </Link>
           ) : (
-            <Link to="/" aria-label="Pantera home" className="text-foreground">
+            <Link to="/" aria-label="Vespera home" className="text-foreground">
               <Wordmark iconClassName="h-12 w-12" textClassName="text-xl" />
             </Link>
           )}

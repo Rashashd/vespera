@@ -36,7 +36,7 @@ export default function SignIn() {
         {/* story */}
         <div className="relative z-10 max-w-[440px]">
           <div className="mb-5 font-mono text-[10.5px] uppercase tracking-[0.26em] text-pantera-teal dark:text-pantera-tealLt">
-            Why Pantera?
+            Why Vespera?
           </div>
           <h2 className="mb-5 font-display text-[25px] font-medium leading-[1.32] tracking-[-0.01em] text-foreground">
             Stealth, sharp senses,
@@ -44,7 +44,7 @@ export default function SignIn() {
             constant vigilance.
           </h2>
           <p className="text-[14.5px] leading-[1.72] text-[#4a6580] dark:text-[#9db0c2]">
-            A panther watches quietly and continuously — exactly how Pantera
+            A panther watches quietly and continuously — exactly how Vespera
             monitors the medical literature for danger signals before they
             become crises.
           </p>

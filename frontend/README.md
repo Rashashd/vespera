@@ -1,6 +1,6 @@
-# Pantera SPA
+# Vespera SPA
 
-React 18 + Vite + TypeScript frontend for the Pantera pharmacovigilance platform.
+React 18 + Vite + TypeScript frontend for the Vespera pharmacovigilance platform.
 
 ## Prerequisites
 

@@ -33,7 +33,7 @@ export function Wordmark({
         <span
           className={`block font-wordmark font-medium uppercase leading-none tracking-[0.22em] ${textClassName}`}
         >
-          Pantera
+          Vespera
           <sup className="ml-[0.18em] align-super font-sans text-[0.3em] font-normal tracking-normal text-muted-foreground">
             ™
           </sup>

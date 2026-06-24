@@ -98,7 +98,7 @@ Full rationale in `specs/006-parse-chunk-embed/research.md` (D1–D12).
 
 - **HNSW vector index over IVFFlat** — no training-on-empty-table overhead; incremental corpus
   growth does not degrade recall. IVFFlat `lists` tuning and re-training across growing corpus
-  rejected. HNSW default `m=16, ef_construction=64` sufficient for Pantera scale (D1).
+  rejected. HNSW default `m=16, ef_construction=64` sufficient for Vespera scale (D1).
 - **Exact tokenizer-based chunking** — chunks counted with embedder's own tokenizer.json
   (not LLM-style BPE assumptions). Hard cap at 512 tokens prevents silent truncation by the
   embedder; boundary computed before embedding so no wasted API calls (FR-025/D6).

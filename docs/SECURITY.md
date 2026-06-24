@@ -1,6 +1,6 @@
 # SECURITY
 
-Security posture for Pantera. Foundation-level controls are listed first; the application-layer
+Security posture for Vespera. Foundation-level controls are listed first; the application-layer
 controls added by later specs and the security-audit remediation are summarized under "Application
 controls" below. Deeper rationale lives in `DECISIONS.md` (Security Hardening + Security-Audit
 Remediation), `RUNBOOK.md`, and `delivery-runbook.md`.

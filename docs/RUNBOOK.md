@@ -1,6 +1,6 @@
 # RUNBOOK
 
-Operational guide for running Pantera locally and in production.
+Operational guide for running Vespera locally and in production.
 
 ## Local (Docker Compose)
 
