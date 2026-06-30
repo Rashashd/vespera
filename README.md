@@ -1,5 +1,7 @@
 # Vespera
 
+*Named for the evening star that rises over the cedar and keeps watch.*
+
 **Automated pharmacovigilance literature monitoring and adverse-event signal detection.**
 
 Vespera is a B2B SaaS platform that continuously monitors medical literature and regulatory
@@ -12,6 +14,13 @@ treated as non-negotiable.
 > **Status:** all 13 spec-driven features are complete and merged to `master`. An ongoing
 > security-audit remediation pass is layering additional hardening (right-to-erasure, triage
 > fail-safe escalation, at-rest reviewer-comment redaction; migrations `0013`–`0015`).
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-login-dark.png">
+    <img alt="Vespera — sign in" src="docs/screenshots/hero-login-light.png" width="860">
+  </picture>
+</p>
 
 ---
 
@@ -43,6 +52,40 @@ adapters    chunk →   dense +     classify  bounded     approve/      SFTP +  
   Reject-with-comment (AI redraft capped at 3 rounds) / Discard. No path bypasses it.
 - **Deliver** — on approval, a durable job renders the report and dispatches to every
   configured channel (email, SFTP) via n8n, with delivery callbacks and an SLA sweep.
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/report-citations.png"><img src="docs/screenshots/report-citations.png" alt="Grounded report with source-passage drawer"></a>
+      <br><sub><b>Grounded report</b> — every claim cites its source passage; the drawer shows the exact corroborating text.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/reviewer-queue.png"><img src="docs/screenshots/reviewer-queue.png" alt="Reviewer queue"></a>
+      <br><sub><b>Reviewer queue</b> — the human-in-the-loop approval gate; expedited first, then by review deadline.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/dashboard.png"><img src="docs/screenshots/dashboard.png" alt="Operations dashboard"></a>
+      <br><sub><b>Dashboard</b> — pipeline, delivery, and LLM-cost metrics for the acting client.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/admin-console.png"><img src="docs/screenshots/admin-console.png" alt="Admin console"></a>
+      <br><sub><b>Admin console</b> — watchlists, cadence, budgets, and severity-escalation keywords.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/client-portal.png"><img src="docs/screenshots/client-portal.png" alt="Client portal"></a>
+      <br><sub><b>Client portal</b> — the tenant-scoped, client-facing view of delivered reports.</sub>
+    </td>
+    <td width="50%"></td>
+  </tr>
+</table>
 
 ---
 

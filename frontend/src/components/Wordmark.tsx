@@ -1,10 +1,10 @@
 /**
- * Vespera lockup — the panther icon (brand SVG, teal, reads on any background)
+ * Vespera lockup — the brand mark (brand SVG, teal, reads on any background)
  * beside or above the "VESPERA™" wordmark set in Montserrat to match the logo
  * art. Wordmark color is inherited from the parent (`text-foreground`,
  * `text-vespera-cloud`, …). Optional tagline mirrors the logo lockup.
  */
-import { PantherMark } from "@/components/PantherMark";
+import { VesperaMark } from "@/components/VesperaMark";
 
 interface WordmarkProps {
   orientation?: "horizontal" | "vertical";
@@ -28,7 +28,7 @@ export function Wordmark({
         vertical ? "flex-col items-start gap-3" : "items-center gap-3"
       } ${className}`}
     >
-      <PantherMark className={iconClassName} />
+      <VesperaMark className={iconClassName} />
       <div className={vertical ? "" : "leading-none"}>
         <span
           className={`block font-wordmark font-medium uppercase leading-none tracking-[0.22em] ${textClassName}`}
