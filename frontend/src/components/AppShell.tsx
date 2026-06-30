@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { useWatchlists } from "@/api/hooks";
-import { PantherMark } from "./PantherMark";
+import { VesperaMark } from "./VesperaMark";
 import { Wordmark } from "./Wordmark";
 import { ActingClientSwitcher } from "./ActingClientSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
@@ -211,7 +211,7 @@ export function AppShell() {
         >
           {collapsed ? (
             <Link to="/" aria-label="Vespera home">
-              <PantherMark className="h-11 w-11" />
+              <VesperaMark className="h-11 w-11" />
             </Link>
           ) : (
             <Link to="/" aria-label="Vespera home" className="text-foreground">
