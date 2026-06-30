@@ -1,12 +1,12 @@
 /**
  * Sign-in page — finalized split layout from the "Vespera Login Split" design
- * handoff. Left brand panel (lockup, the "Why Vespera?" note, a faded panther
+ * handoff. Left brand panel (lockup, the "Why Vespera?" note, a faded brand-mark
  * watermark, ambient orbs + vignette); right form panel (heading, tagline,
  * real sign-in form, theme toggle). Both panels follow the active theme, so
  * light mode is light edge-to-edge. Stacks to the form alone on narrow screens.
  */
 import { LoginForm } from "@/components/auth/LoginForm";
-import { PantherMark } from "@/components/PantherMark";
+import { VesperaMark } from "@/components/VesperaMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
 
@@ -18,40 +18,47 @@ export default function SignIn() {
         {/* ambient depth */}
         <div className="login-orb-1 pointer-events-none absolute -left-[8%] -top-[12%] h-[500px] w-[520px] rounded-full blur-[120px]" />
         <div className="login-orb-2 pointer-events-none absolute -bottom-[16%] -right-[10%] h-[520px] w-[560px] rounded-full blur-[120px]" />
-        {/* faded panther watermark, bleeding off the lower-right */}
-        <PantherMark
-          variant="mono"
-          className="pointer-events-none absolute -bottom-[12%] -right-[14%] h-[88%] w-auto text-vespera-teal opacity-[0.13] mix-blend-multiply dark:text-vespera-tealLt dark:opacity-20 dark:mix-blend-screen"
+        {/* faded brand-mark watermark, bleeding off the lower-right */}
+        <VesperaMark
+          variant="brand"
+          className="pointer-events-none absolute -bottom-[15%] -right-[26%] h-[84%] w-auto opacity-[0.08] dark:opacity-[0.12]"
         />
         {/* vignette */}
         <div className="login-vignette pointer-events-none absolute inset-0" />
 
-        {/* lockup */}
-        <Wordmark
-          iconClassName="h-24 w-24"
-          textClassName="text-[34px] text-foreground"
-          className="relative z-10"
-        />
+        {/* lockup — full logo (theme-swapped) */}
+        <div className="relative z-10">
+          <img
+            src="/vespera-logo-light.svg"
+            alt="Vespera — automated vigilance, human precision"
+            className="block h-auto w-[430px] dark:hidden"
+          />
+          <img
+            src="/vespera-logo-dark.svg"
+            alt="Vespera — automated vigilance, human precision"
+            className="hidden h-auto w-[430px] dark:block"
+          />
+        </div>
 
         {/* story */}
         <div className="relative z-10 max-w-[440px]">
-          <div className="mb-5 font-mono text-[10.5px] uppercase tracking-[0.26em] text-vespera-teal dark:text-vespera-tealLt">
+          <div className="mb-5 font-mono text-[12px] uppercase tracking-[0.26em] text-vespera-teal dark:text-vespera-tealLt">
             Why Vespera?
           </div>
-          <h2 className="mb-5 font-display text-[25px] font-medium leading-[1.32] tracking-[-0.01em] text-foreground">
-            Stealth, sharp senses,
+          <h2 className="mb-5 font-display text-[29px] font-medium leading-[1.3] tracking-[-0.01em] text-foreground">
+            One star rises over the cedar
             <br />
-            constant vigilance.
+            and stays, keeping watch.
           </h2>
-          <p className="text-[14.5px] leading-[1.72] text-[#4a6580] dark:text-[#9db0c2]">
-            A panther watches quietly and continuously — exactly how Vespera
-            monitors the medical literature for danger signals before they
-            become crises.
+          <p className="text-[16px] leading-[1.7] text-[#4a6580] dark:text-[#9db0c2]">
+            Vespera carries that name and promise: a constant vigil over the
+            medical literature, so the signals that protect lives are never
+            missed.
           </p>
         </div>
 
         {/* trust strip */}
-        <div className="relative z-10 flex items-center gap-[10px] font-mono text-[9.5px] uppercase tracking-[0.24em] text-[#8195a8] dark:text-[#4e6478]">
+        <div className="relative z-10 flex items-center gap-[10px] font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-[#5f718a] dark:text-[#8093a8]">
           <span>Regulated</span>
           <span className="opacity-45">·</span>
           <span>Compliant</span>
