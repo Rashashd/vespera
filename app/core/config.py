@@ -15,11 +15,14 @@ class Settings(BaseSettings):
     vault_token: str = "root"  # dev-mode convention; production holds only this token
     vault_secret_path: str = "vespera/secrets"
 
-    # --- Deployment environment (spec 12) ---
+    # --- Deployment environment (spec 12; fail-closed default — Cluster 4 M3/A4) ---
     # Drives production-only safety guards (e.g. the guardrails/redaction kill-switch guard,
-    # T002a). Override with env ENVIRONMENT=production on real deployments. There is no other
-    # production signal in the codebase; key prod-only behaviour off this single field.
-    environment: str = "development"
+    # T002a). Defaults to "production" so an unset/forgotten ENVIRONMENT fails CLOSED — the
+    # security boundary is enforced unless the operator EXPLICITLY opts into a non-prod value
+    # ({"development", "test"}; see startup._NON_PROD_ENVIRONMENTS). Local dev and the test
+    # suite set ENVIRONMENT=development. There is no other production signal in the codebase;
+    # key prod-only behaviour off this single field.
+    environment: str = "production"
 
     # --- Non-secret configuration (safe as defaults) ---
     anthropic_model: str = "claude-3-5-sonnet-20241022"  # pinned

@@ -25,6 +25,91 @@ Operational guide for running Vespera locally and in production.
    `admin@vespera.io` / `ChangeMe1!`; override via env before `write_secrets.py`, and change
    the password after first login). Use a deliverable email domain — `.local` is rejected.
 
+## Production deploy & rollback
+
+There is no automated CD pipeline yet (no hosting target is wired). Deployment is this manual,
+gated runbook; CI only **build-smoke tests** the production image (the `image-build` job builds
+`Dockerfile` on every PR — no registry push). When a hosting target is chosen, this runbook maps
+directly onto a CD job (build+push → health-gate → rollback).
+
+The API and worker share one image (`Dockerfile`); the modelserver and guardrails sidecar each
+have their own (`modelserver/Dockerfile`, `guardrails/Dockerfile`) and the SPA has
+`frontend/Dockerfile`. Every backend image excludes the heavy `training` extra (torch) — enforced
+by the Dockerfiles' `uv sync --no-group training`.
+
+### 1. Build a versioned image
+
+Tag every build with the immutable git SHA so a rollback has a concrete target — never deploy a
+floating `:latest` tag (it makes rollback ambiguous):
+
+```bash
+SHA=$(git rev-parse --short HEAD)
+docker build -t vespera-api:$SHA -f Dockerfile .
+# repeat for modelserver / guardrails / frontend when their sources change, then
+docker tag vespera-api:$SHA <registry>/vespera-api:$SHA && docker push <registry>/vespera-api:$SHA
+```
+
+### 2. Set the production configuration
+
+The app **fails closed** on a misconfigured production boot (Cluster 4), so these are enforced by
+startup checks, not merely advisory:
+
+- `ENVIRONMENT=production` — required. If unset/unknown the app treats itself as production
+  (fail-closed default) and refuses to boot if a mandatory security toggle is disabled.
+- `CORS_ALLOW_ORIGINS` — the real SPA origin(s) (JSON list). Production boot is refused if this is
+  empty, `*`, or a localhost/loopback origin (so the dev default can never silently ship).
+- `guardrails_enabled` / `redaction_enabled` — leave at their default `true`; production refuses
+  to boot with either disabled.
+- Vault holds all secrets (`_REQUIRED_SECRETS`: `database_url`, `redis_url`, `auth_jwt_secret`,
+  `app_database_url`, `guardrails_token`) plus at least one LLM key.
+
+### 3. Provision + migrate (before routing traffic)
+
+```bash
+# Create the least-priv vespera_app role once (idempotent), then migrate to head.
+psql "$ADMIN_DSN" -f scripts/db/init-vespera-app-role.sql
+alembic upgrade head    # current head: 0015
+```
+
+### 4. Health-check gate (before cutover)
+
+Start the new image and poll its liveness endpoint; only cut traffic over once it is healthy:
+
+```bash
+# GET /health returns {"status":"ok"} once the app has booted — which means secrets, DB, Redis,
+# model artifacts, AND the security/CORS boundary all validated.
+for i in $(seq 1 30); do curl -fsS http://<new-instance>:8000/health && break; sleep 2; done
+```
+
+A boot that fails any startup check (missing secret, disabled security toggle, dev/wildcard CORS
+origin, model-hash mismatch, unreachable DB/Redis) exits non-zero and never becomes healthy — so
+a broken deploy fails the gate instead of serving traffic.
+
+### 5. Rollback
+
+Because each release is a SHA-tagged image, rollback is redeploying the previous tag, then
+re-running the health-check gate:
+
+```bash
+# re-point the api + worker to the prior image, then poll GET /health as in step 4
+docker run ... vespera-api:<previous-SHA>
+```
+
+Migrations are forward-only and additive, so an image rollback is safe against the current schema.
+If a release ever includes a destructive migration (rare), pair the image rollback with the
+matching `alembic downgrade` and call it out in the release notes.
+
+### Production deploy checklist
+
+- [ ] `ENVIRONMENT=production` set on the api + worker.
+- [ ] `CORS_ALLOW_ORIGINS` set to the real SPA origin(s) — not empty, not `*`, not localhost.
+- [ ] All `_REQUIRED_SECRETS` + an LLM key present in Vault; `guardrails_enabled` /
+      `redaction_enabled` left `true`.
+- [ ] Image tagged with the git SHA (not `:latest`); `training` extra excluded (Dockerfile-enforced).
+- [ ] `vespera_app` role provisioned; `alembic upgrade head` run (head `0015`).
+- [ ] Health-check gate (`GET /health`) passed on the new instance before cutover.
+- [ ] Previous SHA-tagged image retained for rollback.
+
 ## Authentication (spec 2)
 
 - Log in: `POST /auth/jwt/login` (form `username`=email, `password`) → `{access_token,

@@ -24,6 +24,12 @@ import pytest_asyncio
 # A dedicated test (test_guardrails_failsafe) re-enables guardrails to prove the outage fail-safe.
 os.environ.setdefault("GUARDRAILS_ENABLED", "false")
 
+# Cluster 4 (M3/A4): the security boundary now fails CLOSED by default — Settings.environment
+# defaults to "production", where a disabled guardrails/redaction toggle refuses boot
+# (check_security_boundary). The suite runs with GUARDRAILS_ENABLED=false, so it MUST opt into a
+# non-prod environment or every boot would raise. Set BEFORE any get_settings() call.
+os.environ.setdefault("ENVIRONMENT", "development")
+
 # ---------------------------------------------------------------------------
 # Fixture artifact helpers
 # ---------------------------------------------------------------------------
