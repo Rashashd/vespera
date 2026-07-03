@@ -124,23 +124,33 @@ def check_model_artifacts(settings: Settings) -> None:
     _log.info("startup.model_artifacts.validated")
 
 
+# The ONLY environments allowed to disable the mandatory security boundary (test isolation +
+# local development). Anything else — including an unset/empty/misspelled ENVIRONMENT — is
+# treated as production and MUST run with guardrails + redaction enabled (Cluster 4 M3/A4:
+# fail closed regardless of ENVIRONMENT). Compared case-insensitively after stripping.
+_NON_PROD_ENVIRONMENTS = frozenset({"development", "test"})
+
+
 def check_security_boundary(settings: Settings) -> None:
-    """Refuse to boot in production with a mandatory security layer disabled (T002a).
+    """Refuse to boot with a mandatory security layer disabled unless env is dev/test (T002a).
 
     `guardrails_enabled`/`redaction_enabled` exist ONLY so the test suite can isolate
     non-guarded / non-redacted behaviour. Honouring a `False` toggle in production would
     silently bypass the mandatory guardrails boundary or PII redaction (FR-003 / FR-014a;
-    Principle V / Security). Non-prod may disable them for test isolation.
+    Principle V / Security). Only an EXPLICIT `development`/`test` environment may disable
+    them; every other value — including unset/unknown (default "production") — fails closed,
+    so a prod deploy that forgets ENVIRONMENT can never silently drop the boundary.
     """
-    if settings.environment != "production":
+    if settings.environment.strip().lower() in _NON_PROD_ENVIRONMENTS:
         return
     disabled = [
         name for name in ("guardrails_enabled", "redaction_enabled") if not getattr(settings, name)
     ]
     if disabled:
         raise RuntimeError(
-            "Mandatory security boundary cannot be disabled in production: "
-            f"{', '.join(disabled)} is False (set environment != 'production' for tests only)"
+            "Mandatory security boundary cannot be disabled outside a development/test "
+            f"environment: {', '.join(disabled)} is False for environment="
+            f"{settings.environment!r} (set ENVIRONMENT=development or test for isolation only)"
         )
 
 
