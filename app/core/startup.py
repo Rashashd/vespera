@@ -124,11 +124,20 @@ def check_model_artifacts(settings: Settings) -> None:
     _log.info("startup.model_artifacts.validated")
 
 
-# The ONLY environments allowed to disable the mandatory security boundary (test isolation +
-# local development). Anything else — including an unset/empty/misspelled ENVIRONMENT — is
-# treated as production and MUST run with guardrails + redaction enabled (Cluster 4 M3/A4:
-# fail closed regardless of ENVIRONMENT). Compared case-insensitively after stripping.
+# The ONLY environments allowed to relax production safety guards (test isolation + local
+# development). Anything else — including an unset/empty/misspelled ENVIRONMENT — is treated as
+# production (Cluster 4 M3/A4/A5: fail closed regardless of ENVIRONMENT). Compared
+# case-insensitively after stripping.
 _NON_PROD_ENVIRONMENTS = frozenset({"development", "test"})
+
+
+def _is_production_environment(settings: Settings) -> bool:
+    """True unless the operator EXPLICITLY opted into a development/test environment.
+
+    Everything else — unset/empty/unknown/misspelled — is production, so the prod boot guards
+    fail closed rather than silently relaxing on a forgotten ENVIRONMENT (Cluster 4 M3/A4/A5).
+    """
+    return settings.environment.strip().lower() not in _NON_PROD_ENVIRONMENTS
 
 
 def check_security_boundary(settings: Settings) -> None:
@@ -141,7 +150,7 @@ def check_security_boundary(settings: Settings) -> None:
     them; every other value — including unset/unknown (default "production") — fails closed,
     so a prod deploy that forgets ENVIRONMENT can never silently drop the boundary.
     """
-    if settings.environment.strip().lower() in _NON_PROD_ENVIRONMENTS:
+    if not _is_production_environment(settings):
         return
     disabled = [
         name for name in ("guardrails_enabled", "redaction_enabled") if not getattr(settings, name)
@@ -154,9 +163,43 @@ def check_security_boundary(settings: Settings) -> None:
         )
 
 
+def _is_dev_or_wildcard_origin(origin: str) -> bool:
+    """True for a wide-open "*" or any localhost/loopback dev origin (case-insensitive)."""
+    o = origin.strip().lower()
+    if o == "*":
+        return True
+    return any(host in o for host in ("localhost", "127.0.0.1", "[::1]"))
+
+
+def check_cors_configuration(settings: Settings) -> None:
+    """Refuse prod boot when CORS is unset (the dev default), wildcard-open, or a localhost origin.
+
+    The SPA and API are separate origins, so `cors_allow_origins` must be the REAL SPA origin(s)
+    in production. It defaults to the dev origin `http://localhost:5173` — restrictive, but wrong
+    for prod. Rather than silently shipping the dev origin (the SPA breaks) or a wide-open `*`
+    (any site can call the API), refuse boot so the deploy sets CORS_ALLOW_ORIGINS explicitly
+    (Cluster 4 A5). Non-prod keeps the permissive dev default.
+    """
+    if not _is_production_environment(settings):
+        return
+    origins = settings.cors_allow_origins
+    if not origins:
+        raise RuntimeError(
+            "CORS is not configured for production: cors_allow_origins is empty "
+            "(set CORS_ALLOW_ORIGINS to the real SPA origin(s))"
+        )
+    bad = [o for o in origins if _is_dev_or_wildcard_origin(o)]
+    if bad:
+        raise RuntimeError(
+            "CORS cannot ship a development or wildcard origin in production: "
+            f"{', '.join(bad)} (set CORS_ALLOW_ORIGINS to the real SPA origin(s))"
+        )
+
+
 async def run_startup_checks(engine: AsyncEngine, redis, settings: Settings) -> None:
     """Run all fail-fast startup checks; any failure aborts boot."""
     check_security_boundary(settings)
+    check_cors_configuration(settings)
     await check_database(engine)
     await check_redis(redis)
     check_model_artifacts(settings)
