@@ -91,3 +91,56 @@ async def test_all_drugs_incidental_returns_empty():
             document_id=1,
         )
     assert result == []
+
+
+class _FakeEnt:
+    def __init__(self, label: str, text: str) -> None:
+        self.label_ = label
+        self.text = text
+
+
+class _FakeSent:
+    def __init__(self, start_char: int, ents: list) -> None:
+        self.start_char = start_char
+        self.ents = ents
+
+
+class _FakeDoc:
+    def __init__(self, sents: list) -> None:
+        self.sents = sents
+
+
+class _FakeNlp:
+    def __init__(self, doc: _FakeDoc) -> None:
+        self._doc = doc
+
+    def __call__(self, text: str) -> _FakeDoc:
+        return self._doc
+
+
+def test_check_substantive_sync_real_logic_all_branches():
+    """Drive the real _check_substantive_sync over a fake spaCy doc (no model load) so the
+    title-mention / same-sentence-disease / incidental / no-chem-match branches all execute."""
+    from app.triage.prefilter import _check_substantive_sync
+
+    doc = _FakeDoc(
+        [
+            _FakeSent(0, [_FakeEnt("CHEMICAL", "Aspirin"), _FakeEnt("DISEASE", "hepatotoxicity")]),
+            _FakeSent(
+                30,
+                [_FakeEnt("CHEMICAL", "Methotrexate"), _FakeEnt("DISEASE", "nephrotoxicity")],
+            ),
+            _FakeSent(60, [_FakeEnt("CHEMICAL", "Ibuprofen")]),
+        ]
+    )
+    # newline at index 29 → sentences at start_char 0 are "title", >=29 are "summary".
+    text = "Aspirin hepatotoxicity report\nMethotrexate nephrotoxicity. Ibuprofen comparator."
+    with patch("app.triage.prefilter._get_nlp", return_value=_FakeNlp(doc)):
+        results = _check_substantive_sync(text, ["aspirin", "methotrexate", "ibuprofen", "placebo"])
+
+    assert results == [
+        ("aspirin", True, "title_mention"),
+        ("methotrexate", True, "same_sentence_disease"),
+        ("ibuprofen", False, "incidental_no_disease"),
+        ("placebo", False, "incidental_no_disease"),
+    ]

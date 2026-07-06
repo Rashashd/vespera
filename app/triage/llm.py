@@ -35,12 +35,6 @@ class _ValenceResult(BaseModel):
     valence: str
 
 
-def _should_retry(exc: BaseException) -> bool:
-    if isinstance(exc, httpx.HTTPStatusError):
-        return exc.response.status_code >= 500
-    return isinstance(exc, (httpx.TimeoutException, httpx.NetworkError))
-
-
 @traced_llm_call  # FR-032: trace the triage call site (inputs/outputs redacted to non-PII metadata)
 @retry(
     retry=retry_if_exception_type((httpx.TimeoutException, httpx.NetworkError)),
