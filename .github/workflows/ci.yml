@@ -99,6 +99,15 @@ jobs:
           # Integration tests read DB/Redis URLs from Vault, not the environment; we keep
           # DATABASE_URL/REDIS_URL OUT of env so Settings() defaults stay clean for unit tests.
         run: uv run pytest --cov=app --cov=worker --cov=modelserver --cov-report=term-missing
+      - name: Critical-path coverage gate (>=95% on classifier / HITL / auth / DB-write)
+        # Constitution "Testing gates": 80% overall (enforced above) AND >=95% on the safety-
+        # critical paths. coverage's single fail_under can't express a second, path-scoped
+        # threshold, so reuse the .coverage from the run above and enforce per-module >=95%.
+        env:
+          PYTHONPATH: "."
+        run: |
+          uv run coverage json -o coverage.json
+          uv run python scripts/check_critical_coverage.py coverage.json
 
   # Eval gate — classifier macro-F1 must stay >= 0.80 (US5 / FR-013 / D10)
   eval:
