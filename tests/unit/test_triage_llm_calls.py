@@ -9,6 +9,7 @@ best-effort usage-capture branch (needs a live AsyncSession) is covered in the i
 from __future__ import annotations
 
 import types
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -120,3 +121,29 @@ async def test_assess_valence_unexpected_value_falls_back_positive(monkeypatch):
     """An out-of-domain valence raises internally and hits the 'positive' fail-safe (FR-016)."""
     _stub_valence(monkeypatch, '{"valence": "banana"}')
     assert await triage_llm.assess_valence("text", "peer_reviewed", _settings(), 1, 1) == "positive"
+
+
+async def test_call_llm_records_usage_when_session_present(monkeypatch):
+    """With a session/settings/client_id, _call_llm records best-effort token usage (FR-033)."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    payload = {
+        "choices": [{"message": {"content": "{}"}}],
+        "usage": {"prompt_tokens": 5, "completion_tokens": 1},
+    }
+    _patch_httpx(monkeypatch, payload)
+    recorded = AsyncMock()
+    monkeypatch.setattr("app.observability.usage.record_usage", recorded)
+
+    async with AsyncSession() as session:  # unconnected: record_usage is mocked, never queries
+        out = await triage_llm._call_llm(
+            _llm("openai"),
+            "SYS",
+            "USER",
+            64,
+            session=session,
+            settings=MagicMock(),
+            client_id=1,
+        )
+    assert out == "{}"
+    recorded.assert_awaited_once()

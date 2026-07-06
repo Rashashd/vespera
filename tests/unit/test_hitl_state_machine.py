@@ -310,3 +310,151 @@ class TestDiscardTransition:
                 dispatcher=AsyncMock(),
             )
         assert exc_info.value.status_code == 404
+
+
+class TestReviewTransitionGuardsAndBranches:
+    """Cover the invalid-status guards and finding-reset branches the happy-path tests skip."""
+
+    @pytest.mark.asyncio
+    async def test_edit_approve_invalid_status_raises_409(self):
+        from app.reports import service as svc
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=_make_report(status="approved"))
+        with pytest.raises(HTTPException) as exc:
+            await svc.edit_approve_report(
+                report_id=1,
+                client_id=10,
+                reviewer=_make_reviewer(),
+                draft_body="x",
+                structured_fields=[],
+                comment="c",
+                session=session,
+                dispatcher=AsyncMock(),
+                settings=_settings(),
+            )
+        assert exc.value.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_reject_invalid_status_raises_409(self):
+        from app.reports import service as svc
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=_make_report(status="approved"))
+        with pytest.raises(HTTPException) as exc:
+            await svc.reject_report(
+                report_id=1,
+                client_id=10,
+                reviewer=_make_reviewer(),
+                comment="c",
+                redraft_cap=3,
+                session=session,
+                dispatcher=AsyncMock(),
+                settings=_settings(),
+            )
+        assert exc.value.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_edit_approve_keeps_unchanged_grounded_claim(self):
+        """A submitted claim identical to a drafted_grounded original keeps its provenance."""
+        from app.reports import service as svc
+
+        report = _make_report(status="drafted")
+        report.structured_fields = [
+            {
+                "field": "Drug",
+                "text": "Warfarin",
+                "provenance": "drafted_grounded",
+                "source_ref": "S1",
+            }
+        ]
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=report)
+        submitted = [{"field": "Drug", "text": "Warfarin", "provenance": "ignored"}]
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr("app.reports.review.mark_expedited_finding_reported", AsyncMock())
+            result = await svc.edit_approve_report(
+                report_id=1,
+                client_id=10,
+                reviewer=_make_reviewer(),
+                draft_body="body",
+                structured_fields=submitted,
+                comment="c",
+                session=session,
+                dispatcher=AsyncMock(),
+                settings=_settings(),
+            )
+
+        kept = result.structured_fields[0]
+        assert kept["provenance"] == "drafted_grounded"  # original kept, not reviewer_attested
+        assert kept["source_ref"] == "S1"
+
+    @pytest.mark.asyncio
+    async def test_discard_skips_non_expedited_and_non_processing_findings(self):
+        """Batch report_findings and expedited findings not in 'processing' are left untouched."""
+        from app.reports import service as svc
+
+        report = _make_report(status="drafted")
+        rf_batch = MagicMock(report_type="batch", finding_id=1)
+        rf_exp = MagicMock(report_type="expedited", finding_id=2)
+        scalars = MagicMock(all=lambda: [rf_batch, rf_exp])
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalars=lambda: scalars))
+        # load_report_for_client, then the expedited finding (status != processing → skipped).
+        session.get = AsyncMock(side_effect=[report, MagicMock(status="pending_expedited")])
+
+        result = await svc.discard_report(
+            report_id=1,
+            client_id=10,
+            reviewer=_make_reviewer(),
+            session=session,
+            dispatcher=AsyncMock(),
+        )
+        assert result.status == ReportStatus.DISCARDED
+
+    @pytest.mark.asyncio
+    async def test_drop_finding_when_finding_row_missing_still_dispatches(self):
+        from app.reports.review import drop_finding_from_report
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=None)  # finding row already gone
+        dispatcher = AsyncMock()
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "app.reports.review.load_report_finding", AsyncMock(return_value=MagicMock())
+            )
+            mp.setattr("app.reports.review.maybe_auto_discard_batch", AsyncMock())
+            await drop_finding_from_report(
+                report_id=1,
+                finding_id=5,
+                client_id=10,
+                reviewer=_make_reviewer(),
+                session=session,
+                dispatcher=dispatcher,
+            )
+        dispatcher.dispatch.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_discard_finding_permanently_when_finding_row_missing(self):
+        from app.reports.review import discard_finding_permanently
+
+        session = AsyncMock()
+        session.get = AsyncMock(return_value=None)
+        dispatcher = AsyncMock()
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "app.reports.review.load_report_finding", AsyncMock(return_value=MagicMock())
+            )
+            mp.setattr("app.reports.review.maybe_auto_discard_batch", AsyncMock())
+            await discard_finding_permanently(
+                report_id=1,
+                finding_id=5,
+                client_id=10,
+                reviewer=_make_reviewer(),
+                session=session,
+                dispatcher=dispatcher,
+            )
+        dispatcher.dispatch.assert_awaited_once()
