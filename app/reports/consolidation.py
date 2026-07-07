@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -157,7 +158,7 @@ async def consolidate_batch(
     return report
 
 
-def _build_batch_structured_fields(findings: list[Finding]) -> list[dict]:
+def _build_batch_structured_fields(findings: Sequence[Finding]) -> list[dict]:
     """Build a claim list, split into positive and minor sections, grouped by reaction (FR-012).
 
     Batch summary lines aggregate already-grounded findings, so they carry the
@@ -188,7 +189,7 @@ def _build_batch_structured_fields(findings: list[Finding]) -> list[dict]:
 
 
 def _build_batch_draft_body(
-    findings: list[Finding], watchlist_id: int, cycle_start: datetime
+    findings: Sequence[Finding], watchlist_id: int, cycle_start: datetime
 ) -> str:
     """Render a short batch report narrative."""
     bucket_counts: dict[str, int] = {}
@@ -204,5 +205,5 @@ def _build_batch_draft_body(
     )
 
 
-def _count_unique_documents(findings: list[Finding]) -> int:
+def _count_unique_documents(findings: Sequence[Finding]) -> int:
     return len({f.document_id for f in findings})

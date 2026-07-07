@@ -133,6 +133,7 @@ class ClientUserOut(BaseModel):
     @classmethod
     def from_user(cls, user: "User") -> "ClientUserOut":
         """Assemble the response from an ORM User and its watchlist_scopes relationship."""
+        assert user.client_id is not None  # client-users always belong to a client
         return cls(
             id=user.id,
             email=user.email,

@@ -58,7 +58,9 @@ def create_app() -> FastAPI:
     # Rate-limit machinery (FR-011): a default in-memory limiter so the middleware works
     # before startup; the lifespan upgrades app.state.limiter to the Redis-backed one.
     app.state.limiter = Limiter(key_func=get_remote_address)
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    # slowapi's handler is typed for its own RateLimitExceeded, narrower than Starlette's
+    # (Request, Exception) -> Response; valid at runtime.
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
     app.add_middleware(SlowAPIMiddleware)
     add_security_headers(app)  # baseline HSTS / frame / nosniff / referrer / CSP (FR-010)
     # CORS so the browser SPA (separate origin) can call the API. Added last → outermost,

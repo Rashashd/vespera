@@ -21,9 +21,9 @@ _DEV_PASSWORD = "ChangeMe1!"
 async def ensure_manager(session: AsyncSession, settings: Settings) -> None:
     """Create the bootstrap manager only if no active manager exists (idempotent)."""
     existing = await session.scalar(
-        select(func.count())
-        .select_from(User)
-        .where(User.role == Role.MANAGER.value, User.is_active.is_(True))
+        select(func.count()).select_from(User)
+        # is_active inherited from the fastapi-users base table → mypy sees `bool` (no SA plugin).
+        .where(User.role == Role.MANAGER.value, User.is_active.is_(True))  # type: ignore[attr-defined]
     )
     if existing:
         return

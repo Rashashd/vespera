@@ -17,7 +17,9 @@ def build_agent_chat_model(settings: Settings) -> BaseChatModel:
     if llm.provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        return ChatAnthropic(
+        # langchain-anthropic accepts model/max_tokens at runtime; its stubs declare them
+        # via aliases mypy doesn't resolve, so silence the call-arg check.
+        return ChatAnthropic(  # type: ignore[call-arg]
             model=llm.model,
             api_key=llm.api_key,  # type: ignore[arg-type]
             max_tokens=settings.agent_llm_max_tokens,
@@ -25,7 +27,7 @@ def build_agent_chat_model(settings: Settings) -> BaseChatModel:
     else:
         from langchain_openai import ChatOpenAI
 
-        return ChatOpenAI(
+        return ChatOpenAI(  # type: ignore[call-arg]
             model=llm.model,
             api_key=llm.api_key,  # type: ignore[arg-type]
             max_tokens=settings.agent_llm_max_tokens,

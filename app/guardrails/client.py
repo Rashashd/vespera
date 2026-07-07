@@ -28,7 +28,7 @@ class GuardrailsClient:
         self,
         base_url: str,
         token: str,
-        transport: httpx.BaseTransport | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._token = token
@@ -61,8 +61,13 @@ class GuardrailsClient:
         self, text: str, direction: str, client_id: int, call_site: str
     ) -> GuardResponse:
         """Evaluate one payload; raise GuardrailsUnavailable on any transport/HTTP failure."""
+        # direction/call_site are validated against GuardRequest's Literal fields at runtime;
+        # the callers pass plain str, so silence mypy's Literal arg-type check here.
         payload = GuardRequest(
-            text=text, direction=direction, client_id=client_id, call_site=call_site
+            text=text,
+            direction=direction,  # type: ignore[arg-type]
+            client_id=client_id,
+            call_site=call_site,  # type: ignore[arg-type]
         ).model_dump()
         try:
             data = await self._post_guard(payload)

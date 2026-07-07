@@ -43,6 +43,10 @@ async def index_build_runner(
         The completed IndexBuildRun with status and counts.
     """
     settings = get_settings()
+    # Honor the documented contract: build the modelserver client from settings when the caller
+    # did not supply one (and give mypy a non-Optional handle for the calls below).
+    if modelserver_client is None:
+        modelserver_client = ModelserverClient.from_settings(settings)
 
     # Create the run first (or get the in-flight one — FR-026). Doing this before anything that
     # can fail (e.g. tokenizer loading) means every failure path can finish the run as FAILED
@@ -121,7 +125,7 @@ async def index_build_runner(
         # the per-document transactions, so they must be written back here — FR-010).
         async with session_factory() as session:
             async with session.begin():
-                run = await IndexBuildService.finish_run(
+                finished = await IndexBuildService.finish_run(
                     session,
                     run_id,
                     documents_processed=documents_processed,
@@ -129,6 +133,8 @@ async def index_build_runner(
                     documents_skipped=documents_skipped,
                     chunks_created=chunks_created,
                 )
+        assert finished is not None  # finish_run returns the updated run row
+        run = finished
 
         _log.info(
             "index build run finished",

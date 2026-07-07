@@ -36,7 +36,7 @@ class PubMedParser:
 
             raise ParseError(f"Failed to parse JATS XML: {e}", is_transient=False) from e
 
-        chunks = []
+        chunks: list[ParsedChunk] = []
 
         # Extract article element
         article = root.find(".//Article")

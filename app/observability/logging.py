@@ -66,7 +66,7 @@ def configure_logging(level: str = "INFO") -> None:
             structlog.contextvars.merge_contextvars,  # client_id / finding_id when bound
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            _redact_processor,
+            _redact_processor,  # type: ignore[list-item]  # structlog Processor type is stricter than our signature
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(

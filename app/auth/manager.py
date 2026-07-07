@@ -34,9 +34,10 @@ def validate_password_policy(password: str) -> None:
 async def _active_manager_count(session: AsyncSession, exclude_id: int | None = None) -> int:
     """Count active managers globally, optionally excluding one user (last-manager guard)."""
     stmt = (
-        select(func.count())
-        .select_from(User)
-        .where(User.role == Role.MANAGER.value, User.is_active.is_(True))
+        select(func.count()).select_from(User)
+        # is_active is inherited from the fastapi-users base table; mypy resolves it to `bool`
+        # (no SQLAlchemy plugin), so silence the column-expression attr check.
+        .where(User.role == Role.MANAGER.value, User.is_active.is_(True))  # type: ignore[attr-defined]
     )
     if exclude_id is not None:
         stmt = stmt.where(User.id != exclude_id)
@@ -53,7 +54,7 @@ async def _active_admin_count(
         .where(
             User.client_id == client_id,
             User.role == Role.ADMIN.value,
-            User.is_active.is_(True),
+            User.is_active.is_(True),  # type: ignore[attr-defined]  # base-table column, see above
         )
     )
     if exclude_id is not None:

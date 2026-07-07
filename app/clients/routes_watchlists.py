@@ -120,7 +120,7 @@ async def update_watchlist(
     fields = payload.model_fields_set
     changes: dict = {}
 
-    if "name" in fields and payload.name != watchlist.name:
+    if "name" in fields and payload.name is not None and payload.name != watchlist.name:
         try:
             await service.rename_watchlist(session, watchlist, payload.name)
         except service.NameConflict as exc:
@@ -129,12 +129,17 @@ async def update_watchlist(
             ) from exc
         changes["name"] = watchlist.name
 
-    if "cadence" in fields and payload.cadence.value != watchlist.cadence:
+    if (
+        "cadence" in fields
+        and payload.cadence is not None
+        and payload.cadence.value != watchlist.cadence
+    ):
         watchlist.cadence = payload.cadence.value
         changes["cadence"] = watchlist.cadence
 
     if (
         "severity_threshold" in fields
+        and payload.severity_threshold is not None
         and payload.severity_threshold.value != watchlist.severity_threshold
     ):
         watchlist.severity_threshold = payload.severity_threshold.value
@@ -159,7 +164,11 @@ async def update_watchlist(
         watchlist.budget_exceeded_policy = payload.budget_exceeded_policy
         changes["budget_exceeded_policy"] = watchlist.budget_exceeded_policy
 
-    if "is_active" in fields and payload.is_active != watchlist.is_active:
+    if (
+        "is_active" in fields
+        and payload.is_active is not None
+        and payload.is_active != watchlist.is_active
+    ):
         try:
             await service.set_active(session, watchlist, payload.is_active)
         except service.WatchlistEmpty as exc:

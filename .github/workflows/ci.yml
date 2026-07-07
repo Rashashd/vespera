@@ -54,8 +54,8 @@ jobs:
         run: uv run ruff check app worker guardrails tests
       - name: Black format check
         run: uv run black --check app worker guardrails tests
-      - name: Type-check (advisory)
-        run: uv run mypy app worker || true
+      - name: Type-check (blocking)
+        run: uv run mypy app worker
       - name: Start infra (Vault + Postgres + Redis)
         run: docker compose up -d --wait vault postgres redis
       - name: Write secrets into Vault (inline; the local helper script is untracked)
