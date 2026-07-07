@@ -36,11 +36,12 @@ CRITICAL_MODULES: dict[str, list[str]] = {
         "app/embedding/triage_trigger.py",
     ],
     "hitl": [
-        # The HITL gate is the reviewer approve/edit/reject/discard state machine below. The
-        # drafting agent (app/agent/graph.py) is deliberately NOT gated here: it is the *agent*,
-        # governed by its own tool-selection eval (accuracy >= 0.85) + the bounded-agent safety
-        # tests. Lifting its line coverage is a tracked follow-up, not this coverage gate's concern.
+        # The reviewer approve/edit/reject/discard state machine (the human-in-the-loop gate).
         "app/reports/review.py",
+    ],
+    "agent": [
+        # The bounded drafting graph: agent loop, tool_node, escalation on caps/guard-block/error.
+        "app/agent/graph.py",
     ],
     "auth": [
         "app/auth/dependencies.py",
