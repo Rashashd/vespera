@@ -158,7 +158,7 @@ async def reconcile_interrupted_runs(session: AsyncSession, grace_seconds: int =
         .values(status=IngestionRunStatus.FAILED.value, finished_at=now)
     )
     await session.flush()
-    return result.rowcount  # type: ignore[return-value]
+    return result.rowcount  # type: ignore[attr-defined]  # CursorResult typed as Result[Any]
 
 
 # ---------------------------------------------------------------------------
@@ -278,7 +278,9 @@ async def upsert_document(
         )
         doc = result.scalar_one()
     else:
-        doc = await session.get(Document, new_doc_id)
+        fetched = await session.get(Document, new_doc_id)
+        assert fetched is not None  # the row was just inserted above
+        doc = fetched
 
     # Upsert the contributing DocumentSource row (one per source per document).
     src_stmt = (

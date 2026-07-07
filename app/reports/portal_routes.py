@@ -16,6 +16,7 @@ from app.clients.models import Client
 from app.core.dependencies import get_session
 from app.ingestion.models import DocumentWatchlist
 from app.reports import service as report_service
+from app.reports.enums import ReportStatus, ReportType
 from app.reports.models import Report, ReportFinding
 from app.reports.schemas import (
     PortalReportDetail,
@@ -159,8 +160,8 @@ async def list_portal_reports(
         summaries.append(
             PortalReportSummary(
                 id=r.id,
-                report_type=r.report_type,
-                status=r.status,
+                report_type=ReportType(r.report_type),
+                status=ReportStatus(r.status),
                 severity=severity_by_report.get(r.id),
                 watchlist_id=effective_wl,
                 corroboration_count=r.corroboration_count,
@@ -193,8 +194,8 @@ async def get_portal_report(
     return PortalReportDetail(
         id=report.id,
         client_id=report.client_id,
-        report_type=report.report_type,
-        status=report.status,
+        report_type=ReportType(report.report_type),
+        status=ReportStatus(report.status),
         delivery_status=_delivery_status(report.status),
         watchlist_id=report.watchlist_id,
         corroboration_count=report.corroboration_count,
@@ -205,5 +206,6 @@ async def get_portal_report(
         updated_at=report.updated_at,
         structured_fields=report.structured_fields,
         draft_body=report.draft_body,
-        corroboration_sources=report.corroboration_sources,
+        # JSON list stored in a dict-typed column; the runtime value is a list.
+        corroboration_sources=report.corroboration_sources,  # type: ignore[arg-type]
     )

@@ -1,7 +1,7 @@
 """Unit tests for the per-client custom severity keyword layer (US3, FR-004)."""
 
 from app.triage.enums import Bucket
-from app.triage.severity import assign_bucket
+from app.triage.severity import _apply_custom_keywords, assign_bucket
 
 
 class TestCustomKeywordEscalation:
@@ -91,3 +91,18 @@ class TestCustomKeywordEscalation:
             custom_keywords=custom,
         )
         assert bucket == Bucket.EMERGENCY
+
+    def test_custom_keywords_present_but_none_match_keeps_bucket(self):
+        """Custom keywords supplied but absent from the text → original bucket unchanged."""
+        custom = [{"keyword": "rhabdomyolysis", "tier": "serious"}]
+        bucket = assign_bucket(
+            verdict=True,
+            text="Patient experienced mild nausea.",  # no ICH keyword, no custom match
+            source_reliability="peer_reviewed",
+            custom_keywords=custom,
+        )
+        assert bucket == Bucket.MINOR
+
+    def test_apply_custom_keywords_empty_list_is_identity(self):
+        """The helper's empty-list guard returns the bucket unchanged."""
+        assert _apply_custom_keywords(Bucket.URGENT, "any text", []) == Bucket.URGENT

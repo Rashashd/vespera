@@ -13,7 +13,7 @@ from app.observability.sentry import capture_operator_alert
 from app.triage import llm as llm_module
 from app.triage import prefilter
 from app.triage.classify import resolve_adverse
-from app.triage.enums import Bucket
+from app.triage.enums import Bucket, ResolutionPath
 from app.triage.ner import NerUnavailable, extract_entities, reaction_or_sentinel
 from app.triage.routing import bucket_to_status, upsert_finding
 from app.triage.schemas import FindingOutcome
@@ -266,7 +266,7 @@ async def _triage_one(
         bucket=bucket,
         status=status,
         model_confidence=model_confidence,
-        resolution_path=resolution_path,
+        resolution_path=ResolutionPath(resolution_path),
         finding_id=finding_id,
         created=created,
     )

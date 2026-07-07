@@ -27,7 +27,7 @@ class ModelserverClient:
         self,
         base_url: str,
         token: str,
-        transport: httpx.BaseTransport | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._token = token
@@ -122,6 +122,7 @@ class ModelserverClient:
         if not self._http:
             # Create a temporary client for this request
             async with self as _:
+                assert self._http is not None  # __aenter__ set it
                 resp = await self._http.get("/ready")
                 resp.raise_for_status()
                 return resp.json()

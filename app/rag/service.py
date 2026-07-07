@@ -62,7 +62,9 @@ async def retrieve(
     await assert_index_version(session, client.id, embedder_sha)
 
     n_candidates = min(req.top_k * 5, 50)
-    filters = dict(
+    # Heterogeneous filter kwargs unpacked into dense/lexical candidates; typed loosely so the
+    # **filters splat type-checks against each callee's specific parameter types.
+    filters: dict[str, Any] = dict(
         chunk_types=[ct.value for ct in req.chunk_types] if req.chunk_types else None,
         source_reliabilities=(
             [sr.value for sr in req.source_reliabilities] if req.source_reliabilities else None

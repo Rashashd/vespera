@@ -22,7 +22,9 @@ async def _staff_recipients(session: AsyncSession, roles: tuple[str, ...]) -> li
     return list(
         (
             await session.execute(
-                select(User.email).where(
+                # User.email is inherited from the fastapi-users base table → mypy sees `str`
+                # (no SQLAlchemy plugin), so select() reads it as select(str). Valid at runtime.
+                select(User.email).where(  # type: ignore[call-overload]
                     User.user_type == UserType.STAFF.value,
                     User.is_active == True,  # noqa: E712
                     User.role.in_(roles),
@@ -144,7 +146,7 @@ async def on_budget_threshold(
         session,
         N8nClient.from_settings(get_settings()),
         watchlist_id=event.watchlist_id,
-        client_id=event.client_id,
+        client_id=event.client_id,  # type: ignore[arg-type]  # budget events always carry a client_id
         state=event.state,
     )
 

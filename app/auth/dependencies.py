@@ -1,6 +1,6 @@
 """Role-based guards and the acting-client dependency (spec 4b; contracts/authz-model.md)."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,7 +56,7 @@ async def current_active_principal(
     return fresh
 
 
-def require_role(*roles: Role) -> Callable[..., User]:
+def require_role(*roles: Role) -> Callable[..., Awaitable[User]]:
     """Build a dependency allowing only the given roles; 401 if unauthenticated, 403 otherwise."""
     allowed = {r.value for r in roles}
 
@@ -86,7 +86,7 @@ require_reviewer_or_admin = require_role(Role.MANAGER, Role.ADMIN, Role.REVIEWER
 require_reviewer = require_role(Role.REVIEWER)
 
 
-def acting_client(allow_suspended: bool = False) -> Callable[..., Client]:
+def acting_client(allow_suspended: bool = False) -> Callable[..., Awaitable[Client]]:
     """Factory: returns a dep that loads + validates the {client_id} path param.
 
     - 404 if the client does not exist.
@@ -119,7 +119,7 @@ def acting_client(allow_suspended: bool = False) -> Callable[..., Client]:
     return _dep
 
 
-def acting_client_read() -> Callable[..., Client]:
+def acting_client_read() -> Callable[..., Awaitable[Client]]:
     """acting_client variant that allows reading a suspended client's data."""
     return acting_client(allow_suspended=True)
 

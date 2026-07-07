@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import ColumnElement, and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.models import Watchlist
@@ -119,7 +119,7 @@ class IndexBuildService:
             .order_by(IndexBuildRun.started_at.desc())
             .limit(limit)
         )
-        return (await session.execute(stmt)).scalars().all()
+        return list((await session.execute(stmt)).scalars().all())
 
     @staticmethod
     async def get_or_create_index_state(
@@ -190,7 +190,7 @@ class IndexBuildService:
         Returns documents in state: not_indexed OR errored_transient that are linked to
         at least one active watchlist (or the specified watchlist).
         """
-        watchlist_filter = Watchlist.is_active.is_(True)
+        watchlist_filter: ColumnElement[bool] = Watchlist.is_active.is_(True)
         if watchlist_id is not None:
             watchlist_filter = and_(Watchlist.id == watchlist_id, Watchlist.is_active.is_(True))
 
@@ -223,4 +223,4 @@ class IndexBuildService:
             .distinct()
         )
 
-        return (await session.execute(stmt)).scalars().all()
+        return list((await session.execute(stmt)).scalars().all())

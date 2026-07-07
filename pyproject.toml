@@ -152,3 +152,15 @@ target-version = ["py312"]
 [tool.isort]
 profile = "black"
 line_length = 100
+
+[tool.mypy]
+python_version = "3.12"
+# Auto-generated Alembic migration scripts are machine-written; not worth type-checking.
+exclude = "app/db/migrations/"
+
+[[tool.mypy.overrides]]
+# Third-party libraries that ship no type stubs / py.typed marker. Not code defects — mypy
+# just can't see their types. (langchain/starlette/structlog DO ship types but have narrow
+# call-signature stubs; those are handled with targeted per-line ignores at the call sites.)
+module = ["pgvector.*", "hvac.*"]
+ignore_missing_imports = true

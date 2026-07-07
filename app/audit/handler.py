@@ -60,7 +60,7 @@ def register_audit_handlers(dispatcher: EventDispatcher) -> None:
     stack = list(DomainEvent.__subclasses__())
     while stack:
         event_type = stack.pop()
-        if event_type in seen:
+        if event_type in seen:  # pragma: no cover - defensive dedup; the event tree has no diamonds
             continue
         seen.add(event_type)
         dispatcher.register(event_type, audit_log_handler)

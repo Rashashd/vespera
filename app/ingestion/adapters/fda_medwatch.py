@@ -46,7 +46,9 @@ def _parse_rss(xml_text: str) -> list[RawRecord]:
         summary = desc_el.text.strip() if desc_el is not None and desc_el.text else None
 
         pub_date_el = item.find("pubDate")
-        pub_date_str = pub_date_el.text.strip() if pub_date_el is not None else None
+        pub_date_str = (
+            pub_date_el.text.strip() if pub_date_el is not None and pub_date_el.text else None
+        )
         published_at = _parse_rfc2822_date(pub_date_str)
 
         guid_el = item.find("guid")
