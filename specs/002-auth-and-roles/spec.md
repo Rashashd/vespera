@@ -8,6 +8,13 @@
 
 **Input**: User description: "auth-and-roles — fastapi-users JWT, admin/reviewer roles, role guards, slowapi rate limiting (spec 2 of the Vespera 13-spec build order)"
 
+> **⚠️ Partially superseded — role model (2026-07, Cluster 6 reconciliation; audit finding S5).**
+> FR-004's "exactly two roles (`admin`, `reviewer`)" reflects the spec-002 design only. Spec **004b**
+> (Staff & Clients) evolved the platform to **three staff roles** — `manager`, `admin`, `reviewer` — plus
+> a `client_user` portal role, ratified in **Constitution v1.2**. `reviewer` remains the sole
+> send-authorizer. Read FR-004 and the role/persona/assumption lines below as historical (as-shipped in
+> spec 002); wherever they say "two roles", the current authority is spec 004b + the constitution.
+
 ## Clarifications
 
 ### Session 2026-06-06
@@ -110,7 +117,7 @@ Repeated authentication attempts from the same source are throttled so that auto
 - **FR-001**: System MUST allow a registered, active user to authenticate with email + password and receive a short-lived (~30 minute) stateless bearer access token; there is no refresh token, so a user re-authenticates after expiry. Consequently, deactivating a user takes effect within at most one token lifetime.
 - **FR-002**: System MUST reject authentication for incorrect credentials and for deactivated accounts, using a generic failure response that does not disclose whether a given email is registered.
 - **FR-003**: System MUST reject any request to a protected endpoint that lacks a valid, unexpired, untampered token, treating it as unauthenticated.
-- **FR-004**: System MUST support exactly two roles — `admin` and `reviewer` — and store each user's role as part of their account.
+- **FR-004**: System MUST support exactly two roles — `admin` and `reviewer` — and store each user's role as part of their account. *(Superseded by spec 004b — three staff roles `manager`/`admin`/`reviewer` + a `client_user` portal role; see the banner at the top. S5.)*
 - **FR-005**: System MUST provide reusable authorization guards that protect an endpoint by required role, returning a "forbidden" outcome (distinct from "unauthenticated") when an authenticated user lacks the required role.
 - **FR-006**: System MUST enforce that only an `admin` can create users, assign or change roles, and deactivate users.
 - **FR-007**: System MUST scope every user to a single client (tenant), and all user-management and listing operations MUST be restricted to the acting admin's own client; no operation may read or modify another client's users. A user's email MUST be unique across the entire platform (global uniqueness), so authentication by email alone resolves to exactly one user and client.
@@ -148,7 +155,7 @@ Repeated authentication attempts from the same source are throttled so that auto
 
 - **Identity model**: Users authenticate with email + password and receive a bearer access token (standard for B2B SaaS APIs). Federated SSO/OAuth and multi-factor authentication are out of scope for this spec and may be layered later.
 - **Token strategy**: Stateless ~30-minute access tokens are used, with no refresh token (users re-authenticate on expiry). "Remember me" and full session revocation lists are out of scope; deactivation prevents *new* authentications and takes effect within at most one token lifetime for already-issued tokens.
-- **Two roles only**: The platform requires exactly `admin` and `reviewer` for the foreseeable specs; finer-grained permissions are out of scope. The reviewer's send-authorization power is *declared* here but *exercised* in the later HITL/approval spec.
+- **Two roles only**: The platform requires exactly `admin` and `reviewer` for the foreseeable specs; finer-grained permissions are out of scope. The reviewer's send-authorization power is *declared* here but *exercised* in the later HITL/approval spec. *(Superseded by spec 004b — the model grew to three staff roles + a `client_user` portal role; S5.)*
 - **Tenant model reused**: The `client_id` tenant boundary and the audit-log infrastructure from spec 1 are reused; this spec adds the `users` table and a nullable foreign key from the audit log to `users.id` for human actors, which must not break the existing system-actor sentinel (id 0).
 - **Reuse of existing rate-limit capability**: A Redis-backed rate-limiting capability already exists from spec 1; this spec contributes the *policy* applied to the login route, not new infrastructure.
 - **Secrets in Vault**: All auth secrets (e.g., token signing material) are written to and read from Vault via the established secret-loading path; nothing auth-related is stored in a local environment file.
