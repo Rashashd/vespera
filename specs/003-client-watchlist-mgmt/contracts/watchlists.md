@@ -33,8 +33,9 @@ Base path: `/watchlists`. **Writes require `require_admin`; reads use `current_a
 | `items` | array of `{item_type, value}` | yes, **≥1** | Empty ⇒ 400 `WATCHLIST_EMPTY` (FR-016) |
 
 **WatchlistUpdate** (request; PATCH, all optional): `name`, `cadence`, `severity_threshold`,
-`budget_amount`, `is_active`. Emits one `WatchlistUpdated` (or `WatchlistDeactivated` when
-`is_active` flips to false) carrying the changed fields.
+`budget_amount`, `is_active`. Emits one `WatchlistUpdated` for the changed fields; an `is_active`
+change additionally emits `WatchlistActivationChanged` (spec 004b, FR-027 — superseded the original
+spec-003 `WatchlistDeactivated`, which was removed as dead code in Cluster 6).
 
 **WatchlistItemAdd** (request): `{ "item_type": "drug|mesh|keyword", "value": "..." }`.
 
@@ -75,7 +76,8 @@ Query: `include_inactive` (bool, default false), `limit`, `offset`.
 | 401/403 | Not authenticated / not admin | — |
 
 Deactivation is **soft-delete** (FR-017): `is_active=false`, data preserved, excluded from
-monitoring; emits `WatchlistDeactivated`. No hard-delete endpoint exists.
+monitoring; emits `WatchlistActivationChanged` (spec 004b, FR-027 — superseded the original spec-003
+`WatchlistDeactivated`, removed as dead code in Cluster 6). No hard-delete endpoint exists.
 
 ### POST /watchlists/{id}/items — add an item (idempotent)
 | Status | When | Body |

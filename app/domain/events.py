@@ -127,13 +127,6 @@ class WatchlistUpdated(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class WatchlistDeactivated(DomainEvent):
-    """An admin soft-deleted (deactivated) a watchlist (FR-017)."""
-
-    watchlist_id: int = 0
-
-
-@dataclass(frozen=True, slots=True)
 class WatchlistItemAdded(DomainEvent):
     """An admin added an item to a watchlist (only when a row is actually created)."""
 

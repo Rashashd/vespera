@@ -42,7 +42,6 @@ _ADMIN_VISIBLE_EVENTS = (
     "ClientUserScopeChanged",
     "WatchlistCreated",
     "WatchlistUpdated",
-    "WatchlistDeactivated",
     "WatchlistItemAdded",
     "WatchlistItemRemoved",
     "WatchlistActivationChanged",

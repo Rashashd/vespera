@@ -174,6 +174,63 @@ async def test_deactivate_soft_delete(client, make_client, make_staff_user, auth
     )
 
 
+async def _latest_audit_payload(auth_app, *, event_type, client_id):
+    from app.audit.models import AuditLog
+
+    stmt = (
+        select(AuditLog.payload)
+        .where(AuditLog.event_type == event_type, AuditLog.client_id == client_id)
+        .order_by(AuditLog.id.desc())
+        .limit(1)
+    )
+    async with auth_app.state.session_factory() as s:
+        return await s.scalar(stmt)
+
+
+async def test_deactivation_emits_activation_changed_not_deactivated(
+    client, make_client, make_staff_user, auth_app
+):
+    """Deactivation audits via WatchlistActivationChanged(is_active=False); the superseded
+    WatchlistDeactivated event is never produced (Cluster 6 reconciliation of spec 003→004b)."""
+    tenant, h = await _admin(client, make_client, make_staff_user)
+    wl = (await client.post(f"/clients/{tenant.id}/watchlists", headers=h, json=_payload())).json()
+
+    resp = await client.patch(
+        f"/clients/{tenant.id}/watchlists/{wl['id']}", headers=h, json={"is_active": False}
+    )
+    assert resp.status_code == 200 and resp.json()["is_active"] is False
+
+    # Exactly one activation-changed row, carrying is_active=False for this watchlist.
+    assert (
+        await _audit_count(auth_app, event_type="WatchlistActivationChanged", client_id=tenant.id)
+        == 1
+    )
+    payload = await _latest_audit_payload(
+        auth_app, event_type="WatchlistActivationChanged", client_id=tenant.id
+    )
+    assert payload is not None
+    assert payload["is_active"] is False
+    assert payload["watchlist_id"] == wl["id"]
+
+    # The removed/dead event must never be dispatched (no double-audit).
+    assert await _audit_count(auth_app, event_type="WatchlistDeactivated", client_id=tenant.id) == 0
+
+    # Reactivation emits a second activation-changed row, this time is_active=True.
+    reactivate = await client.patch(
+        f"/clients/{tenant.id}/watchlists/{wl['id']}", headers=h, json={"is_active": True}
+    )
+    assert reactivate.status_code == 200 and reactivate.json()["is_active"] is True
+    assert (
+        await _audit_count(auth_app, event_type="WatchlistActivationChanged", client_id=tenant.id)
+        == 2
+    )
+    payload2 = await _latest_audit_payload(
+        auth_app, event_type="WatchlistActivationChanged", client_id=tenant.id
+    )
+    assert payload2 is not None
+    assert payload2["is_active"] is True
+
+
 async def test_idempotent_item_add(client, make_client, make_staff_user, auth_app):
     """Adding an existing item is a 200 no-op (count unchanged) with no audit row (FR-005)."""
     tenant, h = await _admin(client, make_client, make_staff_user)

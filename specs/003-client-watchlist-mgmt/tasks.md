@@ -35,7 +35,7 @@ description: "Task list for Client & Watchlist Management (spec 3)"
 **⚠️ CRITICAL**: No user-story work begins until this phase completes.
 
 - [X] T003 [P] Create ORM models in `app/clients/models.py` — `Client`, `Watchlist`, `WatchlistItem`, `WatchlistBudgetUsage` (BigInteger PKs, `client_id` columns + indexes, CHECK-constraint enums, unique indexes per data-model.md)
-- [X] T004 [P] Add frozen `DomainEvent` subclasses to `app/domain/events.py`: `ClientCreated`, `ClientUpdated`, `ClientSuspended`, `WatchlistCreated`, `WatchlistUpdated`, `WatchlistDeactivated`, `WatchlistItemAdded`, `WatchlistItemRemoved` (research D10; auto-audited by existing handler)
+- [X] T004 [P] Add frozen `DomainEvent` subclasses to `app/domain/events.py`: `ClientCreated`, `ClientUpdated`, `ClientSuspended`, `WatchlistCreated`, `WatchlistUpdated`, `WatchlistDeactivated`, `WatchlistItemAdded`, `WatchlistItemRemoved` (research D10; auto-audited by existing handler) — *superseded: `WatchlistDeactivated` was replaced by `WatchlistActivationChanged` (spec 004b, FR-027) and removed as dead code in Cluster 6.*
 - [X] T005 Create Alembic migration `app/db/migrations/versions/0003_clients_watchlists.py` — create the four tables; reconcile existing `users.client_id` (INSERT distinct → `clients`, ensure bootstrap client id, `setval` sequence), then add FK `users.client_id → clients.id`; reversible `downgrade` (research D5; depends on T003)
 - [X] T006 [P] Create `app/clients/service.py` skeleton — client-scoped fetch helpers (cross-tenant→None), current-UTC-month helper, and pure `derive_budget_state(budget, spend)` function (data-model.md derivation)
 - [X] T007 [P] Create route skeletons `app/clients/routes_clients.py` (`APIRouter(prefix="/clients")`) and `app/clients/routes_watchlists.py` (`APIRouter(prefix="/watchlists")`) with bare routers + tags
@@ -85,7 +85,7 @@ description: "Task list for Client & Watchlist Management (spec 3)"
 - [X] T019 [US2] Add watchlist service methods to `app/clients/service.py` — create (≥1 item, in-payload dedup), list (client-scoped), get (cross-tenant→None), rename (per-client uniqueness), deactivate (soft-delete), add_item (idempotent), remove_item (graceful + active-empty guard) (depends on T006, T013)
 - [X] T020 [US2] Implement watchlist CRUD routes `POST /watchlists`, `GET /watchlists`, `GET /watchlists/{id}`, `PATCH /watchlists/{id}` in `app/clients/routes_watchlists.py` (depends on T018, T019)
 - [X] T021 [US2] Implement item routes `POST /watchlists/{id}/items`, `DELETE /watchlists/{id}/items/{item_id}` in `app/clients/routes_watchlists.py` (depends on T020)
-- [X] T022 [US2] Dispatch `WatchlistCreated`/`WatchlistUpdated`/`WatchlistDeactivated`/`WatchlistItemAdded`/`WatchlistItemRemoved` in-transaction from the routes/service (depends on T020, T021)
+- [X] T022 [US2] Dispatch `WatchlistCreated`/`WatchlistUpdated`/`WatchlistDeactivated`/`WatchlistItemAdded`/`WatchlistItemRemoved` in-transaction from the routes/service (depends on T020, T021) — *superseded: deactivation dispatches `WatchlistActivationChanged` (spec 004b, FR-027), not `WatchlistDeactivated` (removed in Cluster 6).*
 
 **Checkpoint**: Clients + watchlists with items work independently and are isolated per tenant.
 
