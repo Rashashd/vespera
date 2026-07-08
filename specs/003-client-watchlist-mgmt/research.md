@@ -130,6 +130,10 @@ the spec explicitly rejected.
 `ClientUpdated`, `ClientSuspended`, `WatchlistCreated`, `WatchlistUpdated`,
 `WatchlistDeactivated`, `WatchlistItemAdded`, `WatchlistItemRemoved`. No handler changes needed.
 
+> **Superseded (2026-07, Cluster 6):** `WatchlistDeactivated` was never dispatched — spec 004b (FR-027)
+> made `WatchlistActivationChanged` the activate/deactivate audit event. The dead `WatchlistDeactivated`
+> class was removed in Cluster 6.
+
 **Rationale**: The existing `register_audit_handlers` auto-discovers `DomainEvent.__subclasses__`,
 so new events are audited automatically (one append-only row each, same transaction). `Updated`
 events carry enough payload (changed fields) to satisfy FR-015 without one event per field.
