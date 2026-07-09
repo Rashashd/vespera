@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.coercion import safe_int
 from app.embedding.models import Chunk
 from app.rag.schemas import RetrieveRequest
 from app.triage.models import Finding
@@ -69,10 +70,9 @@ async def _validate_chunk_refs(session: AsyncSession, client_id: int, refs: list
         return set()
     int_refs = []
     for r in refs:
-        try:
-            int_refs.append(int(r))
-        except (ValueError, TypeError):
-            pass
+        cid = safe_int(r)
+        if cid is not None:
+            int_refs.append(cid)
     if not int_refs:
         return set()
     rows = (
