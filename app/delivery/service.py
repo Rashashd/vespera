@@ -1,8 +1,7 @@
-"""Delivery domain service: channel resolution, dispatch, attempt tracking, status derivation."""
+"""Delivery domain service: dispatch, delivery callbacks, attempt tracking, status finalization."""
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -313,11 +312,6 @@ async def mark_no_callback_failed(
     return await _finalize_status(
         session, report, dispatcher, actor_id=actor_id, actor_type=actor_type
     )
-
-
-def resend_channels_remaining(attempts: Iterable[DeliveryAttempt]) -> bool:
-    """Whether any channel is still re-sendable (not delivered) — else nothing to re-send."""
-    return any(a.status != "delivered" for a in attempts)
 
 
 async def run_delivery(report_id: int, wc: Any, *, resend: bool = False) -> None:
