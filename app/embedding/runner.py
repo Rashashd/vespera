@@ -1,7 +1,7 @@
 """Index build runner: orchestrates per-document indexing across a client's pending documents.
 
 Per-document work (parse → chunk → embed → persist) lives in document_indexer.process_document;
-the after-index triage hook lives in triage_trigger.trigger_triage.
+the after-index triage hook lives in app/triage/triage_trigger.py (trigger_triage).
 """
 
 from collections.abc import Callable

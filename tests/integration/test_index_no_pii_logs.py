@@ -10,7 +10,7 @@ from structlog.testing import LogCapture
 
 from app.embedding import document_indexer as indexer_module
 from app.embedding import runner as runner_module
-from app.embedding import triage_trigger as triage_module
+from app.triage import triage_trigger as triage_module
 from app.embedding.runner import index_build_runner
 
 pytestmark = pytest.mark.skipif(

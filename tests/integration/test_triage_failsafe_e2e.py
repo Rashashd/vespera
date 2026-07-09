@@ -276,7 +276,7 @@ async def test_real_ner_failure_marks_document_degraded(
     import app.triage.ner as ner_mod
     from app.clients.models import WatchlistItem
     from app.embedding.models import DocumentIndexState
-    from app.embedding.triage_trigger import trigger_triage
+    from app.triage.triage_trigger import trigger_triage
     from app.ingestion.models import Document
 
     def _boom():

@@ -491,9 +491,9 @@ async def task_retriage_document(
     from sqlalchemy.orm import selectinload
 
     from app.embedding.models import Chunk
-    from app.embedding.triage_trigger import trigger_triage
     from app.infra.modelserver_client import ModelserverClient
     from app.ingestion.models import Document
+    from app.triage.triage_trigger import trigger_triage
 
     wc = WorkerContext(ctx)
     job_key = f"retriage:{document_id}"

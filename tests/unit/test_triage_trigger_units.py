@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-import app.embedding.triage_trigger as trigger_mod
-from app.embedding.triage_trigger import (
+import app.triage.triage_trigger as trigger_mod
+from app.triage.triage_trigger import (
     _failure_code,
     _mark_triage_degraded,
     _mark_triage_succeeded,

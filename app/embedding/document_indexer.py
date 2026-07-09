@@ -15,8 +15,8 @@ from app.embedding.parsers.base import ParseError
 from app.embedding.parsers.router import route
 from app.embedding.service import IndexBuildService
 from app.embedding.tokenizer import EmbedderTokenizer
-from app.embedding.triage_trigger import trigger_triage
 from app.infra.modelserver_client import ModelserverClient
+from app.triage.triage_trigger import trigger_triage
 
 _log = structlog.get_logger(__name__)
 
