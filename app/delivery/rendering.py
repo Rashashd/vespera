@@ -5,6 +5,8 @@ from __future__ import annotations
 import html
 from typing import Any
 
+from app.core.coercion import safe_int
+
 # Minimal inline styling — NO external CSS/JS/fonts/images (this artifact is emailed, SFTP'd, and
 # downloaded, so it must render offline with zero external requests; PDF-conversion friendly).
 _STYLE = (
@@ -38,16 +40,15 @@ def _attr(obj: Any, name: str, default: Any = None) -> Any:
 def _ref_by_chunk(sources: list) -> dict[int, int]:
     """Map a passage chunk id → its 1-based reference number (first source wins for a shared chunk).
 
-    Mirrors the int()-coercion pattern in app/reports/passages.py:42-54 — both chunk ids and claim
-    source_refs may be str or int on the wire. Never raises on a malformed entry.
+    Both chunk ids and claim source_refs may be str or int on the wire; safe_int accepts a valid
+    id and drops a malformed entry without raising (shared with app/reports/passages.py).
     """
     by_chunk: dict[int, int] = {}
     for idx, src in enumerate(sources, start=1):
-        for cid in _attr(src, "passage_chunk_ids", None) or []:
-            try:
-                by_chunk.setdefault(int(cid), idx)
-            except (ValueError, TypeError):
-                continue
+        for raw_cid in _attr(src, "passage_chunk_ids", None) or []:
+            cid = safe_int(raw_cid)
+            if cid is not None:
+                by_chunk.setdefault(cid, idx)
     return by_chunk
 
 
@@ -57,13 +58,10 @@ def _claim_ref(claim: Any, by_chunk: dict[int, int]) -> int | None:
     A None / unresolvable / malformed source_ref yields None so the claim renders without a number
     — a citation gap must never throw (rendering failure would hold the report, FR-002).
     """
-    ref = _attr(claim, "source_ref", None)
-    if ref is None:
+    cid = safe_int(_attr(claim, "source_ref", None))
+    if cid is None:
         return None
-    try:
-        return by_chunk.get(int(ref))
-    except (ValueError, TypeError):
-        return None
+    return by_chunk.get(cid)
 
 
 def render_report_document(report: Any, findings: Any = ()) -> str:
