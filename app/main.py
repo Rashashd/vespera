@@ -24,10 +24,10 @@ from app.observability.headers import add_security_headers
 from app.observability.health import router as health_router
 from app.observability.routes import router as usage_router
 from app.rag.routes import router as rag_router
-from app.reports.metrics_routes import router as metrics_router
 from app.reports.passages import router as passages_router
-from app.reports.portal_routes import router as portal_router
 from app.reports.routes import router as reports_router
+from app.reports.routes_metrics import router as metrics_router
+from app.reports.routes_portal import router as portal_router
 from app.scheduling.routes import router as scheduling_router
 from app.triage.routes import router as triage_router
 
