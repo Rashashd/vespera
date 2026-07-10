@@ -1,4 +1,12 @@
-"""Typed domain events raised by modules and consumed by passive handlers."""
+"""Typed domain events raised by modules and consumed by passive handlers.
+
+Flat event catalog: every event is a small frozen dataclass discovered at runtime via
+``DomainEvent.__subclasses__()`` (see ``app/audit/handler.py``), so all events MUST live in
+this single module — splitting them across files would silently drop any un-imported event
+from the auto-audit registry. This is the constitution's sanctioned ~300-line registry
+exception (Engineering Standards / File hygiene): each entry is tiny and keeping them
+together is the safety property, not sprawl.
+"""
 
 from dataclasses import dataclass, field
 

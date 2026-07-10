@@ -10,6 +10,7 @@ from app.auth.dependencies import acting_client, current_active_principal
 from app.auth.models import User
 from app.auth.schemas import UserType
 from app.clients.models import Client
+from app.core.coercion import safe_int
 from app.core.dependencies import get_session
 from app.embedding.models import Chunk
 from app.ingestion.models import Document
@@ -40,18 +41,14 @@ async def _client_visible_chunk_ids(session: AsyncSession, client_id: int) -> se
     allowed: set[int] = set()
     for structured_fields, corroboration_sources in rows:
         for claim in structured_fields or []:
-            ref = claim.get("source_ref")
+            ref = safe_int(claim.get("source_ref"))
             if ref is not None:
-                try:
-                    allowed.add(int(ref))
-                except (ValueError, TypeError):
-                    pass
+                allowed.add(ref)
         for src in corroboration_sources or []:
-            for cid in src.get("passage_chunk_ids") or []:
-                try:
-                    allowed.add(int(cid))
-                except (ValueError, TypeError):
-                    pass
+            for raw_cid in src.get("passage_chunk_ids") or []:
+                cid = safe_int(raw_cid)
+                if cid is not None:
+                    allowed.add(cid)
     return allowed
 
 

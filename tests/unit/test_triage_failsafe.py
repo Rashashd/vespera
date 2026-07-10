@@ -342,7 +342,7 @@ async def test_mark_triage_degraded_sets_marker():
     """A triage failure writes triage_failed_at + a PII-free reason code (no silent swallow)."""
     from types import SimpleNamespace
 
-    from app.embedding import triage_trigger
+    from app.triage import triage_trigger
     from app.triage.ner import NerUnavailable
 
     state = SimpleNamespace(triage_failed_at=None, triage_error=None)
@@ -377,7 +377,7 @@ async def test_enqueue_expedited_drafts_isolates_failures():
     """An enqueue failure for one expedited finding is surfaced and does not skip the others."""
     from types import SimpleNamespace
 
-    from app.embedding import triage_trigger
+    from app.triage import triage_trigger
     from app.triage.enums import Bucket
 
     outcomes = [
@@ -395,7 +395,7 @@ async def test_enqueue_expedited_drafts_isolates_failures():
 
     with (
         patch("app.jobs.enqueue.enqueue", new=fake_enqueue),
-        patch("app.embedding.triage_trigger._log") as mock_log,
+        patch("app.triage.triage_trigger._log") as mock_log,
     ):
         await triage_trigger._enqueue_expedited_drafts(outcomes, app_state=object(), client_id=7)
 
@@ -465,7 +465,7 @@ async def test_mark_triage_succeeded_sets_triaged_and_clears_degraded():
     """
     from types import SimpleNamespace
 
-    from app.embedding import triage_trigger
+    from app.triage import triage_trigger
 
     state = SimpleNamespace(
         triaged_at=None, triage_failed_at="2026-01-01", triage_error="ner_unavailable"

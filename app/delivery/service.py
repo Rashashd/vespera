@@ -1,9 +1,7 @@
-"""Delivery domain service: channel resolution, dispatch, attempt tracking, status derivation."""
+"""Delivery domain service: dispatch, delivery callbacks, attempt tracking, status finalization."""
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -12,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.models import Client
+from app.delivery.channels import build_payload, derive_report_status, resolve_channels
 from app.delivery.models import DeliveryAttempt
 from app.delivery.n8n_client import N8nClient, N8nDeliveryError
 from app.delivery.rendering import render_report_document
@@ -23,7 +22,7 @@ from app.domain.events import (
     ReportResent,
 )
 from app.redaction.recognizers import scrub_text
-from app.reports.enums import ReportStatus, ReportType
+from app.reports.enums import ReportStatus
 from app.reports.models import Report, ReportFinding
 from app.triage.models import Finding
 
@@ -41,45 +40,6 @@ def _scrub(value: str | None) -> str | None:
     if not value:
         return None
     return scrub_text(value)[:500] or None
-
-
-@dataclass(frozen=True, slots=True)
-class ChannelTarget:
-    """One configured delivery channel for a report."""
-
-    channel: str  # "email" | "sftp"
-    recipient_kind: str | None  # "regular" | "urgent" for email; None for sftp
-    recipient: str  # email address, or "host:path" for sftp (display only)
-
-
-def resolve_channels(report: Report, client: Client) -> list[ChannelTarget]:
-    """Configured channels for a report (FR-003): email by urgency + SFTP if enabled."""
-    targets: list[ChannelTarget] = []
-    if ReportType(report.report_type) == ReportType.EXPEDITED:
-        address, kind = client.report_email_urgent, "urgent"
-    else:
-        address, kind = client.report_email_regular, "regular"
-    if address:
-        targets.append(ChannelTarget("email", kind, address))
-    if client.sftp_enabled and client.sftp_host and client.sftp_path:
-        targets.append(ChannelTarget("sftp", None, f"{client.sftp_host}:{client.sftp_path}"))
-    return targets
-
-
-def derive_report_status(attempt_statuses: Iterable[str]) -> ReportStatus | None:
-    """Overall report delivery status from its per-channel attempts (D2/FR-004a).
-
-    delivered = every attempt delivered; delivery_failed = any attempt failed; otherwise sent.
-    Returns None when there are no attempts (nothing dispatched yet).
-    """
-    statuses = list(attempt_statuses)
-    if not statuses:
-        return None
-    if any(s == "failed" for s in statuses):
-        return ReportStatus.DELIVERY_FAILED
-    if all(s == "delivered" for s in statuses):
-        return ReportStatus.DELIVERED
-    return ReportStatus.SENT
 
 
 async def _load_attempts(session: AsyncSession, report_id: int) -> list[DeliveryAttempt]:
@@ -110,30 +70,6 @@ async def _included_findings(session: AsyncSession, report: Report) -> list[dict
         {"drug": f.drug, "reaction": f.reaction, "bucket": f.bucket, "state": rf.state}
         for rf, f in rows
     ]
-
-
-def _payload(
-    report: Report, client: Client, target: ChannelTarget, document: str, token: str
-) -> dict:
-    """Build the backend→n8n send payload (contract §n8n outbound)."""
-    payload: dict[str, Any] = {
-        "report_id": report.id,
-        "client_id": report.client_id,
-        "channel": target.channel,
-        "document": document,
-        "callback_url": (f"/clients/{report.client_id}/reports/{report.id}/delivery-callback"),
-        "callback_token": token,
-    }
-    if target.channel == "email":
-        payload["recipient"] = target.recipient
-    else:
-        # SFTP credential lives in n8n; the app sends destination metadata only (D7).
-        payload["sftp_ref"] = {
-            "host": client.sftp_host,
-            "path": client.sftp_path,
-            "username": client.sftp_username,
-        }
-    return payload
 
 
 async def _hold(
@@ -281,7 +217,7 @@ async def dispatch_report(
         attempt.confirmed_at = None
         await session.flush()
         try:
-            await n8n.send(_payload(report, client, target, document, token))
+            await n8n.send(build_payload(report, client, target, document, token))
             dispatched.append(target.channel)
         except N8nDeliveryError as exc:
             attempt.status = "failed"
@@ -376,11 +312,6 @@ async def mark_no_callback_failed(
     return await _finalize_status(
         session, report, dispatcher, actor_id=actor_id, actor_type=actor_type
     )
-
-
-def resend_channels_remaining(attempts: Iterable[DeliveryAttempt]) -> bool:
-    """Whether any channel is still re-sendable (not delivered) — else nothing to re-send."""
-    return any(a.status != "delivered" for a in attempts)
 
 
 async def run_delivery(report_id: int, wc: Any, *, resend: bool = False) -> None:

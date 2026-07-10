@@ -33,7 +33,7 @@ CRITICAL_MODULES: dict[str, list[str]] = {
         "app/triage/routing.py",
         "app/triage/prefilter.py",
         "app/triage/ner.py",
-        "app/embedding/triage_trigger.py",
+        "app/triage/triage_trigger.py",
     ],
     "hitl": [
         # The reviewer approve/edit/reject/discard state machine (the human-in-the-loop gate).
